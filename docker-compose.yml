@@ -1,0 +1,81 @@
+---
+services:
+  app:
+    build: .
+    container_name: ai-history-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount config directories (ReadOnly)
+      - ${HOME}/.claude:/root/.claude:ro
+      - ${HOME}/.gemini:/root/.gemini:ro
+      - ${HOME}/.codex:/root/.codex:ro
+      - ${HOME}/.config/Cursor:/root/.config/Cursor:ro
+      - ${HOME}/.config/Code:/root/.config/Code:ro
+      - ${HOME}/.local/state/warp-terminal:/root/.local/state/warp-terminal:ro
+      - ${HOME}/.local/share/opencode/storage:/root/.local/share/opencode/storage:ro
+      - ${HOME}/.local/share/opencode:/root/.local/share/opencode:ro
+      - ${HOME}/.copilot:/root/.copilot:ro
+      # Mount output directory (ReadWrite)
+      - ${HOME}/.ai-history:/root/.ai-history
+    environment:
+      - HOME=/root
+      - DATABASE_URL=postgresql://ai_history:password@db:5432/ai_history
+      - REDIS_URL=redis://redis:6379/0
+      - AI_HISTORY_RATE_LIMIT_ENABLED=${AI_HISTORY_RATE_LIMIT_ENABLED:-true}
+      - AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS=${AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS:-60}
+      - AI_HISTORY_RATE_LIMIT_MAX_API_REQUESTS=${AI_HISTORY_RATE_LIMIT_MAX_API_REQUESTS:-240}
+      - AI_HISTORY_RATE_LIMIT_SEARCH_PER_WINDOW=${AI_HISTORY_RATE_LIMIT_SEARCH_PER_WINDOW:-180}
+      - AI_HISTORY_RATE_LIMIT_AUDIT_PER_WINDOW=${AI_HISTORY_RATE_LIMIT_AUDIT_PER_WINDOW:-20}
+      - AI_HISTORY_RATE_LIMIT_RELOAD_PER_WINDOW=${AI_HISTORY_RATE_LIMIT_RELOAD_PER_WINDOW:-12}
+      - AI_HISTORY_JSON_REQUEST_LOGS=${AI_HISTORY_JSON_REQUEST_LOGS:-false}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:15-alpine
+    container_name: ai-history-db
+    restart: always
+    environment:
+      POSTGRES_USER: ai_history
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ai_history
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_history -d ai_history"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: ai-history-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  db_data:
+  redis_data:

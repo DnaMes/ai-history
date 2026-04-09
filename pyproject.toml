@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-history"
+version = "2.0.0"
+description = "Local AI Chat History Manager & Session Switcher"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "dnames"}
+]
+dependencies = [
+    "flask>=3.0.0,<4.0.0",
+    "markdown>=3.5.0,<4.0.0",
+    "bleach>=6.1.0,<7.0.0",
+    "webencodings>=0.5.1",
+    "flask-wtf>=1.2.0,<2.0.0",
+    "google-generativeai>=0.3.0,<1.0.0",
+    "google-auth>=2.0.0,<3.0.0",
+]
+
+[project.scripts]
+ai-history = "ai_history_cli:main"
+ai-session = "ai_session_cli:main"
+ai-history-web = "ai_history_web_new:main"
+ai-history-web-probe = "ai_history.interfaces.live_probe:main"
+
+[tool.setuptools]
+py-modules = ["ai_history_cli", "ai_session_cli", "ai_history_web_new"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_history*"]
