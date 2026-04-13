@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime
 
 from ai_history.interfaces import web
-from ai_history.interfaces.web import _annotate_display_titles
+from ai_history.interfaces.web_data import _annotate_display_titles
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 
 

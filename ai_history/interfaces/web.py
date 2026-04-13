@@ -27,6 +27,7 @@ from ai_history.utils.text_processing import format_thinking
 from ai_history.utils.tooling import normalize_tool_name
 
 from .web_data import (
+    DELETED_SESSIONS_PATH,
     INDEX_PATH,
     OUTPUT_DIR,
     _build_index_from_extractors,
@@ -56,10 +57,18 @@ from .web_helpers import (
     project_label,
 )
 from .web_jobs import (
+    ACTION_JOB_TIMEOUT_SECONDS,
     APP_STARTED_EPOCH,
+    RELOAD_JOB_MAX,
+    RELOAD_JOB_TTL_SECONDS,
+    RELOAD_JOBS,
+    RELOAD_JOBS_LOCK,
+    _assert_job_active,
     _cancel_action_job,
     _get_reload_job,
+    _prune_reload_jobs_locked,
     _run_audit,
+    _set_reload_job,
     _start_audit_job,
     _start_reload_job,
 )
@@ -76,6 +85,11 @@ from .web_templates import (
 )
 from .web_utils import (
     ActionJobCancelledError,
+    ActionJobTimeoutError,
+    METRICS,
+    METRICS_LOCK,
+    NOISE_RULES_PATH,
+    RATE_LIMIT_STATE,
     _client_ip,
     _consume_rate_limit,
     _json_request_logging_enabled,
@@ -83,6 +97,7 @@ from .web_utils import (
     _metrics_snapshot,
     _noise_rule_presets,
     _rate_limit_enabled,
+    _record_job_outcome,
     _request_id,
     _should_rate_limit,
     load_noise_rules,

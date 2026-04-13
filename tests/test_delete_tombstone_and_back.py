@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from ai_history.interfaces import web
+from ai_history.interfaces import web_data
 
 
 def test_delete_remembers_tombstone_and_redirects_back(monkeypatch, tmp_path):
@@ -27,7 +28,7 @@ def test_delete_remembers_tombstone_and_redirects_back(monkeypatch, tmp_path):
     )
 
     monkeypatch.setattr(web, 'INDEX_PATH', index_path)
-    monkeypatch.setattr(web, 'DELETED_SESSIONS_PATH', deleted_path)
+    monkeypatch.setattr(web_data, 'DELETED_SESSIONS_PATH', deleted_path)
     web.clear_index_cache()
 
     with web.app.test_client() as client:
@@ -59,7 +60,8 @@ def test_load_index_filters_tombstoned_sessions(monkeypatch, tmp_path):
     deleted_path.write_text(json.dumps({'session_ids': ['ses-delete']}), encoding='utf-8')
 
     monkeypatch.setattr(web, 'INDEX_PATH', index_path)
-    monkeypatch.setattr(web, 'DELETED_SESSIONS_PATH', deleted_path)
+    monkeypatch.setattr(web_data, 'INDEX_PATH', index_path)
+    monkeypatch.setattr(web_data, 'load_deleted_session_ids', lambda: {'ses-delete'})
     web.clear_index_cache()
 
     payload = web.load_index()

@@ -1,5 +1,6 @@
 import time
 from ai_history.interfaces import web
+from ai_history.interfaces import web_jobs
 
 
 def test_api_audit_index_returns_uniformity_payload(monkeypatch):
@@ -125,7 +126,7 @@ def test_api_action_cancel_marks_running_job(monkeypatch):
 
 def test_assert_job_active_times_out(monkeypatch):
     now = time.time()
-    monkeypatch.setattr(web, "ACTION_JOB_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(web_jobs, "ACTION_JOB_TIMEOUT_SECONDS", 1)
     with web.RELOAD_JOBS_LOCK:
         web.RELOAD_JOBS.clear()
         web.RELOAD_JOBS["reload-timeout"] = {
@@ -152,8 +153,8 @@ def test_assert_job_active_times_out(monkeypatch):
 
 def test_reload_job_prunes_stale_done_jobs(monkeypatch):
     now = time.time()
-    monkeypatch.setattr(web, "RELOAD_JOB_TTL_SECONDS", 1)
-    monkeypatch.setattr(web, "RELOAD_JOB_MAX", 256)
+    monkeypatch.setattr(web_jobs, "RELOAD_JOB_TTL_SECONDS", 1)
+    monkeypatch.setattr(web_jobs, "RELOAD_JOB_MAX", 256)
 
     with web.RELOAD_JOBS_LOCK:
         web.RELOAD_JOBS.clear()

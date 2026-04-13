@@ -2,6 +2,7 @@ from datetime import datetime
 
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ai_history.interfaces import web
+from ai_history.interfaces import web_utils
 from ai_history.interfaces.web_services import normalize_session_messages_for_display
 
 
@@ -17,7 +18,7 @@ def _session(messages):
 
 def test_api_noise_rules_get_and_post(monkeypatch, tmp_path):
     noise_path = tmp_path / "noise_rules.json"
-    monkeypatch.setattr(web, "NOISE_RULES_PATH", noise_path)
+    monkeypatch.setattr(web_utils, "NOISE_RULES_PATH", noise_path)
 
     with web.app.test_client() as client:
         response = client.get("/api/noise-rules")
@@ -39,7 +40,7 @@ def test_api_noise_rules_get_and_post(monkeypatch, tmp_path):
 
 
 def test_noise_rules_page_renders(monkeypatch, tmp_path):
-    monkeypatch.setattr(web, "NOISE_RULES_PATH", tmp_path / "noise_rules.json")
+    monkeypatch.setattr(web_utils, "NOISE_RULES_PATH", tmp_path / "noise_rules.json")
 
     with web.app.test_client() as client:
         response = client.get("/noise-rules")
@@ -116,7 +117,7 @@ def test_disable_default_strip_ansi_rule():
 
 def test_api_noise_rules_preview_applies_transient_rules(monkeypatch, tmp_path):
     noise_path = tmp_path / "noise_rules.json"
-    monkeypatch.setattr(web, "NOISE_RULES_PATH", noise_path)
+    monkeypatch.setattr(web_utils, "NOISE_RULES_PATH", noise_path)
 
     with web.app.test_client() as client:
         response = client.post(
