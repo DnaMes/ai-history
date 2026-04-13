@@ -127,8 +127,7 @@ Use list_active_sessions to see all sessions
 Starte die Web UI:
 
 ```bash
-cd /home/dnames/projects/mcp-server/ai-history
-python3 web-ui.py
+ai-history-web
 ```
 
 Öffne: http://localhost:5000
@@ -145,7 +144,7 @@ python3 web-ui.py
 
 ### 1. Session Tracking
 
-`ai-history.py` sammelt automatisch Sessions von:
+`ai-history` sammelt automatisch Sessions von:
 - Claude Code (`~/.claude/projects/`)
 - Gemini CLI (`~/.gemini/tmp/`)
 - Codex CLI (`~/.codex/sessions/`)
@@ -187,10 +186,7 @@ npm install -g ccmanager
 ### ai-session CLI
 
 ```bash
-# Symlink ist bereits erstellt bei:
-/home/linuxbrew/.linuxbrew/bin/ai-session
-
-# Testen:
+pip install -e .
 ai-session list
 ```
 
@@ -202,8 +198,7 @@ In `~/.claude/settings.json`:
 {
   "mcpServers": {
     "ai-history": {
-      "command": "python3",
-      "args": ["/home/dnames/projects/mcp-server/ai-history/ai-history-mcp.py"]
+      "command": "ai-history-mcp"
     }
   }
 }

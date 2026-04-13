@@ -24,7 +24,7 @@ A professional, privacy-focused alternative to SpecStory that collects, unifies,
 ### Installation
 
 ```bash
-git clone https://github.com/dnames/ai-history.git
+git clone https://github.com/YOUR-ORG/ai-history.git
 cd ai-history
 pip install -e .
 ```
@@ -143,13 +143,13 @@ ai-history-web-probe --base-url http://127.0.0.1:5000
 # Deployed target protected by Basic auth
 export AI_HISTORY_WEB_PROBE_PASSWORD='your-password'
 ai-history-web-probe \
-  --base-url https://ai-sessions.local.erdlabs.com \
+  --base-url https://your-deployed-host.example.com \
   --user admin \
   --password-env AI_HISTORY_WEB_PROBE_PASSWORD
 
 
 # Increase timeout/retries when remote index fallback is slow
-ai-history-web-probe --base-url https://ai-sessions.local.erdlabs.com --user admin \
+ai-history-web-probe --base-url https://your-deployed-host.example.com --user admin \
   --password-env AI_HISTORY_WEB_PROBE_PASSWORD --timeout-seconds 30 --timeout-retries 2
 ```
 
@@ -162,7 +162,7 @@ You can query it directly:
 
 ```bash
 curl -u admin:"$AI_HISTORY_WEB_PROBE_PASSWORD" \
-  https://ai-sessions.local.erdlabs.com/api/build-info
+  https://your-deployed-host.example.com/api/build-info
 ```
 
 Note: `/export/<session_id>` first serves linked markdown from `index.json`. If the session

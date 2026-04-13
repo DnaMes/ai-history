@@ -1,9 +1,10 @@
+import os
 import re
 import sys
 from playwright.sync_api import sync_playwright, expect
 
 # Config
-BASE_URL = "https://admin:pw2AHlwC4CNKqGuBLPo@ai-sessions.local.erdlabs.com"
+BASE_URL = os.environ.get("AI_HISTORY_WEB_PROBE_BASE_URL", "http://127.0.0.1:5000")
 EVIDENCE = []
 FAILURES = []
 

@@ -21,7 +21,7 @@ services:
       - ${HOME}/.ai-history:/root/.ai-history
     environment:
       - HOME=/root
-      - DATABASE_URL=postgresql://ai_history:password@db:5432/ai_history
+      - DATABASE_URL=postgresql://ai_history:${POSTGRES_PASSWORD:-changeme}@db:5432/ai_history
       - REDIS_URL=redis://redis:6379/0
       - AI_HISTORY_RATE_LIMIT_ENABLED=${AI_HISTORY_RATE_LIMIT_ENABLED:-true}
       - AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS=${AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS:-60}
@@ -54,7 +54,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ai_history
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ai_history
     volumes:
       - db_data:/var/lib/postgresql/data

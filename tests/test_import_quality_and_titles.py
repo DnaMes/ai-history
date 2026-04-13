@@ -108,7 +108,7 @@ def test_is_low_value_index_entry_flags_thin_sessions():
 
 def test_infer_title_drops_copilot_mode_preamble_titles():
     builder = IndexBuilder(Path("/tmp"))
-    session = _session([], title="/home/dnames on-request workspace-write restricted")
+    session = _session([], title="/home/user on-request workspace-write restricted")
 
     title = builder._infer_title(session, "")
 

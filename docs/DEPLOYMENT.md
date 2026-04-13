@@ -10,9 +10,6 @@
 ### Building and Deploying
 
 ```bash
-# Navigate to project directory
-cd /home/dnames/projects/lab/ai/ai-history
-
 # Build the Docker image (recommended before deploying)
 docker compose build --no-cache
 
@@ -36,10 +33,7 @@ docker compose ps
 
 The local codebase and container may occasionally get out of sync:
 
-- **Container's `web.py`** (196KB) - older monolithic version with themes.py integrated
-- **Local `web.py` + `web_templates.py`** - newer split version
-
-If you see unexpected behavior:
+If you see unexpected behavior after pulling updates:
 
 1. Rebuild: `docker compose build --no-cache`
 2. Restart: `docker compose restart app`
@@ -52,7 +46,7 @@ See README.md "Production Ops" section for rate limiting and logging configurati
 ### Accessing the Application
 
 - **Local**: http://localhost:5000
-- **Deployed (via Traefik)**: https://ai-sessions.local.erdlabs.com/
+- **Deployed (via Traefik or reverse proxy)**: https://your-domain.example.com/
 
 ### Clearing Container State
 
