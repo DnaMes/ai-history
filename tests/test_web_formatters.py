@@ -109,7 +109,7 @@ def test_render_base_includes_clean_mode_toggle(monkeypatch):
     assert 'id="presenterToggle"' not in page
     assert 'id="densityToggle"' not in page
     # But these controls should always be present
-    assert 'id="reloadProviderScope"' in page
+    assert 'id="syncBtn"' in page
     assert 'id="cancelActionBtn"' in page
     assert "initReloadProviderScope()" in page
     assert "getSelectedProvider()" in page

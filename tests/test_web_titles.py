@@ -65,7 +65,9 @@ def test_render_escapes_recent_titles(monkeypatch):
 
 
 def test_format_message_content_escapes_when_markdown_unavailable(monkeypatch):
-    monkeypatch.setattr(web, "markdown", None)
+    from ai_history.interfaces import web_formatting
+
+    monkeypatch.setattr(web_formatting, "markdown", None)
 
     rendered = web.format_message_content("<script>alert(1)</script>\nnext")
 
@@ -554,7 +556,9 @@ def test_export_session_builds_markdown_from_live_indexed_session(
         title="live title",
     )
 
-    monkeypatch.setattr(web, "INDEX_PATH", index_path)
+    from ai_history.interfaces import web_data
+
+    monkeypatch.setattr(web_data, "INDEX_PATH", index_path)
     monkeypatch.setattr(
         web, "load_sessions_for_tool", lambda _tool=None: [live_session]
     )
@@ -602,14 +606,11 @@ def test_base_template_includes_reload_and_audit_controls(monkeypatch):
         response = client.get("/")
 
     body = response.get_data(as_text=True)
-    assert 'id="reloadBtn"' in body
-    assert 'id="reloadProviderScope"' in body
-    assert 'id="providerScope"' not in body
-    assert "Reload: all providers (slow)" in body
-    assert "Audit: quick (index)" in body
-    assert "Audit: deep (live, slower)" in body
-    assert 'id="auditBtn"' in body
+    assert 'id="syncBtn"' in body
     assert 'id="cancelActionBtn"' in body
+    assert "All providers" in body
+    assert "Quick (index)" in body
+    assert "Deep (live)" in body
     # Formatting buttons should NOT be present on dashboard
     assert 'id="readabilityToggle"' not in body
     assert 'id="ultraCleanToggle"' not in body
