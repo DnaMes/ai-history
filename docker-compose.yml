@@ -8,21 +8,19 @@ services:
       - "5000:5000"
     volumes:
       # Mount config directories (ReadOnly)
-      - ${HOME}/.claude:/root/.claude:ro
-      - ${HOME}/.gemini:/root/.gemini:ro
-      - ${HOME}/.codex:/root/.codex:ro
-      - ${HOME}/.config/Cursor:/root/.config/Cursor:ro
-      - ${HOME}/.config/Code:/root/.config/Code:ro
-      - ${HOME}/.local/state/warp-terminal:/root/.local/state/warp-terminal:ro
-      - ${HOME}/.local/share/opencode/storage:/root/.local/share/opencode/storage:ro
-      - ${HOME}/.local/share/opencode:/root/.local/share/opencode:ro
-      - ${HOME}/.copilot:/root/.copilot:ro
+      - ${HOME}/.claude:/home/ai/.claude:ro
+      - ${HOME}/.gemini:/home/ai/.gemini:ro
+      - ${HOME}/.codex:/home/ai/.codex:ro
+      - ${HOME}/.config/Cursor:/home/ai/.config/Cursor:ro
+      - ${HOME}/.config/Code:/home/ai/.config/Code:ro
+      - ${HOME}/.local/state/warp-terminal:/home/ai/.local/state/warp-terminal:ro
+      - ${HOME}/.local/share/opencode/storage:/home/ai/.local/share/opencode/storage:ro
+      - ${HOME}/.local/share/opencode:/home/ai/.local/share/opencode:ro
+      - ${HOME}/.copilot:/home/ai/.copilot:ro
       # Mount output directory (ReadWrite)
-      - ${HOME}/.ai-history:/root/.ai-history
+      - ${HOME}/.ai-history:/home/ai/.ai-history
     environment:
-      - HOME=/root
-      - DATABASE_URL=postgresql://ai_history:${POSTGRES_PASSWORD:-changeme}@db:5432/ai_history
-      - REDIS_URL=redis://redis:6379/0
+      - HOME=/home/ai
       - AI_HISTORY_RATE_LIMIT_ENABLED=${AI_HISTORY_RATE_LIMIT_ENABLED:-true}
       - AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS=${AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS:-60}
       - AI_HISTORY_RATE_LIMIT_MAX_API_REQUESTS=${AI_HISTORY_RATE_LIMIT_MAX_API_REQUESTS:-240}
@@ -42,40 +40,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  db:
-    image: postgres:15-alpine
-    container_name: ai-history-db
-    restart: always
-    environment:
-      POSTGRES_USER: ai_history
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ai_history
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ai_history -d ai_history"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:alpine
-    container_name: ai-history-redis
-    restart: always
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
-volumes:
-  db_data:
-  redis_data:

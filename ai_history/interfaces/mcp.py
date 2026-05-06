@@ -1,10 +1,13 @@
 import asyncio
 import json
+import logging
 import subprocess
 import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from ..extractors.factory import get_all_extractors
 from ..search.engine import SearchEngine
@@ -121,7 +124,8 @@ class MCPServer:
                 },
             }
         except Exception as e:
-            return self._error_response(request_id, -32603, str(e))
+            logger.exception("Tool %s raised an unexpected error", tool_name)
+            return self._error_response(request_id, -32603, "Internal error")
 
     def _error_response(self, request_id, code: int, message: str) -> dict:
         """Create an error response."""
@@ -206,8 +210,9 @@ class MCPServer:
             except json.JSONDecodeError as e:
                 error = self._error_response(None, -32700, f"Parse error: {e}")
                 write_response(error, use_content_length)
-            except Exception as e:
-                error = self._error_response(None, -32603, f"Internal error: {e}")
+            except Exception:
+                logger.exception("Unhandled error in MCP request loop")
+                error = self._error_response(None, -32603, "Internal error")
                 write_response(error, use_content_length)
 
 

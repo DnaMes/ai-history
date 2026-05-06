@@ -1,6 +1,8 @@
 import json
+import os
 import re
 import sqlite3
+import tempfile
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
@@ -66,10 +68,18 @@ class IndexBuilder:
 
         index["search_index"] = keyword_index
 
-        # Save index
+        # Atomic write: write to temp file then os.replace to avoid partial reads on SIGINT
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.index_path, "w", encoding="utf-8") as f:
-            json.dump(index, f, indent=2)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=self.output_dir,
+            delete=False,
+            suffix=".tmp",
+        ) as tmp:
+            json.dump(index, tmp, indent=2)
+            tmp_path = tmp.name
+        os.replace(tmp_path, self.index_path)
 
         self._build_sqlite_index(sessions, export_paths)
 

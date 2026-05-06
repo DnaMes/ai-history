@@ -473,10 +473,15 @@ def test_session_delete_rejects_invalid_session_id():
 
 
 def test_session_delete_removes_index_entry_and_export(monkeypatch, tmp_path):
+    from ai_history.interfaces import web_data
+
     session_id = "test-session-1"
-    export_path = tmp_path / "session.md"
+    # export_path must live inside OUTPUT_DIR so resolve_export_path accepts it
+    fake_output_dir = tmp_path / ".ai-history"
+    fake_output_dir.mkdir()
+    export_path = fake_output_dir / "session.md"
     export_path.write_text("# Session", encoding="utf-8")
-    index_path = tmp_path / "index.json"
+    index_path = fake_output_dir / "index.json"
     index_payload = {
         "stats": {
             "total_sessions": 2,
@@ -503,6 +508,8 @@ def test_session_delete_removes_index_entry_and_export(monkeypatch, tmp_path):
     }
     index_path.write_text(json.dumps(index_payload), encoding="utf-8")
 
+    monkeypatch.setattr(web_data, "OUTPUT_DIR", fake_output_dir)
+    monkeypatch.setattr(web_data, "INDEX_PATH", index_path)
     monkeypatch.setattr(web, "INDEX_PATH", index_path)
 
     with web.app.test_client() as client:

@@ -308,18 +308,26 @@ def resolve_export_path(path_value: Optional[str]) -> Optional[Path]:
     if not path_value:
         return None
 
+    def _safe(candidate: Path) -> Optional[Path]:
+        try:
+            resolved = candidate.resolve()
+            if resolved.is_relative_to(OUTPUT_DIR.resolve()) and resolved.exists():
+                return resolved
+        except (ValueError, OSError):
+            pass
+        return None
+
     raw_path = Path(path_value)
-    if raw_path.exists():
-        return raw_path
+    result = _safe(raw_path)
+    if result:
+        return result
 
     marker = "/.ai-history/"
     raw_text = str(path_value)
     idx = raw_text.find(marker)
     if idx != -1:
         relative_tail = raw_text[idx + len(marker) :]
-        mapped = OUTPUT_DIR / relative_tail
-        if mapped.exists():
-            return mapped
+        return _safe(OUTPUT_DIR / relative_tail)
 
     return None
 
