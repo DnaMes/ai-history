@@ -13,7 +13,6 @@ from urllib.parse import quote, urlparse
 import bleach
 import markdown
 from flask import Flask, Response, g, has_request_context, jsonify, redirect, request
-from flask_wtf.csrf import CSRFProtect
 
 from ai_history.extractors.factory import get_all_extractors
 from ai_history.extractors.opencode import OpenCodeExtractor
@@ -141,7 +140,28 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder=Path(__file__).parent.parent / "templates")
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", os.urandom(32).hex())
-csrf = CSRFProtect(app)
+# SameSite=Strict stops cross-site requests from carrying the session cookie.
+# Combined with the _check_local_origin() guard on destructive routes this
+# replaces Flask-WTF CSRF tokens (which don't survive ephemeral SECRET_KEY restarts).
+app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+
+
+def _check_local_origin() -> Optional[tuple]:
+    """Reject cross-origin POST requests to destructive endpoints.
+
+    Browsers always send Origin on cross-origin requests. curl/MCP clients
+    never send Origin, so they are unaffected. Returns an error Response if
+    the request should be rejected, None otherwise.
+    """
+    origin = request.headers.get("Origin")
+    if origin is None:
+        return None
+    parsed = urlparse(origin)
+    host = parsed.hostname or ""
+    if host in ("localhost", "127.0.0.1", "::1"):
+        return None
+    return jsonify({"error": "Cross-origin request rejected"}), 403
 
 
 def _current_revision() -> str:
@@ -567,13 +587,13 @@ def add_security_headers(response):
 
 
 @app.route("/api/build-info")
-@csrf.exempt
+
 def api_build_info():
     return jsonify(_build_info_payload())
 
 
 @app.route("/api/health")
-@csrf.exempt
+
 def api_health():
     uptime_seconds = max(0, int(time.time() - APP_STARTED_EPOCH))
     return jsonify(
@@ -587,7 +607,7 @@ def api_health():
 
 
 @app.route("/api/ready")
-@csrf.exempt
+
 def api_ready():
     checks: dict[str, Any] = {
         "output_dir_writable": False,
@@ -619,7 +639,7 @@ def api_ready():
 
 
 @app.route("/api/metrics")
-@csrf.exempt
+
 def api_metrics():
     metrics_snapshot = _metrics_snapshot()
     uptime_seconds = max(0, int(time.time() - APP_STARTED_EPOCH))
@@ -648,7 +668,7 @@ def api_metrics():
 
 
 @app.route("/api/audit")
-@csrf.exempt
+
 def api_audit():
     scope = (request.args.get("scope") or "index").strip().lower()
     provider = normalize_tool_name((request.args.get("provider") or "").strip()) or ""
@@ -674,8 +694,10 @@ def api_audit():
 
 
 @app.route("/api/reload-sessions", methods=["POST"])
-@csrf.exempt
+
 def api_reload_sessions():
+    if (err := _check_local_origin()) is not None:
+        return err
     provider = normalize_tool_name((request.args.get("provider") or "").strip()) or ""
     if provider and not validate_tool_name(provider):
         return jsonify({"status": "error", "error": "Invalid provider"}), 400
@@ -696,16 +718,18 @@ def api_reload_sessions():
 
 
 @app.route("/api/cache/clear", methods=["POST"])
-@csrf.exempt
+
 def api_clear_cache():
     """Clear all in-memory caches to force reload from disk."""
+    if (err := _check_local_origin()) is not None:
+        return err
     clear_index_cache()
     clear_sessions_cache()
     return jsonify({"status": "ok", "message": "Cache cleared"})
 
 
 @app.route("/api/reload-status/<job_id>")
-@csrf.exempt
+
 def api_reload_status(job_id):
     state = _get_reload_job(job_id)
     if not state:
@@ -714,7 +738,7 @@ def api_reload_status(job_id):
 
 
 @app.route("/api/audit-status/<job_id>")
-@csrf.exempt
+
 def api_audit_status(job_id):
     state = _get_reload_job(job_id)
     if not state or state.get("kind") != "audit":
@@ -723,7 +747,7 @@ def api_audit_status(job_id):
 
 
 @app.route("/api/action-cancel/<job_id>", methods=["POST"])
-@csrf.exempt
+
 def api_action_cancel(job_id):
     state = _get_reload_job(job_id)
     if not state:
@@ -1107,8 +1131,10 @@ def session_detail(session_id):
 
 
 @app.route("/session/<session_id>/delete", methods=["POST"])
-@csrf.exempt
+
 def session_delete(session_id):
+    if (err := _check_local_origin()) is not None:
+        return err
     if not validate_session_id(session_id):
         return "Invalid session ID", 400
 
@@ -1247,8 +1273,11 @@ def noise_rules_page():
 
 
 @app.route("/api/noise-rules", methods=["GET", "POST"])
-@csrf.exempt
+
 def api_noise_rules():
+    if request.method == "POST":
+        if (err := _check_local_origin()) is not None:
+            return err
     if request.method == "GET":
         return jsonify(load_noise_rules())
 
@@ -1262,7 +1291,7 @@ def api_noise_rules():
 
 
 @app.route("/api/noise-rules/preview", methods=["POST"])
-@csrf.exempt
+
 def api_noise_rules_preview():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -1297,7 +1326,7 @@ def api_noise_rules_preview():
 
 
 @app.route("/api/search")
-@csrf.exempt
+
 def api_search():
     q = request.args.get("q", "")
     if len(q) < 2:
@@ -1332,7 +1361,7 @@ def api_search():
 
 
 @app.route("/api/v1/search")
-@csrf.exempt
+
 def api_v1_search():
     q = request.args.get("q", "")
     if len(q) < 2:
@@ -1378,7 +1407,7 @@ def api_v1_search():
 
 
 @app.route("/api/v1/sessions")
-@csrf.exempt
+
 def api_v1_sessions():
     tool = request.args.get("tool", "")
     if tool and not validate_tool_name(tool):
@@ -1446,7 +1475,7 @@ def api_v1_sessions():
 
 
 @app.route("/api/v1/sessions/<session_id>")
-@csrf.exempt
+
 def api_v1_session_detail(session_id):
     if not validate_session_id(session_id):
         return jsonify({"error": "Invalid session ID"}), 400
@@ -1472,7 +1501,7 @@ def api_v1_session_detail(session_id):
 
 
 @app.route("/api/v1/sessions/<session_id>/messages")
-@csrf.exempt
+
 def api_v1_session_messages(session_id):
     if not validate_session_id(session_id):
         return jsonify({"error": "Invalid session ID"}), 400
@@ -1513,7 +1542,7 @@ def api_v1_session_messages(session_id):
 
 
 @app.route("/api/v1/projects")
-@csrf.exempt
+
 def api_v1_projects():
     tool = request.args.get("tool", "")
     if tool and not validate_tool_name(tool):
@@ -1538,7 +1567,7 @@ def api_v1_projects():
 
 
 @app.route("/api/v1/threads")
-@csrf.exempt
+
 def api_v1_threads():
     try:
         limit = _api_limit_param(default=100, max_value=500)
@@ -1555,7 +1584,7 @@ def api_v1_threads():
 
 
 @app.route("/api/v1/threads/<thread_id>")
-@csrf.exempt
+
 def api_v1_thread_detail(thread_id):
     if not validate_session_id(thread_id):
         return jsonify({"error": "Invalid thread id"}), 400
