@@ -19,13 +19,10 @@ class GeminiProvider(LLMProvider):
         )
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # Default Gemini CLI OAuth client credentials (public, safe to embed)
-    # These are from the official Gemini CLI and are intentionally public.
-    # Users can override via environment variables if needed.
-    DEFAULT_GEMINI_CLIENT_ID = (
-        "REDACTED_GEMINI_CLIENT_ID"
-    )
-    DEFAULT_GEMINI_CLIENT_SECRET = "REDACTED_GEMINI_CLIENT_SECRET"
+    # Gemini CLI OAuth client credentials — read from env vars or ~/.gemini/oauth_creds.json.
+    # Set GEMINI_CLIENT_ID / GEMINI_CLIENT_SECRET env vars to override.
+    DEFAULT_GEMINI_CLIENT_ID = os.environ.get("GEMINI_CLIENT_ID", "")
+    DEFAULT_GEMINI_CLIENT_SECRET = os.environ.get("GEMINI_CLIENT_SECRET", "")
 
     def _load_gemini_cli_creds(self) -> Optional[Dict[str, str]]:
         """Load OAuth credentials from Gemini CLI installation.
