@@ -40,10 +40,11 @@ dependencies = [
 ai-history = "ai_history_cli:main"
 ai-session = "ai_session_cli:main"
 ai-history-web = "ai_history_web_new:main"
+ai-history-mcp = "ai_history_mcp_new:main_sync"
 ai-history-web-probe = "ai_history.interfaces.live_probe:main"
 
 [tool.setuptools]
-py-modules = ["ai_history_cli", "ai_session_cli", "ai_history_web_new"]
+py-modules = ["ai_history_cli", "ai_session_cli", "ai_history_web_new", "ai_history_mcp_new"]
 
 [tool.setuptools.packages.find]
 where = ["."]

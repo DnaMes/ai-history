@@ -1,23 +1,34 @@
 import asyncio
 import json
-import sys
 import subprocess
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
-from ..core.models import UnifiedSession
 from ..extractors.factory import get_all_extractors
 from ..search.engine import SearchEngine
 from ..exporters.index import IndexBuilder
 from ..utils.datetime import parse_duration, make_naive
-from ..utils.paths import get_current_project
 from ..utils.security import (
-    validate_tool_name,
-    validate_session_id,
     validate_search_param,
+    validate_session_id,
+    validate_tool_name,
 )
 from ..utils.tooling import normalize_tool_name, to_session_switch_tool
+from .api_payloads import (
+    serialize_index_session_summary,
+    serialize_live_session,
+    serialize_project,
+    serialize_thread_messages,
+    serialize_thread_overview,
+)
+from .web_data import INDEX_PATH, load_index, load_sessions_for_tool
+from .web_services import (
+    build_projects_payload,
+    build_thread_detail_payload,
+    build_threads_overview,
+)
 
 
 class MCPServer:
@@ -204,9 +215,13 @@ def create_server() -> MCPServer:
     """Create and configure the MCP server."""
     server = MCPServer()
 
+    server.output_dir = INDEX_PATH.parent
+
+    def _json_text(payload: dict) -> str:
+        return json.dumps(payload, indent=2, ensure_ascii=False)
+
     def build_index_if_missing() -> None:
-        index_path = server.output_dir / "index.json"
-        if index_path.exists():
+        if INDEX_PATH.exists():
             return
         extractors = get_all_extractors()
         sessions = []
@@ -219,47 +234,91 @@ def create_server() -> MCPServer:
                 continue
         IndexBuilder(server.output_dir).build_index(sessions, {})
 
-    # search_history tool
+    def _ensure_index() -> dict:
+        if not INDEX_PATH.exists():
+            build_index_if_missing()
+        return load_index()
+
+    def _normalize_limit(
+        raw_value: object, default: int = 10, max_value: int = 100
+    ) -> int:
+        if raw_value is None:
+            return default
+        if not isinstance(raw_value, int) or raw_value < 1 or raw_value > max_value:
+            raise ValueError(f"Invalid limit parameter (must be 1-{max_value}).")
+        return raw_value
+
+    def _load_live_session(session_id: str, tool_filter: Optional[str] = None):
+        tools = []
+        if tool_filter:
+            tools.append(tool_filter)
+        tools.extend(
+            [
+                tool_name
+                for tool_name in sorted(
+                    {
+                        session.get("tool")
+                        for session in _ensure_index().get("sessions", [])
+                        if session.get("tool")
+                    }
+                )
+                if tool_name not in tools
+            ]
+        )
+        for tool_name in tools:
+            try:
+                sessions = load_sessions_for_tool(tool_name)
+            except Exception:
+                continue
+            for session in sessions:
+                if session.session_id == session_id:
+                    return session
+        return None
+
+    def _session_meta_by_id(session_id: str) -> Optional[dict]:
+        idx = _ensure_index()
+        return next(
+            (
+                session
+                for session in idx.get("sessions", [])
+                if session.get("id") == session_id
+            ),
+            None,
+        )
+
     async def search_history(args: dict) -> str:
         query = args.get("query", "")
-        tool_filter = args.get("tool")
-        limit = args.get("limit", 10)
+        tool_filter = normalize_tool_name(args.get("tool") or "") or None
+        project_filter = args.get("project") or None
+        limit = _normalize_limit(args.get("limit"), default=10)
 
         if not query or not validate_search_param(query):
             return "Invalid search query parameter."
-
         if tool_filter and not validate_tool_name(tool_filter):
             return "Invalid tool parameter."
+        if project_filter and not validate_search_param(project_filter):
+            return "Invalid project parameter."
 
-        if not isinstance(limit, int) or limit < 1 or limit > 100:
-            return "Invalid limit parameter (must be 1-100)."
-
-        index_path = server.output_dir / "index.json"
-        if not index_path.exists():
-            build_index_if_missing()
-        if not index_path.exists():
-            return "No index found. Please run 'ai-history export --all' first to build the index."
-
-        engine = SearchEngine(index_path)
-        results = engine.search(query, tool=tool_filter)[:limit]
-
-        if not results:
-            return f"No results found for '{query}'."
-
-        output = [f"Found {len(results)} results for '{query}':\n"]
-        for r in results:
-            session = r["session"]
-            output.append(
-                f"- [{session['tool']}] {session.get('title', session['id'][:20])}"
-            )
-            output.append(
-                f"  Date: {session['created'][:10]} | Messages: {session['messages']}"
-            )
-            if session.get("project"):
-                output.append(f"  Project: {session['project']}")
-            output.append("")
-
-        return "\n".join(output)
+        _ensure_index()
+        results = SearchEngine(INDEX_PATH).search(
+            query,
+            tool=tool_filter,
+            project=project_filter,
+        )[:limit]
+        payload = {
+            "query": query,
+            "tool": tool_filter,
+            "project": project_filter,
+            "count": len(results),
+            "results": [
+                {
+                    **serialize_index_session_summary(result["session"]),
+                    "score": result.get("score"),
+                }
+                for result in results
+            ],
+        }
+        return _json_text(payload)
 
     server.register_tool(
         "search_history",
@@ -269,6 +328,7 @@ def create_server() -> MCPServer:
             "properties": {
                 "query": {"type": "string"},
                 "tool": {"type": "string"},
+                "project": {"type": "string"},
                 "limit": {"type": "integer"},
             },
             "required": ["query"],
@@ -276,74 +336,59 @@ def create_server() -> MCPServer:
         search_history,
     )
 
-    # list_sessions tool
     async def list_sessions(args: dict) -> str:
-        tool_filter = args.get("tool")
-        project_filter = args.get("project")
-        thread_filter = args.get("thread_id")
+        tool_filter = normalize_tool_name(args.get("tool") or "") or None
+        project_filter = args.get("project") or None
+        thread_filter = args.get("thread_id") or None
         since = args.get("since")
-        limit = args.get("limit", 20)
+        limit = _normalize_limit(args.get("limit"), default=20)
 
         if tool_filter and not validate_tool_name(tool_filter):
             return "Invalid tool parameter."
-
         if project_filter and not validate_search_param(project_filter):
             return "Invalid project parameter."
-
         if thread_filter and not validate_session_id(thread_filter):
             return "Invalid thread_id parameter."
 
-        if not isinstance(limit, int) or limit < 1 or limit > 100:
-            return "Invalid limit parameter (must be 1-100)."
-
-        extractors = get_all_extractors()
         sessions = []
+        cutoff = None
+        if since:
+            try:
+                cutoff = datetime.now() - parse_duration(since)
+            except ValueError:
+                return "Invalid since parameter."
 
-        for extractor in extractors:
-            if tool_filter and extractor.tool.value != tool_filter:
+        for session in _ensure_index().get("sessions", []):
+            if tool_filter and session.get("tool") != tool_filter:
                 continue
-            if not extractor.is_available():
+            if project_filter and project_filter not in str(
+                session.get("project") or ""
+            ):
                 continue
+            if thread_filter and session.get("thread_id") != thread_filter:
+                continue
+            if cutoff:
+                created = session.get("created")
+                try:
+                    created_dt = datetime.fromisoformat(
+                        str(created).replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    created_dt = None
+                if created_dt and make_naive(created_dt) < cutoff:
+                    continue
+            sessions.append(session)
 
-            for session in extractor.extract_sessions():
-                if since:
-                    try:
-                        duration = parse_duration(since)
-                        cutoff = datetime.now() - duration
-                        if make_naive(session.created_at) < cutoff:
-                            continue
-                    except ValueError:
-                        pass
-
-                if project_filter:
-                    if (
-                        not session.project_path
-                        or project_filter not in session.project_path
-                    ):
-                        continue
-                if thread_filter and session.thread_id:
-                    if session.thread_id != thread_filter:
-                        continue
-
-                sessions.append(session)
-
-        sessions.sort(key=lambda s: make_naive(s.last_updated), reverse=True)
-        sessions = sessions[:limit]
-
-        if not sessions:
-            return "No sessions found matching the criteria."
-
-        output = [f"Found {len(sessions)} sessions:\n"]
-        for s in sessions:
-            date_str = s.created_at.strftime("%Y-%m-%d")
-            title = s.title or s.project_path or s.session_id[:20]
-            if len(title) > 35:
-                title = title[:32] + "..."
-            output.append(
-                f"{s.tool.value:<15} {date_str:<12} {s.message_count:>6}  {title}"
-            )
-
-        return "\n".join(output)
+        sessions.sort(
+            key=lambda s: str(s.get("updated") or s.get("created") or ""), reverse=True
+        )
+        payload = {
+            "count": min(len(sessions), limit),
+            "sessions": [
+                serialize_index_session_summary(session) for session in sessions[:limit]
+            ],
+        }
+        return _json_text(payload)
 
     server.register_tool(
         "list_sessions",
@@ -359,6 +404,203 @@ def create_server() -> MCPServer:
             },
         },
         list_sessions,
+    )
+
+    async def get_session(args: dict) -> str:
+        session_id = args.get("session_id")
+        include_messages = bool(args.get("include_messages", False))
+
+        if not session_id or not validate_session_id(session_id):
+            return "Invalid session_id parameter."
+
+        session_meta = _session_meta_by_id(session_id)
+        if not session_meta:
+            return _json_text({"error": "Session not found", "session_id": session_id})
+
+        live_session = _load_live_session(session_id, session_meta.get("tool"))
+        if live_session:
+            payload = serialize_live_session(
+                live_session,
+                session_meta=session_meta,
+                include_messages=include_messages,
+            )
+        else:
+            payload = serialize_index_session_summary(session_meta)
+            payload["live"] = False
+            if include_messages:
+                payload["messages"] = []
+        return _json_text(payload)
+
+    server.register_tool(
+        "get_session",
+        "Get a single session by id.",
+        {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"},
+                "include_messages": {"type": "boolean"},
+            },
+            "required": ["session_id"],
+        },
+        get_session,
+    )
+
+    async def get_session_messages(args: dict) -> str:
+        session_id = args.get("session_id")
+        limit = _normalize_limit(args.get("limit"), default=200, max_value=1000)
+
+        if not session_id or not validate_session_id(session_id):
+            return "Invalid session_id parameter."
+
+        session_meta = _session_meta_by_id(session_id)
+        if not session_meta:
+            return _json_text({"error": "Session not found", "session_id": session_id})
+
+        live_session = _load_live_session(session_id, session_meta.get("tool"))
+        if not live_session:
+            return _json_text(
+                {
+                    "session_id": session_id,
+                    "message_count": 0,
+                    "messages": [],
+                    "live": False,
+                }
+            )
+
+        messages = serialize_live_session(
+            live_session,
+            session_meta=session_meta,
+            include_messages=True,
+        )["messages"]
+        return _json_text(
+            {
+                "session_id": session_id,
+                "message_count": len(messages),
+                "messages": messages[:limit],
+                "live": True,
+            }
+        )
+
+    server.register_tool(
+        "get_session_messages",
+        "Get live session messages by session id.",
+        {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["session_id"],
+        },
+        get_session_messages,
+    )
+
+    async def list_recent_sessions(args: dict) -> str:
+        limit = _normalize_limit(args.get("limit"), default=10)
+        sessions = sorted(
+            _ensure_index().get("sessions", []),
+            key=lambda session: str(
+                session.get("updated") or session.get("created") or ""
+            ),
+            reverse=True,
+        )
+        return _json_text(
+            {
+                "count": min(len(sessions), limit),
+                "sessions": [
+                    serialize_index_session_summary(session)
+                    for session in sessions[:limit]
+                ],
+            }
+        )
+
+    server.register_tool(
+        "list_recent_sessions",
+        "List recently updated sessions.",
+        {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer"},
+            },
+        },
+        list_recent_sessions,
+    )
+
+    async def list_projects(args: dict) -> str:
+        limit = _normalize_limit(args.get("limit"), default=50)
+        projects = build_projects_payload(
+            _ensure_index().get("sessions", []), lambda value: value
+        )
+        return _json_text(
+            {
+                "count": min(len(projects), limit),
+                "projects": [
+                    serialize_project(project) for project in projects[:limit]
+                ],
+            }
+        )
+
+    server.register_tool(
+        "list_projects",
+        "List projects present in the history index.",
+        {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer"},
+            },
+        },
+        list_projects,
+    )
+
+    async def get_thread(args: dict) -> str:
+        thread_id = args.get("thread_id")
+        include_messages = bool(args.get("include_messages", False))
+
+        if not thread_id or not validate_session_id(thread_id):
+            return "Invalid thread_id parameter."
+
+        idx = _ensure_index()
+        overview = next(
+            (
+                thread
+                for thread in build_threads_overview(idx.get("sessions", []))
+                if thread.get("thread_id") == thread_id
+            ),
+            None,
+        )
+        if not overview:
+            return _json_text({"error": "Thread not found", "thread_id": thread_id})
+
+        payload: dict[str, object] = {"thread": serialize_thread_overview(overview)}
+        if include_messages:
+            detail = build_thread_detail_payload(
+                thread_id,
+                idx.get("sessions", []),
+                load_sessions_for_tool,
+                lambda value: value,
+                lambda value: json.dumps(value, ensure_ascii=False),
+                lambda tool_name: {"tool": tool_name, "name": tool_name},
+            )
+            payload["messages"] = serialize_thread_messages(detail["messages"])
+            payload["thread_meta"] = detail["thread_meta"]
+            payload["timeline"] = [
+                serialize_index_session_summary(session)
+                for session in detail["thread_timeline"]
+            ]
+        return _json_text(payload)
+
+    server.register_tool(
+        "get_thread",
+        "Get a thread overview and optional messages.",
+        {
+            "type": "object",
+            "properties": {
+                "thread_id": {"type": "string"},
+                "include_messages": {"type": "boolean"},
+            },
+            "required": ["thread_id"],
+        },
+        get_thread,
     )
 
     # switch_to_tool tool
@@ -394,7 +636,7 @@ def create_server() -> MCPServer:
             else:
                 return f"Failed to switch to {normalized_tool}:\n{result.stderr}"
         except subprocess.TimeoutExpired:
-            return f"Timeout: Command took longer than 30 seconds."
+            return "Timeout: Command took longer than 30 seconds."
         except FileNotFoundError:
             return "ai-session command not found."
 

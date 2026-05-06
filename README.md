@@ -98,26 +98,58 @@ ai-history sync codex
 
 ---
 
-## 🔌 MCP Server Setup
+## 🔌 Agent Integration
 
-Enable `ai-history` tools within Claude Code by adding this to your `~/.claude/settings.json`:
+### Claude Code
+
+Add this to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "ai-history": {
-      "command": "python3",
-      "args": ["/absolute/path/to/ai-history-mcp.py"]
+      "command": "ai-history-mcp",
+      "args": []
     }
   }
 }
 ```
 
-### Tools provided:
+If the command is not on your `PATH`, use the absolute path after running `pip install -e .`.
 
-- `search_history`: Find past solutions across all tools.
-- `list_sessions`: See what you worked on.
-- `switch_to_tool`: Ask Claude to move the session to Gemini for you!
+### OpenCode
+
+Add this to `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ai-history": {
+      "type": "local",
+      "command": ["ai-history-mcp"]
+    }
+  }
+}
+```
+
+### Main MCP tools
+
+- `search_history`: Find matching past sessions.
+- `list_sessions`: List indexed sessions with filters.
+- `get_session`: Load one session.
+- `get_session_messages`: Load the transcript for one session.
+- `get_thread`: Load cross-session thread context.
+- `list_projects`: Enumerate projects in the history index.
+- `switch_to_tool`: Hand off to `ai-session switch`.
+
+### API reference
+
+See `docs/API_REFERENCE.md` for:
+
+- MCP tool inputs and outputs
+- HTTP JSON endpoints under `/api/v1/...`
+- agent retrieval guidance for Claude Code, OpenCode, and other tools
 
 ---
 
@@ -290,4 +322,3 @@ AI_HISTORY_RATE_LIMIT_AUDIT_PER_WINDOW=20
 AI_HISTORY_RATE_LIMIT_RELOAD_PER_WINDOW=12
 AI_HISTORY_JSON_REQUEST_LOGS=false
 ```
-
