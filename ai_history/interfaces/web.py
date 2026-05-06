@@ -41,6 +41,13 @@ from .web_data import (
     remember_deleted_session_id,
     resolve_export_path,
 )
+from .api_payloads import (
+    serialize_index_session_summary,
+    serialize_live_session,
+    serialize_project,
+    serialize_thread_messages,
+    serialize_thread_overview,
+)
 from .web_formatting import (
     SANITIZE_ATTRS,
     SANITIZE_PROTOCOLS,
@@ -102,6 +109,24 @@ from .web_utils import (
     _should_rate_limit,
     load_noise_rules,
     save_noise_rules,
+)
+
+_TEST_EXPORTS = (
+    DELETED_SESSIONS_PATH,
+    ACTION_JOB_TIMEOUT_SECONDS,
+    RELOAD_JOB_MAX,
+    RELOAD_JOB_TTL_SECONDS,
+    RELOAD_JOBS,
+    RELOAD_JOBS_LOCK,
+    _assert_job_active,
+    _prune_reload_jobs_locked,
+    _set_reload_job,
+    ActionJobTimeoutError,
+    METRICS,
+    METRICS_LOCK,
+    NOISE_RULES_PATH,
+    RATE_LIMIT_STATE,
+    _record_job_outcome,
 )
 
 _web_services = importlib.import_module("ai_history.interfaces.web_services")
@@ -393,7 +418,9 @@ def render(tpl_name, **kwargs):
     env.filters["urlpath"] = lambda value: quote(str(value or ""), safe="")
     idx = load_index()
     recent = sorted(
-        idx.get("sessions", []), key=lambda s: s.get("created", ""), reverse=True
+        idx.get("sessions", []),
+        key=lambda s: s.get("updated") or s.get("created") or "",
+        reverse=True,
     )[:8]
     if "nav_back" not in kwargs:
         if has_request_context():
@@ -724,7 +751,9 @@ def api_action_cancel(job_id):
 def dashboard():
     idx = load_index()
     recent = sorted(
-        idx.get("sessions", []), key=lambda s: s.get("created", ""), reverse=True
+        idx.get("sessions", []),
+        key=lambda s: s.get("updated") or s.get("created") or "",
+        reverse=True,
     )[:10]
     return render(
         "dashboard",
@@ -757,7 +786,11 @@ def sessions():
     filtered = filter_sessions(
         all_s, tool=tool or None, tag=tag or None, start=start_dt, end=end_dt
     )
-    filtered = sorted(filtered, key=lambda s: s.get("created", ""), reverse=True)
+    filtered = sorted(
+        filtered,
+        key=lambda s: s.get("updated") or s.get("created") or "",
+        reverse=True,
+    )
 
     tags = compute_top_tags(all_s, limit=12)
     return render(
@@ -844,6 +877,33 @@ def load_session_by_id(
     return None
 
 
+def _api_limit_param(
+    name: str = "limit", default: int = 20, max_value: int = 200
+) -> int:
+    raw_value = request.args.get(name, "").strip()
+    if not raw_value:
+        return default
+    try:
+        value = int(raw_value)
+    except ValueError:
+        raise ValueError(f"Invalid {name} parameter")
+    if value < 1 or value > max_value:
+        raise ValueError(f"Invalid {name} parameter")
+    return value
+
+
+def _index_session_meta(session_id: str) -> Optional[dict[str, Any]]:
+    idx = load_index()
+    return next(
+        (
+            session
+            for session in idx.get("sessions", [])
+            if session.get("id") == session_id
+        ),
+        None,
+    )
+
+
 @app.route("/session/<session_id>")
 def session_detail(session_id):
     if not validate_session_id(session_id):
@@ -891,15 +951,15 @@ def session_detail(session_id):
 
     def _render_summary():
         summary = f"""
-<h2>{html.escape(session_meta.get('title') or session_id)}</h2>
-<p><strong>Tool:</strong> {html.escape(str(session_meta.get('tool') or 'n/a'))}</p>
-<p><strong>Created:</strong> {html.escape(str(session_meta.get('created') or 'n/a'))}</p>
-<p><strong>Updated:</strong> {html.escape(str(session_meta.get('updated') or 'n/a'))}</p>
-<p><strong>Messages:</strong> {html.escape(str(session_meta.get('messages') or 0))} | <strong>Prompts:</strong> {html.escape(str(session_meta.get('prompts') or 0))}</p>
-<p><strong>Project:</strong> {html.escape(str(session_meta.get('project') or 'Unassigned'))}</p>
+<h2>{html.escape(session_meta.get("title") or session_id)}</h2>
+<p><strong>Tool:</strong> {html.escape(str(session_meta.get("tool") or "n/a"))}</p>
+<p><strong>Created:</strong> {html.escape(str(session_meta.get("created") or "n/a"))}</p>
+<p><strong>Updated:</strong> {html.escape(str(session_meta.get("updated") or "n/a"))}</p>
+<p><strong>Messages:</strong> {html.escape(str(session_meta.get("messages") or 0))} | <strong>Prompts:</strong> {html.escape(str(session_meta.get("prompts") or 0))}</p>
+<p><strong>Project:</strong> {html.escape(str(session_meta.get("project") or "Unassigned"))}</p>
 <hr>
 <p>This session has no linked export markdown yet. Open full live transcript with <a href="?live=1"><code>?live=1</code></a>, or run <code>ai-history sync &lt;tool&gt;</code> to attach export paths.</p>
-<p><strong>Prompt Outline:</strong><br>{html.escape(str(session_meta.get('prompt_outline') or 'n/a'))}</p>
+<p><strong>Prompt Outline:</strong><br>{html.escape(str(session_meta.get("prompt_outline") or "n/a"))}</p>
 """
         return render(
             "rules",
@@ -1268,6 +1328,266 @@ def api_search():
             }
             for r in res
         ]
+    )
+
+
+@app.route("/api/v1/search")
+@csrf.exempt
+def api_v1_search():
+    q = request.args.get("q", "")
+    if len(q) < 2:
+        return jsonify({"query": q, "count": 0, "results": []})
+
+    if not validate_search_param(q):
+        return jsonify({"error": "Invalid search query"}), 400
+
+    tool = request.args.get("tool", "")
+    if tool and not validate_tool_name(tool):
+        return jsonify({"error": "Invalid tool parameter"}), 400
+    tool = normalize_tool_name(tool) or ""
+
+    project = request.args.get("project", "")
+    if project and not validate_search_param(project):
+        return jsonify({"error": "Invalid project parameter"}), 400
+
+    try:
+        limit = _api_limit_param(default=20, max_value=200)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    results = SearchEngine(INDEX_PATH).search(
+        q,
+        tool=tool or None,
+        project=project or None,
+    )[:limit]
+    return jsonify(
+        {
+            "query": q,
+            "tool": tool or None,
+            "project": project or None,
+            "count": len(results),
+            "results": [
+                {
+                    **serialize_index_session_summary(result["session"]),
+                    "score": result.get("score"),
+                }
+                for result in results
+            ],
+        }
+    )
+
+
+@app.route("/api/v1/sessions")
+@csrf.exempt
+def api_v1_sessions():
+    tool = request.args.get("tool", "")
+    if tool and not validate_tool_name(tool):
+        return jsonify({"error": "Invalid tool parameter"}), 400
+    tool = normalize_tool_name(tool) or ""
+
+    project = request.args.get("project", "")
+    if project and not validate_search_param(project):
+        return jsonify({"error": "Invalid project parameter"}), 400
+
+    thread_id = request.args.get("thread_id", "")
+    if thread_id and not validate_session_id(thread_id):
+        return jsonify({"error": "Invalid thread_id parameter"}), 400
+
+    q = request.args.get("q", "")
+    if q and not validate_search_param(q):
+        return jsonify({"error": "Invalid search query"}), 400
+
+    try:
+        limit = _api_limit_param(default=50, max_value=500)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    if len(q) >= 2:
+        sessions = [
+            result["session"]
+            for result in SearchEngine(INDEX_PATH).search(
+                q,
+                tool=tool or None,
+                project=project or None,
+            )[:limit]
+        ]
+    else:
+        sessions = load_index().get("sessions", [])
+        if tool:
+            sessions = [session for session in sessions if session.get("tool") == tool]
+        if project:
+            sessions = [
+                session
+                for session in sessions
+                if project in str(session.get("project") or "")
+            ]
+        if thread_id:
+            sessions = [
+                session
+                for session in sessions
+                if str(session.get("thread_id") or "") == thread_id
+            ]
+        sessions = sorted(
+            sessions,
+            key=lambda session: str(
+                session.get("updated") or session.get("created") or ""
+            ),
+            reverse=True,
+        )[:limit]
+
+    return jsonify(
+        {
+            "count": len(sessions),
+            "sessions": [
+                serialize_index_session_summary(session) for session in sessions
+            ],
+        }
+    )
+
+
+@app.route("/api/v1/sessions/<session_id>")
+@csrf.exempt
+def api_v1_session_detail(session_id):
+    if not validate_session_id(session_id):
+        return jsonify({"error": "Invalid session ID"}), 400
+
+    session_meta = _index_session_meta(session_id)
+    if not session_meta:
+        return jsonify({"error": "Not found"}), 404
+
+    live = request.args.get("live", "0") == "1"
+    preferred_tool = normalize_tool_name(session_meta.get("tool") or "") or None
+    session_obj = load_session_by_id(
+        session_id,
+        preferred_tool=preferred_tool,
+        allow_cross_tool_fallback=live,
+    )
+
+    if session_obj:
+        return jsonify(serialize_live_session(session_obj, session_meta=session_meta))
+
+    payload = serialize_index_session_summary(session_meta)
+    payload["live"] = False
+    return jsonify(payload)
+
+
+@app.route("/api/v1/sessions/<session_id>/messages")
+@csrf.exempt
+def api_v1_session_messages(session_id):
+    if not validate_session_id(session_id):
+        return jsonify({"error": "Invalid session ID"}), 400
+
+    session_meta = _index_session_meta(session_id)
+    if not session_meta:
+        return jsonify({"error": "Not found"}), 404
+
+    try:
+        limit = _api_limit_param(default=500, max_value=5000)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    preferred_tool = normalize_tool_name(session_meta.get("tool") or "") or None
+    session_obj = load_session_by_id(
+        session_id,
+        preferred_tool=preferred_tool,
+        allow_cross_tool_fallback=True,
+    )
+    if not session_obj:
+        return jsonify(
+            {
+                "session_id": session_id,
+                "message_count": 0,
+                "messages": [],
+                "live": False,
+            }
+        )
+
+    payload = serialize_live_session(
+        session_obj,
+        session_meta=session_meta,
+        include_messages=True,
+    )
+    payload["messages"] = payload["messages"][:limit]
+    payload["message_count"] = len(payload["messages"])
+    return jsonify(payload)
+
+
+@app.route("/api/v1/projects")
+@csrf.exempt
+def api_v1_projects():
+    tool = request.args.get("tool", "")
+    if tool and not validate_tool_name(tool):
+        return jsonify({"error": "Invalid tool parameter"}), 400
+    tool = normalize_tool_name(tool) or ""
+
+    try:
+        limit = _api_limit_param(default=100, max_value=500)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    sessions = load_index().get("sessions", [])
+    if tool:
+        sessions = [session for session in sessions if session.get("tool") == tool]
+    projects = build_projects_payload(sessions, project_label)
+    return jsonify(
+        {
+            "count": min(len(projects), limit),
+            "projects": [serialize_project(project) for project in projects[:limit]],
+        }
+    )
+
+
+@app.route("/api/v1/threads")
+@csrf.exempt
+def api_v1_threads():
+    try:
+        limit = _api_limit_param(default=100, max_value=500)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    threads = build_threads_overview(load_index().get("sessions", []))[:limit]
+    return jsonify(
+        {
+            "count": len(threads),
+            "threads": [serialize_thread_overview(thread) for thread in threads],
+        }
+    )
+
+
+@app.route("/api/v1/threads/<thread_id>")
+@csrf.exempt
+def api_v1_thread_detail(thread_id):
+    if not validate_session_id(thread_id):
+        return jsonify({"error": "Invalid thread id"}), 400
+
+    payload = build_thread_detail_payload(
+        thread_id,
+        load_index().get("sessions", []),
+        load_sessions_for_tool,
+        format_message_content,
+        format_tool_calls,
+        get_style,
+        noise_rules=load_noise_rules(),
+        sanitize_rendered_html_fn=sanitize_rendered_html,
+    )
+    if not payload["thread_timeline"]:
+        return jsonify({"error": "Not found"}), 404
+
+    return jsonify(
+        {
+            "thread": {
+                "id": thread_id,
+                **payload["thread_meta"],
+            },
+            "timeline": [
+                serialize_index_session_summary(session)
+                for session in payload["thread_timeline"]
+            ],
+            "messages": serialize_thread_messages(payload["messages"]),
+            "toc_items": payload["toc_items"],
+            "groups": payload["thread_groups"],
+            "continue_command": payload["continue_cmd"],
+        }
     )
 
 

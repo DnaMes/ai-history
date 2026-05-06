@@ -104,7 +104,7 @@ def build_projects_payload(
     for _, entry in by_project.items():
         sessions_sorted = sorted(
             entry["sessions"],
-            key=lambda session: session.get("created", ""),
+            key=lambda session: session.get("updated") or session.get("created") or "",
             reverse=True,
         )
         tool_counts_sorted = sorted(
