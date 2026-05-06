@@ -44,6 +44,9 @@ SANITIZE_TAGS = [
     "hr",
     "div",
     "span",
+    # Used by tool-call / thinking collapsible blocks generated internally
+    "details",
+    "summary",
 ]
 
 SANITIZE_ATTRS = {
@@ -52,6 +55,8 @@ SANITIZE_ATTRS = {
     "pre": ["class"],
     "span": ["class"],
     "div": ["class"],
+    "details": ["class"],
+    "summary": ["class"],
 }
 
 SANITIZE_PROTOCOLS = ["http", "https", "mailto"]
@@ -101,7 +106,7 @@ def _format_message_content_cached(raw_content: str) -> str:
 
     def repl_cmd_msg(m):
         k = next_key("CMDMESSAGE")
-        placeholders[k] = f'<code class="cmd-tag">{m.group(1)}</code>'
+        placeholders[k] = f'<code class="cmd-tag">{html.escape(m.group(2))}</code>'
         return k
 
     content = re.sub(
@@ -113,7 +118,7 @@ def _format_message_content_cached(raw_content: str) -> str:
 
     def repl_cmd_name(m):
         k = next_key("CMDNAME")
-        placeholders[k] = f'<code class="cmd-name">{m.group(1)}</code>'
+        placeholders[k] = f'<code class="cmd-name">{html.escape(m.group(2))}</code>'
         return k
 
     content = re.sub(
@@ -125,7 +130,7 @@ def _format_message_content_cached(raw_content: str) -> str:
 
     def repl_cmd_args(m):
         k = next_key("CMDARGS")
-        placeholders[k] = f'<code class="cmd-args">{m.group(1)}</code>'
+        placeholders[k] = f'<code class="cmd-args">{html.escape(m.group(2))}</code>'
         return k
 
     content = re.sub(
@@ -176,7 +181,10 @@ def _format_message_content_cached(raw_content: str) -> str:
 
     for k, v in placeholders.items():
         content = content.replace(f"<p>{k}</p>", v).replace(k, v)
-    return content
+
+    # Final sanitization pass over the fully-composed string; catches any
+    # injection that slipped through placeholder re-injection above.
+    return sanitize_rendered_html(content)
 
 
 def format_message_content(content):
