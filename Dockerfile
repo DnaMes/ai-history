@@ -23,6 +23,11 @@ RUN pip install --no-cache-dir . gunicorn
 USER ai
 ENV HOME=/home/ai
 
+# Set TRUSTED_PROXY=1 when a reverse proxy (nginx, Caddy, Traefik…) sits in
+# front of this container. Without it, X-Forwarded-For is ignored so clients
+# cannot spoof their IP address. Leave unset for direct exposure.
+# ENV TRUSTED_PROXY=1
+
 # Expose port
 EXPOSE 5000
 

@@ -72,12 +72,16 @@ def _rate_limit_max_for_path(path: str) -> int:
 
 
 def _client_ip() -> str:
-    forwarded = (request.headers.get("X-Forwarded-For") or "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
-    real_ip = (request.headers.get("X-Real-IP") or "").strip()
-    if real_ip:
-        return real_ip
+    # Only read X-Forwarded-For / X-Real-IP when running behind a trusted proxy.
+    # If the app is exposed directly, these headers can be spoofed by any client.
+    # Set TRUSTED_PROXY=1 (or any non-empty value) when a reverse proxy is in front.
+    if os.environ.get("TRUSTED_PROXY"):
+        forwarded = (request.headers.get("X-Forwarded-For") or "").strip()
+        if forwarded:
+            return forwarded.split(",")[0].strip() or "unknown"
+        real_ip = (request.headers.get("X-Real-IP") or "").strip()
+        if real_ip:
+            return real_ip
     return request.remote_addr or "unknown"
 
 
