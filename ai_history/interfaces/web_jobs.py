@@ -167,8 +167,14 @@ def _start_reload_job(provider: Optional[str]) -> str:
                 progress_callback=progress_callback,
                 should_stop=should_stop,
             )
+            errors = list(payload.get("errors") or []) if isinstance(payload, dict) else []
             _set_reload_job(
-                job_id, status="done", progress=100, message="Completed", result=payload
+                job_id,
+                status="done",
+                progress=100,
+                message="Completed",
+                result=payload,
+                errors=errors,
             )
             _record_job_outcome("reload", "completed", now_epoch)
         except ActionJobCancelledError:

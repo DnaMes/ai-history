@@ -182,6 +182,7 @@ def _build_index_from_extractors(
     ]
 
     sessions = []
+    errors: list[dict] = []
     title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
     total = len(selected) or 1
 
@@ -203,7 +204,13 @@ def _build_index_from_extractors(
         except ActionJobCancelledError:
             raise
         except Exception as exc:
-            logger.debug("Extractor %s failed during index build: %s", extractor.tool.value, exc)
+            logger.warning(
+                "Extractor %s failed during index build: %s",
+                extractor.tool.value,
+                exc,
+                exc_info=True,
+            )
+            errors.append({"extractor": extractor.tool.value, "error": str(exc)})
             continue
 
     deleted = load_deleted_session_ids()
@@ -212,6 +219,8 @@ def _build_index_from_extractors(
 
     if progress_callback:
         progress_callback(62, "Index written")
+
+    return errors
 
 
 @threadsafe_lru_cache(maxsize=128)
