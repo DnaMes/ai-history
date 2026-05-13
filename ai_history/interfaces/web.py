@@ -1226,6 +1226,66 @@ def session_detail(session_id):
     return _render_summary()
 
 
+@app.route("/api/sessions/<session_id>/resume", methods=["POST"])
+def api_session_resume(session_id):
+    if (err := _check_local_origin()) is not None:
+        return err
+    if not validate_session_id(session_id):
+        return jsonify({"error": "Invalid session ID"}), 400
+
+    session_meta = _index_session_meta(session_id)
+    if not session_meta:
+        return jsonify({"error": "Not found"}), 404
+
+    tool = str(session_meta.get("tool") or "").strip()
+    project_path = str(session_meta.get("project") or "").strip()
+
+    if tool == "claude-code":
+        command = f"claude --resume {session_id}"
+        if project_path:
+            command = f"cd {project_path} && {command}"
+        return jsonify(
+            {
+                "supported": True,
+                "command": command,
+                "project": project_path or None,
+                "tool": tool,
+            }
+        )
+    elif tool == "opencode":
+        command = f"opencode --resume {session_id}"
+        if project_path:
+            command = f"cd {project_path} && {command}"
+        return jsonify(
+            {
+                "supported": True,
+                "command": command,
+                "project": project_path or None,
+                "tool": tool,
+            }
+        )
+    elif tool in ("cursor", "vscode", "vs-code"):
+        return jsonify(
+            {
+                "supported": False,
+                "command": None,
+                "project": project_path or None,
+                "tool": tool,
+                "reason": "Cannot resume Cursor/VS Code sessions programmatically",
+            }
+        )
+    else:
+        return jsonify(
+            {
+                "supported": False,
+                "command": None,
+                "project": project_path or None,
+                "tool": tool,
+                "reason": f"Resume not supported for tool: {tool or 'unknown'}",
+            }
+        )
+
+
 @app.route("/session/<session_id>/delete", methods=["POST"])
 def session_delete(session_id):
     if (err := _check_local_origin()) is not None:

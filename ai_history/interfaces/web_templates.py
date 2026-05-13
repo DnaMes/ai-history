@@ -1347,6 +1347,7 @@ SESSION_TEMPLATE = """
             <button onclick='copyCommand({{ ("ai-session switch gemini --thread-id " ~ session.thread_id)|tojson }})' class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Continue</button>
             {% endif %}
             <button onclick="copyLink(window.location.href)" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Link</button>
+            <button onclick="resumeSession({{ session.session_id|tojson }})" class="text-[11px] text-blue-600 hover:text-blue-900 border border-blue-200 px-3 py-1.5 rounded-xl transition-all bg-white">Resume</button>
             <a href="/" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Dashboard</a>
             <a href="/export/{{ session.session_id|urlpath }}" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Export MD</a>
             <form action="/session/{{ session.session_id|urlpath }}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this session? This action cannot be undone.');" style="display:inline;">
@@ -1438,6 +1439,77 @@ SESSION_TEMPLATE = """
     </div>
     </div>
 </section>
+
+<!-- Resume session modal -->
+<div id="resume-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm hidden" aria-modal="true" role="dialog" aria-labelledby="resume-modal-title">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg mx-4 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <h2 id="resume-modal-title" class="text-sm font-semibold text-slate-800 dark:text-slate-100">Resume Session</h2>
+            <button onclick="closeResumeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ml-4" aria-label="Close">&times;</button>
+        </div>
+        <div id="resume-modal-body" class="text-sm text-slate-600 dark:text-slate-300"></div>
+    </div>
+</div>
+
+<script>
+function resumeSession(sessionId) {
+    const modal = document.getElementById('resume-modal');
+    const body = document.getElementById('resume-modal-body');
+    body.innerHTML = '<span class="text-slate-400">Loading&hellip;</span>';
+    modal.classList.remove('hidden');
+
+    fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.error) {
+            body.innerHTML = '<p class="text-red-600">' + escHtml(data.error) + '</p>';
+            return;
+        }
+        if (!data.supported) {
+            body.innerHTML =
+                '<p class="text-amber-600 mb-2">' + escHtml(data.reason || 'Resume not supported for this tool.') + '</p>' +
+                (data.tool ? '<p class="text-xs text-slate-400">Tool: ' + escHtml(data.tool) + '</p>' : '');
+            return;
+        }
+        body.innerHTML =
+            '<p class="text-slate-500 text-xs mb-2">Run this command in your terminal:</p>' +
+            '<div class="relative group">' +
+              '<pre class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs font-mono text-slate-800 dark:text-slate-100 overflow-x-auto whitespace-pre-wrap break-all" id="resume-cmd-text">' + escHtml(data.command) + '</pre>' +
+              '<button onclick="copyResumeCmd()" class="absolute top-2 right-2 text-[10px] text-slate-400 hover:text-slate-700 border border-slate-200 bg-white rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity" id="resume-copy-btn">Copy</button>' +
+            '</div>';
+    })
+    .catch(function(err) {
+        body.innerHTML = '<p class="text-red-600">Request failed: ' + escHtml(String(err)) + '</p>';
+    });
+}
+
+function closeResumeModal() {
+    document.getElementById('resume-modal').classList.add('hidden');
+}
+
+function copyResumeCmd() {
+    const text = document.getElementById('resume-cmd-text').textContent || '';
+    navigator.clipboard.writeText(text.trim()).then(function() {
+        const btn = document.getElementById('resume-copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+    });
+}
+
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('resume-modal').addEventListener('click', function(e) {
+    if (e.target === this) { closeResumeModal(); }
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeResumeModal(); }
+});
+</script>
 {% endblock %}
 """
 
