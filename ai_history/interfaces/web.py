@@ -900,6 +900,96 @@ def projects():
     )
 
 
+def _build_costs_payload() -> dict:
+    """Compute token cost stats from the session index."""
+    from datetime import timedelta
+
+    idx = load_index()
+    sessions = idx.get("sessions", [])
+
+    total_tokens = 0
+    session_count = 0
+    by_tool: dict[str, int] = {}
+    by_day_map: dict[str, int] = {}
+    by_project_map: dict[str, int] = {}
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+
+    for session in sessions:
+        raw_tokens = session.get("tokens")
+        if raw_tokens is None:
+            continue
+        try:
+            tokens = int(raw_tokens)
+        except (TypeError, ValueError):
+            continue
+        if tokens <= 0:
+            continue
+
+        total_tokens += tokens
+        session_count += 1
+
+        tool = str(session.get("tool") or "unknown")
+        by_tool[tool] = by_tool.get(tool, 0) + tokens
+
+        created_raw = str(session.get("created") or "")
+        if created_raw:
+            try:
+                day = datetime.fromisoformat(created_raw[:10]).date()
+                if day >= cutoff:
+                    day_str = day.isoformat()
+                    by_day_map[day_str] = by_day_map.get(day_str, 0) + tokens
+            except ValueError:
+                pass
+
+        project = str(session.get("project") or "").strip()
+        if project:
+            by_project_map[project] = by_project_map.get(project, 0) + tokens
+
+    # Sort tool breakdown by tokens descending
+    by_tool_sorted = sorted(by_tool.items(), key=lambda kv: kv[1], reverse=True)
+
+    # Fill all 30 days (including zeros) for a continuous sparkline
+    by_day_list = []
+    for i in range(30):
+        day = (datetime.now(timezone.utc) - timedelta(days=29 - i)).date()
+        by_day_list.append({"date": day.isoformat(), "tokens": by_day_map.get(day.isoformat(), 0)})
+
+    # Top 10 projects by token usage
+    by_project_sorted = sorted(by_project_map.items(), key=lambda kv: kv[1], reverse=True)[:10]
+    by_project_list = [{"project": p, "tokens": t} for p, t in by_project_sorted]
+
+    return {
+        "total_tokens": total_tokens,
+        "by_tool": {k: v for k, v in by_tool_sorted},
+        "by_day": by_day_list,
+        "by_project": by_project_list,
+        "session_count": session_count,
+    }
+
+
+@app.route("/api/stats/costs")
+def api_stats_costs():
+    return jsonify(_build_costs_payload())
+
+
+@app.route("/stats")
+def stats_page():
+    payload = _build_costs_payload()
+    # Render by_tool as a sorted list of (name, tokens) tuples for the template
+    by_tool_list = sorted(payload["by_tool"].items(), key=lambda kv: kv[1], reverse=True)
+    return render(
+        "stats",
+        active="stats",
+        total_tokens=payload["total_tokens"],
+        session_count=payload["session_count"],
+        by_tool=by_tool_list,
+        by_day=payload["by_day"],
+        by_project=payload["by_project"],
+        title="Stats",
+    )
+
+
 def load_session_by_id(
     session_id: str,
     preferred_tool: Optional[str] = None,

@@ -33,6 +33,9 @@ dependencies = [
     "google-auth>=2.0.0,<3.0.0",
 ]
 
+[project.optional-dependencies]
+watch = ["watchdog>=3.0"]
+
 [project.urls]
 Homepage = "https://github.com/DnaMes/ai-history"
 Repository = "https://github.com/DnaMes/ai-history"

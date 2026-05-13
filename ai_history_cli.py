@@ -931,6 +931,8 @@ def cmd_generate_titles(args):
 
 def cmd_watch(args):
     """Watch for new sessions and auto-export."""
+    from ai_history.watcher import SessionWatcher
+
     output_dir = Path(args.output_dir).expanduser()
     exporter = MarkdownExporter(output_dir)
     index_builder = IndexBuilder(output_dir)
@@ -951,9 +953,17 @@ def cmd_watch(args):
 
     print(f"Found {len(known_sessions)} existing sessions.\n")
 
+    watcher = SessionWatcher(callback=lambda: None, interval=args.interval)
+    # Seed the watcher snapshot so the first poll only reports real changes.
+    watcher.poll_once()
+
     while True:
         try:
             time.sleep(args.interval)
+
+            changed_paths = watcher.poll_once()
+            for path in changed_paths:
+                print(f"Changed: {path}")
 
             new_sessions = []
             for extractor in extractors:
