@@ -237,11 +237,14 @@ def cmd_export(args):
 
             sessions.append(session)
 
-            # Export to markdown
+            # Export to markdown (skips if file is already up-to-date)
             try:
+                candidate = exporter._candidate_path(session)
+                was_current = candidate.exists() and candidate.stat().st_mtime >= session.last_updated.timestamp()
                 path = exporter.export_session(session)
                 export_paths[session.session_id] = path
-                print(f"  Exported: {path}")
+                if not was_current:
+                    print(f"  Exported: {path}")
             except Exception as e:
                 print(f"  Error exporting {session.session_id}: {e}", file=sys.stderr)
 

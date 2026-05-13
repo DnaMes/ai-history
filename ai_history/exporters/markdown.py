@@ -12,8 +12,18 @@ class MarkdownExporter:
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
 
-    def export_session(self, session: UnifiedSession) -> Path:
-        """Export a single session to Markdown."""
+    def _candidate_path(self, session: UnifiedSession) -> Path:
+        """Return the output path for a session without writing anything."""
+        project_dir = project_to_dirname(session.project_path)
+        tool_dir = session.tool.value
+        date_str = session.created_at.strftime("%Y-%m-%d")
+        title_part = sanitize_filename(session.title or session.session_id[:8])
+        session_suffix = sanitize_filename(session.session_id)[-12:]
+        filename = f"{date_str}_{title_part}_{session_suffix}.md"
+        return self.output_dir / "projects" / project_dir / tool_dir / filename
+
+    def export_session(self, session: UnifiedSession, force: bool = False) -> Path:
+        """Export a single session to Markdown. Skips if file is up-to-date."""
         # Build output path
         project_dir = project_to_dirname(session.project_path)
         tool_dir = session.tool.value
@@ -29,11 +39,25 @@ class MarkdownExporter:
 
         file_path = output_path / filename
 
+        # Skip if file exists and session hasn't been updated since last export
+        if not force and file_path.exists():
+            file_mtime = file_path.stat().st_mtime
+            session_updated_ts = session.last_updated.timestamp()
+            if file_mtime >= session_updated_ts:
+                return file_path
+
         # Generate content
         content = self._generate_markdown(session)
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        import os, tempfile
+        tmp = file_path.with_suffix(".tmp")
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(content)
+            os.replace(tmp, file_path)
+        except Exception:
+            tmp.unlink(missing_ok=True)
+            raise
 
         return file_path
 
