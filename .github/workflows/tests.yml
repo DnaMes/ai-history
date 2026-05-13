@@ -14,5 +14,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]" || pip install -e .
-      - run: pip install pytest
-      - run: python -m pytest tests/ -x -q
+      - run: pip install pytest pytest-cov
+      - run: python -m pytest tests/ -x -q --cov=ai_history --cov-fail-under=80

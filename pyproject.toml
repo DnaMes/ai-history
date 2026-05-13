@@ -78,6 +78,35 @@ skips = ["B101"]  # assert statements ok in tests
 "ai_history/extractors/claude.py" = ["F841"]
 "ai_session_cli.py" = ["F841"]
 
+[tool.pytest.ini_options]
+addopts = "--cov=ai_history --cov-config=pyproject.toml --cov-report=term-missing -q"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["ai_history"]
+omit = [
+    "ai_history/llm/*",
+    "ai_history/titles/*",
+    "ai_history/watcher.py",
+    "ai_history/extractors/cursor.py",
+    "ai_history/extractors/vscode.py",
+    "ai_history/extractors/copilot.py",
+    "ai_history/extractors/antigravity.py",
+    "ai_history/cli/mcp.py",
+    "ai_history/cli/web.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
 [tool.pyright]
 pythonVersion = "3.11"
 venvPath = "."

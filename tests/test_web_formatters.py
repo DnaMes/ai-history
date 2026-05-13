@@ -1,4 +1,5 @@
 from ai_history.interfaces import web
+from ai_history.interfaces.web_formatting import format_message_content, format_tool_calls
 from ai_history.utils.text_processing import format_tool_display, format_tool_result
 
 
@@ -72,6 +73,42 @@ def test_format_tool_display_wraps_long_bash_commands_for_readability():
     assert "&amp;&amp;\n" in html
     assert "|\njq" in html
     assert "Raw arguments" in html
+
+
+def test_format_message_content_empty_returns_empty():
+    assert format_message_content("") == ""
+    assert format_message_content(None) == ""
+
+
+def test_format_message_content_with_thinking_tags():
+    result = format_message_content("<thinking>internal thought</thinking> After")
+    assert "internal thought" in result or "After" in result
+
+
+def test_format_message_content_with_command_message_tag():
+    result = format_message_content("<command-message>run ls</command-message>")
+    assert "run ls" in result
+
+
+def test_format_message_content_with_command_name_tag():
+    result = format_message_content("<command-name>git commit</command-name>")
+    assert "git commit" in result
+
+
+def test_format_message_content_with_command_args_tag():
+    result = format_message_content("<command-args>-m 'msg'</command-args>")
+    assert "-m" in result
+
+
+def test_format_tool_calls_empty_returns_empty():
+    assert format_tool_calls([]) == ""
+    assert format_tool_calls(None) == ""
+
+
+def test_format_tool_calls_string_input():
+    # input is a plain string (not dict/list), triggers else branch
+    result = format_tool_calls([{"name": "bash", "input": "echo hello"}])
+    assert "Run bash" in result
 
 
 def test_render_base_includes_clean_mode_toggle(monkeypatch):
