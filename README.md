@@ -1,11 +1,53 @@
-# ai-history 📚
+# ai-history
+
+One place to search, browse, and export your AI coding sessions — Claude Code, Cursor, GitHub Copilot, Aider, OpenCode, and more.
+
+[![PyPI](https://img.shields.io/pypi/v/ai-history)](https://pypi.org/project/ai-history/)
+[![Python](https://img.shields.io/pypi/pyversions/ai-history)](https://pypi.org/project/ai-history/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub Issues](https://img.shields.io/github/issues/DnaMes/ai-history)](https://github.com/DnaMes/ai-history/issues)
 
 **The Local-First AI Chat History Manager.**
 
 A professional, privacy-focused alternative to SpecStory that collects, unifies, and exports chat histories from all your AI coding assistants without any cloud connectivity.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+---
+
+## Quickstart
+
+```bash
+pip install ai-history
+ai-history export --all   # index all sessions
+ai-history-web            # open browser at http://localhost:5000
+```
+
+Or with Docker:
+
+```bash
+docker compose up -d
+```
+
+---
+
+## Screenshots
+
+> _Screenshots coming soon — contributions welcome!_
+
+---
+
+## Supported Tools
+
+| Tool | Data location | Notes |
+|------|---------------|-------|
+| **Claude Code** | `~/.claude/projects/` | JSONL conversation files |
+| **Cursor** | `~/.cursor/` (SQLite) | Requires safe DB copy to avoid locks |
+| **GitHub Copilot (VS Code)** | VS Code extension storage | Session logs from the Copilot Chat panel |
+| **Copilot CLI** | Shell history / log files | Terminal Copilot sessions |
+| **Gemini CLI** | `~/.gemini/` | Set `GEMINI_PROJECT_ROOTS` for path resolution |
+| **Warp** | `~/.warp/` | AI session blocks from the Warp terminal |
+| **Codex** | `~/.codex/` | OpenAI Codex CLI sessions |
+| **OpenCode** | `~/.opencode/` | OpenCode agent sessions |
+| **Antigravity** | Varies | Experimental tool support |
 
 ---
 
@@ -95,6 +137,49 @@ ai-history sync codex
 ```
 
 `ai-history run` writes a PTY log to `~/.ai-history/runs/` for audit/debugging.
+
+---
+
+## MCP Integration
+
+`ai-history` ships a [Model Context Protocol](https://modelcontextprotocol.io/) server so Claude Code (and other MCP-capable clients) can search your own session history mid-conversation — without leaving the editor.
+
+**Use case:** Ask Claude Code `"Search my history for sqlite locking fixes"` and it will query your local indexed sessions in real time.
+
+### Claude Code setup
+
+Add this block to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "ai-history": {
+      "command": "ai-history-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+### OpenCode setup
+
+Add this block to `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ai-history": {
+      "type": "local",
+      "command": ["ai-history-mcp"]
+    }
+  }
+}
+```
+
+Available MCP tools: `search_history`, `list_sessions`, `get_session`, `get_session_messages`, `get_thread`, `list_projects`, `switch_to_tool`.
+
+See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for full inputs, outputs, and HTTP endpoint reference.
 
 ---
 
