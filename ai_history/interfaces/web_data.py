@@ -12,7 +12,7 @@ import threading
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ai_history.exporters.index import IndexBuilder
@@ -28,21 +28,19 @@ _threadsafe_cache_locks: dict = {}
 _threadsafe_cache_lock = threading.Lock()
 
 
-def threadsafe_lru_cache(maxsize=128):
+def threadsafe_lru_cache(maxsize: int = 128) -> Callable:
     """Thread-safe LRU cache decorator for use in multi-threaded Flask applications."""
-    import threading
 
-    def decorator(func):
+    def decorator(func: Callable) -> Any:
         cached_func = lru_cache(maxsize=maxsize)(func)
         cache_lock = threading.Lock()
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with cache_lock:
                 return cached_func(*args, **kwargs)
 
-        # Copy cache control methods from the cached function
-        wrapper.cache_clear = cached_func.cache_clear  # type: ignore
-        wrapper.cache_info = cached_func.cache_info  # type: ignore
+        wrapper.cache_clear = cached_func.cache_clear  # type: ignore[attr-defined]
+        wrapper.cache_info = cached_func.cache_info  # type: ignore[attr-defined]
         return wrapper
 
     return decorator
