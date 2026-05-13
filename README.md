@@ -5,6 +5,8 @@ One place to search, browse, and export your AI coding sessions — Claude Code,
 [![PyPI](https://img.shields.io/pypi/v/ai-history)](https://pypi.org/project/ai-history/)
 [![Python](https://img.shields.io/pypi/pyversions/ai-history)](https://pypi.org/project/ai-history/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests](https://github.com/DnaMes/ai-history/actions/workflows/tests.yml/badge.svg)](https://github.com/DnaMes/ai-history/actions/workflows/tests.yml)
+[![Security](https://github.com/DnaMes/ai-history/actions/workflows/security.yml/badge.svg)](https://github.com/DnaMes/ai-history/actions/workflows/security.yml)
 [![GitHub Issues](https://img.shields.io/github/issues/DnaMes/ai-history)](https://github.com/DnaMes/ai-history/issues)
 
 **The Local-First AI Chat History Manager.**
@@ -29,9 +31,22 @@ docker compose up -d
 
 ---
 
-## Screenshots
+## Web UI Preview
 
-> _Screenshots coming soon — contributions welcome!_
+```
+┌─────────────────────────────────────────────────────────┐
+│  ai-history  Sessions  Stats  Threads  Projects  Rules  │
+├─────────────────────────────────────────────────────────┤
+│ 🔍 Search sessions...                     [Sync ▾]     │
+├──────────────┬──────────────────────────────────────────┤
+│ claude-code  │  fix: sqlite locking in cursor extractor │
+│ gemini-cli   │  refactor: incremental index sync        │
+│ opencode     │  feat: session resume button             │
+│ cursor       │  docs: update README with quickstart     │
+└──────────────┴──────────────────────────────────────────┘
+```
+
+> Full screenshots coming soon. Run `ai-history-web` to see the live dashboard.
 
 ---
 
@@ -66,12 +81,14 @@ docker compose up -d
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR-ORG/ai-history.git
+# From PyPI (recommended)
+pip install ai-history
+
+# Or from source
+git clone https://github.com/DnaMes/ai-history.git
 cd ai-history
 pip install -e .
 ```
-
-If you see `ModuleNotFoundError: ai_history_cli`, rerun `pip install -e .` to refresh entry points.
 
 ### Basic Commands
 
@@ -183,42 +200,7 @@ See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for full inputs, outputs, a
 
 ---
 
-## 🔌 Agent Integration
-
-### Claude Code
-
-Add this to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "ai-history": {
-      "command": "ai-history-mcp",
-      "args": []
-    }
-  }
-}
-```
-
-If the command is not on your `PATH`, use the absolute path after running `pip install -e .`.
-
-### OpenCode
-
-Add this to `opencode.json`:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "ai-history": {
-      "type": "local",
-      "command": ["ai-history-mcp"]
-    }
-  }
-}
-```
-
-### Main MCP tools
+### Available MCP tools
 
 - `search_history`: Find matching past sessions.
 - `list_sessions`: List indexed sessions with filters.
@@ -306,7 +288,7 @@ Exit codes:
 
 ## 🛠️ Requirements
 
-- Python 3.9+
+- Python 3.11+
 - Flask (for Web UI)
 - Markdown (for rendering)
 - highlight.js (included via CDN)
@@ -381,7 +363,7 @@ When enabled, API/error requests are logged as JSON objects with method, path, s
 
 ### Docker Compose production defaults
 
-Container runtime uses Gunicorn (`ai_history_web_new:app`) instead of Flask development server.
+Container runtime uses Gunicorn (`ai_history.interfaces.web:app`) instead of Flask development server.
 
 `docker-compose.yml` now includes health checks for `app`, `db`, and `redis`, and startup ordering waits for healthy dependencies.
 
