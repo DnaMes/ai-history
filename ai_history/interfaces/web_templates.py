@@ -629,6 +629,7 @@ BASE_TEMPLATE = """
                 <a href="/sessions" class="sidebar-link {{ 'active' if active=='sessions' else '' }}">Sessions</a>
                 <a href="/projects" class="sidebar-link {{ 'active' if active=='projects' else '' }}">Projects</a>
                 <a href="/threads" class="sidebar-link {{ 'active' if active=='threads' else '' }}">Threads</a>
+                <a href="/stats" class="sidebar-link {{ 'active' if active=='stats' else '' }}">Stats</a>
                 <a href="/rules" class="sidebar-link {{ 'active' if active=='rules' else '' }}">Rules</a>
                 <a href="/noise-rules" class="sidebar-link {{ 'active' if active=='noise-rules' else '' }}">Noise Rules</a>
                 <div class="mt-8 mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Recent Activity</div>
@@ -1442,6 +1443,10 @@ SESSION_TEMPLATE = """
 
 # --- Simplified Dashboard and List ---
 DASHBOARD_TEMPLATE = """
+{# TODO(perf): Load summary stats from GET /api/v1/index/summary first (fast, no session data),
+   then populate the Recent Activity list lazily via GET /api/v1/sessions?page=1&per_page=10.
+   This avoids shipping the full index.json (can be 19MB+) on the initial page load.
+   Wire up with fetch() on DOMContentLoaded and replace the static Jinja blocks below. #}
 {% extends "base" %}
 {% block content %}
 <section class="max-w-6xl mx-auto px-8 py-10">
@@ -2030,6 +2035,127 @@ THREAD_DETAIL_TEMPLATE = """
         </div>
         {% endfor %}
     </div>
+    </div>
+</section>
+{% endblock %}
+"""
+
+STATS_TEMPLATE = """
+{% extends "base" %}
+{% block content %}
+<section class="max-w-6xl mx-auto px-8 py-10">
+    <div class="flex flex-wrap items-center justify-between gap-6 mb-10">
+        <div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Usage</div>
+            <h1 class="title-font page-headline text-slate-900 mt-2">Token Cost Dashboard</h1>
+            <p class="text-sm text-slate-500 mt-2">Estimated token usage across all AI tools. Blended rate: $3 / 1M tokens.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <div class="stat-card p-6">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Total Tokens</div>
+            <div class="text-3xl font-semibold text-slate-900">{{ "{:,}".format(total_tokens) }}</div>
+        </div>
+        <div class="stat-card p-6">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Est. Cost (USD)</div>
+            <div class="text-3xl font-semibold text-slate-900">${{ "%.2f"|format(total_tokens / 1_000_000 * 3) }}</div>
+        </div>
+        <div class="stat-card p-6">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Sessions (with tokens)</div>
+            <div class="text-3xl font-semibold text-slate-900">{{ "{:,}".format(session_count) }}</div>
+        </div>
+        <div class="stat-card p-6">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Avg Tokens / Session</div>
+            <div class="text-3xl font-semibold text-slate-900">{{ "{:,}".format((total_tokens // session_count) if session_count else 0) }}</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12">
+        <div>
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Tokens by Tool</h2>
+            <div class="surface-card p-6 space-y-4">
+                {% set max_tool_tokens = by_tool[0][1] if by_tool else 1 %}
+                {% for tool_name, tokens in by_tool %}
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" style="background: {{ get_style(tool_name).color }}"></div>
+                            <span class="text-sm text-slate-700">{{ get_style(tool_name).name }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-mono text-slate-500">{{ "{:,}".format(tokens) }}</span>
+                            <span class="text-[10px] text-slate-400 ml-2">${{ "%.2f"|format(tokens / 1_000_000 * 3) }}</span>
+                        </div>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all" style="width: {{ [(tokens * 100 // max_tool_tokens), 100]|min }}%; background: {{ get_style(tool_name).color }}; opacity: 0.75;"></div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-sm text-slate-400">No token data available.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Daily Usage — Last 30 Days</h2>
+            <div class="surface-card p-6">
+                {% if by_day %}
+                {% set max_day = namespace(v=1) %}
+                {% for day in by_day %}{% if day.tokens > max_day.v %}{% set max_day.v = day.tokens %}{% endif %}{% endfor %}
+                <div class="flex items-end gap-px h-24" aria-label="Daily token usage sparkline">
+                    {% for day in by_day %}
+                    <div class="flex-1 flex flex-col items-center justify-end h-full group relative">
+                        <div class="absolute bottom-full mb-1 hidden group-hover:block bg-slate-800 text-white text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap z-10">
+                            {{ day.date }}: {{ "{:,}".format(day.tokens) }}
+                        </div>
+                        <div class="w-full rounded-t-sm bg-blue-400 opacity-70 group-hover:opacity-100 transition-opacity"
+                             style="height: {{ [(day.tokens * 100 // max_day.v), 100]|min }}%;"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-400 mt-2">
+                    <span>{{ by_day[0].date }}</span>
+                    <span>{{ by_day[-1].date }}</span>
+                </div>
+                {% else %}
+                <div class="text-sm text-slate-400">No daily data available.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Top 10 Projects by Token Usage</h2>
+        <div class="surface-card overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100">
+                        <th class="text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">#</th>
+                        <th class="text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">Project</th>
+                        <th class="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">Tokens</th>
+                        <th class="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">Est. Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for proj in by_project %}
+                    <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-3 text-[11px] font-mono text-slate-400">{{ loop.index }}</td>
+                        <td class="px-6 py-3">
+                            <a href="/projects" class="text-slate-700 hover:text-slate-900 font-medium truncate block max-w-md" title="{{ proj.project }}">{{ proj.project | replace('/home/', '~/') | truncate(60) }}</a>
+                        </td>
+                        <td class="px-6 py-3 text-right font-mono text-slate-600 text-xs">{{ "{:,}".format(proj.tokens) }}</td>
+                        <td class="px-6 py-3 text-right font-mono text-slate-500 text-xs">${{ "%.2f"|format(proj.tokens / 1_000_000 * 3) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-6 text-sm text-slate-400 text-center">No project token data available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
 {% endblock %}

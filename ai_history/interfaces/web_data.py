@@ -266,6 +266,51 @@ def load_index():
     return payload
 
 
+def load_index_summary() -> dict:
+    """Return lightweight index metadata without loading full session details.
+
+    Derives counts from the cached full index (already in memory after any
+    previous load_index() call) so there is no extra I/O cost in the common
+    case.  Falls back to reading index.json stats block directly when the
+    cache is cold — the stats block is at the top of the file but json.load
+    still parses the whole file, so this is only a minor win for cold starts;
+    the real benefit is not shipping all session records to the caller.
+    """
+    if not INDEX_PATH.exists():
+        return {
+            "total_sessions": 0,
+            "by_tool": {},
+            "last_updated": None,
+            "index_size_bytes": 0,
+        }
+
+    stat = INDEX_PATH.stat()
+    # Re-use the LRU-cached full parse — no extra disk I/O when warm.
+    payload = _load_index_cached(str(INDEX_PATH), stat.st_mtime_ns, stat.st_size)
+
+    # Apply deleted-session filter so counts are consistent with load_index().
+    deleted = load_deleted_session_ids()
+    if deleted:
+        sessions = [s for s in payload.get("sessions", []) if s.get("id") not in deleted]
+        by_tool: dict[str, int] = {}
+        for session in sessions:
+            tool = str(session.get("tool") or "")
+            if tool:
+                by_tool[tool] = by_tool.get(tool, 0) + 1
+        total_sessions = len(sessions)
+    else:
+        stats = payload.get("stats", {})
+        by_tool = dict(stats.get("by_tool") or {})
+        total_sessions = int(stats.get("total_sessions") or 0)
+
+    return {
+        "total_sessions": total_sessions,
+        "by_tool": by_tool,
+        "last_updated": payload.get("generated_at"),
+        "index_size_bytes": stat.st_size,
+    }
+
+
 @threadsafe_lru_cache(maxsize=1)
 def _load_index_cached(index_path: str, _mtime_ns: int, _size: int):
     with open(index_path, "r", encoding="utf-8") as handle:
@@ -463,6 +508,7 @@ __all__ = [
     "_build_index_from_extractors",
     "load_sessions_for_tool",
     "load_index",
+    "load_index_summary",
     "_annotate_display_titles",
     "resolve_export_path",
     "load_export_lookup",

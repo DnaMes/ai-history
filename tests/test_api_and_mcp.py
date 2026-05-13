@@ -111,6 +111,151 @@ def test_api_v1_thread_detail_returns_serialized_messages(monkeypatch):
     assert payload["messages"][0]["role"] == "user"
 
 
+def _multi_session_index_payload(n: int = 5):
+    """Build an index payload with n sessions for pagination tests."""
+    sessions = []
+    for i in range(1, n + 1):
+        sessions.append(
+            {
+                "id": f"session-{i}",
+                "tool": "claude-code",
+                "title": f"Session {i}",
+                "created": f"2026-04-0{i}T10:00:00",
+                "updated": f"2026-04-0{i}T10:05:00",
+                "project": "/repo/demo",
+                "thread_id": "thread-1",
+                "messages": i * 2,
+                "prompts": i,
+                "export_path": None,
+            }
+        )
+    return {
+        "sessions": sessions,
+        "stats": {
+            "total_sessions": n,
+            "total_messages": sum(s["messages"] for s in sessions),
+            "by_tool": {"claude-code": n},
+            "by_project": {"/repo/demo": n},
+        },
+        "generated_at": "2026-05-13T17:00:00Z",
+    }
+
+
+def test_api_v1_sessions_pagination_returns_correct_page(monkeypatch):
+    monkeypatch.setattr(web, "load_index", lambda: _multi_session_index_payload(5))
+
+    with web.app.test_client() as client:
+        # page 1 with per_page=2 should return first 2 sessions
+        r1 = client.get("/api/v1/sessions?page=1&per_page=2")
+        assert r1.status_code == 200
+        p1 = r1.get_json()
+        assert p1["total"] == 5
+        assert p1["page"] == 1
+        assert p1["per_page"] == 2
+        assert p1["pages"] == 3
+        assert len(p1["sessions"]) == 2
+
+        # page 3 with per_page=2 should return the last session only
+        r3 = client.get("/api/v1/sessions?page=3&per_page=2")
+        assert r3.status_code == 200
+        p3 = r3.get_json()
+        assert p3["page"] == 3
+        assert len(p3["sessions"]) == 1
+
+        # page beyond range returns empty sessions list (not an error)
+        r_over = client.get("/api/v1/sessions?page=99&per_page=2")
+        assert r_over.status_code == 200
+        assert r_over.get_json()["sessions"] == []
+
+
+def test_api_v1_sessions_pagination_invalid_params(monkeypatch):
+    monkeypatch.setattr(web, "load_index", lambda: _multi_session_index_payload(3))
+
+    with web.app.test_client() as client:
+        assert client.get("/api/v1/sessions?page=0").status_code == 400
+        assert client.get("/api/v1/sessions?per_page=0").status_code == 400
+        assert client.get("/api/v1/sessions?page=abc").status_code == 400
+        assert client.get("/api/v1/sessions?per_page=abc").status_code == 400
+
+
+def test_api_v1_sessions_legacy_limit_still_works(monkeypatch):
+    """Existing ?limit= param must continue to work when page/per_page are absent."""
+    monkeypatch.setattr(web, "load_index", lambda: _multi_session_index_payload(5))
+
+    with web.app.test_client() as client:
+        r = client.get("/api/v1/sessions?limit=3")
+        assert r.status_code == 200
+        payload = r.get_json()
+        # Legacy response shape: count + sessions (no total/page/pages)
+        assert "count" in payload
+        assert payload["count"] == 3
+        assert len(payload["sessions"]) == 3
+        assert "page" not in payload
+
+
+def test_api_v1_index_summary_returns_metadata(monkeypatch):
+    from ai_history.interfaces import web_data
+
+    def _fake_load_index_summary():
+        return {
+            "total_sessions": 1234,
+            "by_tool": {"claude-code": 800, "cursor": 434},
+            "last_updated": "2026-05-13T17:00:00Z",
+            "index_size_bytes": 19_000_000,
+        }
+
+    monkeypatch.setattr(web, "load_index_summary", _fake_load_index_summary)
+
+    with web.app.test_client() as client:
+        r = client.get("/api/v1/index/summary")
+
+    assert r.status_code == 200
+    payload = r.get_json()
+    assert payload["total_sessions"] == 1234
+    assert payload["by_tool"]["claude-code"] == 800
+    assert payload["index_size_bytes"] == 19_000_000
+    assert payload["last_updated"] == "2026-05-13T17:00:00Z"
+
+
+def test_load_index_summary_derives_counts_from_cached_index(monkeypatch, tmp_path):
+    import json
+    from ai_history.interfaces import web_data
+
+    # Write a minimal index.json into a temp dir
+    index_file = tmp_path / "index.json"
+    payload = {
+        "generated_at": "2026-05-13T12:00:00Z",
+        "stats": {
+            "total_sessions": 3,
+            "total_messages": 6,
+            "by_tool": {"claude-code": 2, "cursor": 1},
+            "by_project": {},
+        },
+        "sessions": [
+            {"id": "s1", "tool": "claude-code", "messages": 2},
+            {"id": "s2", "tool": "claude-code", "messages": 2},
+            {"id": "s3", "tool": "cursor", "messages": 2},
+        ],
+    }
+    index_file.write_text(json.dumps(payload))
+
+    monkeypatch.setattr(web_data, "INDEX_PATH", index_file)
+    # No deleted sessions
+    monkeypatch.setattr(web_data, "load_deleted_session_ids", lambda: set())
+    # Clear the LRU cache so it reads our file
+    web_data._load_index_cached.cache_clear()
+
+    summary = web_data.load_index_summary()
+    assert summary["total_sessions"] == 3
+    assert summary["by_tool"]["claude-code"] == 2
+    assert summary["by_tool"]["cursor"] == 1
+    assert summary["last_updated"] == "2026-05-13T12:00:00Z"
+    assert summary["index_size_bytes"] == index_file.stat().st_size
+
+    # Clean up cache to avoid polluting other tests
+    web_data._load_index_cached.cache_clear()
+
+
 def test_mcp_server_returns_structured_json_for_new_tools(monkeypatch):
     live_session = _build_live_session()
     monkeypatch.setattr(mcp, "load_index", lambda: _index_payload())

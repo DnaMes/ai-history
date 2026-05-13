@@ -45,6 +45,7 @@ from .web_data import (
     clear_sessions_cache,
     load_export_lookup,
     load_index,
+    load_index_summary,
     load_sessions_for_tool,
     remember_deleted_session_id,
     resolve_export_path,
@@ -88,6 +89,7 @@ from .web_templates import (
     RULES_TEMPLATE,
     SESSION_TEMPLATE,
     SESSIONS_LIST_TEMPLATE,
+    STATS_TEMPLATE,
     THREAD_DETAIL_TEMPLATE,
     THREADS_LIST_TEMPLATE,
 )
@@ -163,6 +165,38 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 # Set TRUSTED_PROXY=1 (or any non-empty string) when a proxy sits in front.
 if os.environ.get("TRUSTED_PROXY"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
+
+
+_SESSION_WATCHER = None
+
+
+def _maybe_start_session_watcher() -> None:
+    """Start the background file watcher when ``AI_HISTORY_WATCH=1``.
+
+    The watcher polls every extractor's data dir and clears the index cache
+    whenever any of them change. The next request rebuilds the index lazily.
+    """
+    global _SESSION_WATCHER
+    if _SESSION_WATCHER is not None:
+        return
+    if os.environ.get("AI_HISTORY_WATCH", "").strip() not in ("1", "true", "True"):
+        return
+    try:
+        interval = float(os.environ.get("AI_HISTORY_WATCH_INTERVAL", "30"))
+    except ValueError:
+        interval = 30.0
+    try:
+        from ai_history.watcher import SessionWatcher
+
+        watcher = SessionWatcher(callback=clear_index_cache, interval=interval)
+        watcher.start()
+        _SESSION_WATCHER = watcher
+        logger.info("Session watcher enabled (interval=%.1fs)", interval)
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to start session watcher")
+
+
+_maybe_start_session_watcher()
 
 
 def _check_local_origin() -> Optional[tuple]:
@@ -447,6 +481,7 @@ def render(tpl_name, **kwargs):
         "thread_detail": THREAD_DETAIL_TEMPLATE,
         "rules": RULES_TEMPLATE,
         "noise_rules": NOISE_RULES_TEMPLATE,
+        "stats": STATS_TEMPLATE,
     }
     from jinja2 import Environment, FunctionLoader, select_autoescape
 
@@ -1366,6 +1401,43 @@ def api_v1_search():
     )
 
 
+def _api_page_params(
+    default_per_page: int = 50,
+    max_per_page: int = 500,
+) -> tuple[int, int]:
+    """Parse and validate ?page= and ?per_page= query parameters.
+
+    Returns (page, per_page) where page is 1-based.
+    Raises ValueError with a descriptive message on bad input.
+    """
+    raw_page = request.args.get("page", "1").strip()
+    raw_per_page = request.args.get("per_page", str(default_per_page)).strip()
+    try:
+        page = int(raw_page)
+    except ValueError:
+        raise ValueError("Invalid page parameter")
+    try:
+        per_page = int(raw_per_page)
+    except ValueError:
+        raise ValueError("Invalid per_page parameter")
+    if page < 1:
+        raise ValueError("Invalid page parameter")
+    if per_page < 1 or per_page > max_per_page:
+        raise ValueError(f"per_page must be between 1 and {max_per_page}")
+    return page, per_page
+
+
+@app.route("/api/v1/index/summary")
+def api_v1_index_summary():
+    """Return lightweight index metadata without loading full session records.
+
+    Useful for dashboard initialisation — fetch this first (fast), then
+    paginate sessions lazily via GET /api/v1/sessions?page=N&per_page=M.
+    """
+    summary = load_index_summary()
+    return jsonify(summary)
+
+
 @app.route("/api/v1/sessions")
 def api_v1_sessions():
     tool = request.args.get("tool", "")
@@ -1385,44 +1457,75 @@ def api_v1_sessions():
     if q and not validate_search_param(q):
         return jsonify({"error": "Invalid search query"}), 400
 
-    try:
-        limit = _api_limit_param(default=50, max_value=500)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+    # Pagination: ?page=1&per_page=50 (preferred) or legacy ?limit= (still honoured
+    # when page/per_page are absent so existing integrations keep working).
+    use_pagination = "page" in request.args or "per_page" in request.args
+    if use_pagination:
+        try:
+            page, per_page = _api_page_params(default_per_page=50, max_per_page=500)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        limit = None  # will slice via pagination below
+    else:
+        try:
+            limit = _api_limit_param(default=50, max_value=500)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        page, per_page = 1, limit
 
     if len(q) >= 2:
-        sessions = [
+        search_limit = (page * per_page) if use_pagination else (limit or 500)
+        all_sessions = [
             result["session"]
             for result in SearchEngine(INDEX_PATH).search(
                 q,
                 tool=tool or None,
                 project=project or None,
-            )[:limit]
+            )[:search_limit]
         ]
     else:
-        sessions = load_index().get("sessions", [])
+        all_sessions = load_index().get("sessions", [])
         if tool:
-            sessions = [session for session in sessions if session.get("tool") == tool]
+            all_sessions = [s for s in all_sessions if s.get("tool") == tool]
         if project:
-            sessions = [
-                session for session in sessions if project in str(session.get("project") or "")
+            all_sessions = [
+                s for s in all_sessions if project in str(s.get("project") or "")
             ]
         if thread_id:
-            sessions = [
-                session for session in sessions if str(session.get("thread_id") or "") == thread_id
+            all_sessions = [
+                s for s in all_sessions if str(s.get("thread_id") or "") == thread_id
             ]
-        sessions = sorted(
-            sessions,
-            key=lambda session: str(session.get("updated") or session.get("created") or ""),
+        all_sessions = sorted(
+            all_sessions,
+            key=lambda s: str(s.get("updated") or s.get("created") or ""),
             reverse=True,
-        )[:limit]
+        )
 
-    return jsonify(
-        {
-            "count": len(sessions),
-            "sessions": [serialize_index_session_summary(session) for session in sessions],
-        }
-    )
+    total = len(all_sessions)
+
+    if use_pagination:
+        offset = (page - 1) * per_page
+        page_sessions = all_sessions[offset : offset + per_page]
+        import math
+
+        pages = math.ceil(total / per_page) if per_page else 1
+        return jsonify(
+            {
+                "sessions": [serialize_index_session_summary(s) for s in page_sessions],
+                "total": total,
+                "page": page,
+                "per_page": per_page,
+                "pages": pages,
+            }
+        )
+    else:
+        sessions = all_sessions[:limit]
+        return jsonify(
+            {
+                "count": len(sessions),
+                "sessions": [serialize_index_session_summary(s) for s in sessions],
+            }
+        )
 
 
 @app.route("/api/v1/sessions/<session_id>")
