@@ -6,7 +6,7 @@ BASE_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='system-ui' font-size='16' font-weight='bold' fill='white'%3EH%3C/text%3E%3C/svg%3E">
-    <script>
+    <script nonce="{{ nonce }}">
         (() => {
             try {
                 const saved = localStorage.getItem('aihistory-theme');
@@ -18,7 +18,7 @@ BASE_TEMPLATE = """
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&display=swap">
-    <script>
+    <script nonce="{{ nonce }}">
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -33,7 +33,7 @@ BASE_TEMPLATE = """
             }
         }
     </script>
-    <style>
+    <style nonce="{{ nonce }}">
         :root {
             --bg: #f6f7fb;
             --text: #0f172a;
@@ -536,7 +536,7 @@ BASE_TEMPLATE = """
             border: 1px solid var(--border);
         }
     </style>
-    <script>
+    <script nonce="{{ nonce }}">
         /* Theme Switcher */
         (function() {
             const THEME_KEY = 'aihistory-theme';
@@ -708,7 +708,7 @@ BASE_TEMPLATE = """
                             <div class="theme-option" data-theme="light" onclick="selectTheme('light')"><span class="theme-swatch" style="background:#f6f7fb"></span>Light</div>
                         </div>
                     </div>
-                    <script>function selectTheme(t){window.aiHistoryTheme.set(t);document.querySelectorAll('.theme-option').forEach(function(el){el.classList.toggle('active',el.dataset.theme===t)});document.getElementById('themeDropdown').classList.remove('open');}document.getElementById('themeToggle').onclick=function(e){e.stopPropagation();document.getElementById('themeDropdown').classList.toggle('open');};document.getElementById('syncBtn').onclick=function(e){e.stopPropagation();document.getElementById('syncDropdown').classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.theme-dropdown')){document.getElementById('themeDropdown').classList.remove('open');document.getElementById('syncDropdown').classList.remove('open');}});</script>
+                    <script nonce="{{ nonce }}">function selectTheme(t){window.aiHistoryTheme.set(t);document.querySelectorAll('.theme-option').forEach(function(el){el.classList.toggle('active',el.dataset.theme===t)});document.getElementById('themeDropdown').classList.remove('open');}document.getElementById('themeToggle').onclick=function(e){e.stopPropagation();document.getElementById('themeDropdown').classList.toggle('open');};document.getElementById('syncBtn').onclick=function(e){e.stopPropagation();document.getElementById('syncDropdown').classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.theme-dropdown')){document.getElementById('themeDropdown').classList.remove('open');document.getElementById('syncDropdown').classList.remove('open');}});</script>
                 </div>
             </div>
             <div class="px-6 pt-2">
@@ -728,7 +728,7 @@ BASE_TEMPLATE = """
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script>
+    <script nonce="{{ nonce }}">
         if (typeof window.hljs !== 'undefined') {
             window.hljs.configure({ ignoreUnescapedHTML: true });
         }
@@ -1456,7 +1456,7 @@ SESSION_TEMPLATE = """
     </div>
 </div>
 
-<script>
+<script nonce="{{ nonce }}">
 function resumeSession(sessionId) {
     const modal = document.getElementById('resume-modal');
     const body = document.getElementById('resume-modal-body');
@@ -1747,7 +1747,7 @@ NOISE_RULES_TEMPLATE = """
         </div>
     </div>
 </section>
-<script>
+<script nonce="{{ nonce }}">
     document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.getElementById('noiseRulesSaveBtn');
         const resetBtn = document.getElementById('noiseRulesResetBtn');

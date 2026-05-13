@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
-
-import time
 
 from ai_history.interfaces.web_helpers import (
     TOOL_STYLES,
@@ -311,6 +309,7 @@ def test_cancel_job_running():
     assert result is True
 
     state = _get_reload_job(job_id)
+    assert state is not None
     assert state["cancel_requested"] is True
 
     with RELOAD_JOBS_LOCK:

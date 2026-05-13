@@ -19,14 +19,14 @@ def get_style(tool):
     return TOOL_STYLES.get(tool, {"color": "#A1A1AA", "icon": "🤖", "name": tool})
 
 
-def project_label(project_path: str) -> str:
+def project_label(project_path: Optional[str]) -> str:
     if not project_path:
         return "Unassigned"
     name = Path(project_path).name
     return name or project_path
 
 
-def parse_date_param(value: str) -> Optional[datetime]:
+def parse_date_param(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
     value = value.strip()

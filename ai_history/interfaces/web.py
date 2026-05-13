@@ -523,12 +523,28 @@ def render(tpl_name, **kwargs):
         recent=recent,
         provider_tools=list(TOOL_STYLES.keys()),
         request=request if has_request_context() else None,
+        nonce=get_csp_nonce(),
         **kwargs,
     )
 
 
+def get_csp_nonce() -> str:
+    """Return the per-request CSP nonce, with a safe fallback for test contexts.
+
+    Falls back to an empty string when called outside a request context or when
+    ``before_request`` has not been invoked (e.g. direct route calls in tests).
+    """
+    try:
+        return g.csp_nonce  # type: ignore[no-any-return]
+    except (RuntimeError, AttributeError):
+        # RuntimeError: no active request context.
+        # AttributeError: request context exists but before_request was skipped.
+        return ""
+
+
 @app.before_request
 def prepare_request_context_and_limit() -> Optional[Response]:
+    g.csp_nonce = secrets.token_urlsafe(16)
     g.request_started_epoch = time.time()
     g.request_id = _request_id()
 
@@ -569,10 +585,12 @@ def prepare_request_context_and_limit() -> Optional[Response]:
 
 @app.after_request
 def add_security_headers(response):
+    nonce = get_csp_nonce()
+    nonce_src = f"'nonce-{nonce}'" if nonce else ""
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        f"script-src 'self' {nonce_src} https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+        f"style-src 'self' {nonce_src} https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
         "img-src 'self' data:; "
         "font-src 'self' data: https://fonts.gstatic.com; "
         "connect-src 'self'; "
