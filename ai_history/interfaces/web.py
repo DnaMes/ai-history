@@ -3,6 +3,7 @@ import importlib
 import json
 import logging
 import os
+import secrets
 import sys
 import time
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ from urllib.parse import quote, urlparse
 import nh3
 import markdown
 from flask import Flask, Response, g, has_request_context, jsonify, redirect, request
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from ai_history.extractors.factory import get_all_extractors
 from ai_history.extractors.opencode import OpenCodeExtractor
@@ -139,12 +141,28 @@ preview_normalize_message = _web_services.preview_normalize_message
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder=Path(__file__).parent.parent / "templates")
-app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", os.urandom(32).hex())
+
+_flask_secret = os.environ.get("FLASK_SECRET_KEY")
+if not _flask_secret:
+    _flask_secret = secrets.token_hex(32)
+    logger.warning(
+        "FLASK_SECRET_KEY not set — using ephemeral key. "
+        "Sessions will break on restart. "
+        "Set FLASK_SECRET_KEY env var for production."
+    )
+app.config["SECRET_KEY"] = _flask_secret
 # SameSite=Strict stops cross-site requests from carrying the session cookie.
 # Combined with the _check_local_origin() guard on destructive routes this
 # replaces Flask-WTF CSRF tokens (which don't survive ephemeral SECRET_KEY restarts).
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+
+# Only trust X-Forwarded-For / X-Forwarded-Proto / X-Forwarded-Host when running
+# behind a known reverse proxy. Without this guard any client can spoof their IP
+# (used by the rate-limiter) or escalate http→https by injecting headers directly.
+# Set TRUSTED_PROXY=1 (or any non-empty string) when a proxy sits in front.
+if os.environ.get("TRUSTED_PROXY"):
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
 
 
 def _check_local_origin() -> Optional[tuple]:

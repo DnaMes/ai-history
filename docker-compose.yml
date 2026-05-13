@@ -21,6 +21,9 @@ services:
       - ${HOME}/.ai-history:/home/ai/.ai-history
     environment:
       - HOME=/home/ai
+      # Set a stable secret key so sessions survive container restarts.
+      # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+      # - FLASK_SECRET_KEY=your-secret-key-here
       - AI_HISTORY_RATE_LIMIT_ENABLED=${AI_HISTORY_RATE_LIMIT_ENABLED:-true}
       - AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS=${AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS:-60}
       - AI_HISTORY_RATE_LIMIT_MAX_API_REQUESTS=${AI_HISTORY_RATE_LIMIT_MAX_API_REQUESTS:-240}
