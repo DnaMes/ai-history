@@ -8,15 +8,15 @@ import html
 import json
 import re
 
-import bleach
+import nh3
 import markdown
 
 from ai_history.utils.text_processing import strip_ansi
 
 from .web_data import threadsafe_lru_cache
 
-# HTML sanitization constants
-SANITIZE_TAGS = [
+# HTML sanitization constants (nh3 requires sets, not lists)
+SANITIZE_TAGS = {
     "p",
     "br",
     "strong",
@@ -47,30 +47,30 @@ SANITIZE_TAGS = [
     # Used by tool-call / thinking collapsible blocks generated internally
     "details",
     "summary",
-]
-
-SANITIZE_ATTRS = {
-    "a": ["href", "title"],
-    "code": ["class"],
-    "pre": ["class"],
-    "span": ["class"],
-    "div": ["class"],
-    "details": ["class"],
-    "summary": ["class"],
 }
 
-SANITIZE_PROTOCOLS = ["http", "https", "mailto"]
+SANITIZE_ATTRS = {
+    "a": {"href", "title"},
+    "code": {"class"},
+    "pre": {"class"},
+    "span": {"class"},
+    "div": {"class"},
+    "details": {"class"},
+    "summary": {"class"},
+}
+
+SANITIZE_URL_SCHEMES = {"http", "https", "mailto"}
 
 
 def sanitize_rendered_html(rendered_html: str) -> str:
     """Sanitize HTML content for safe display."""
-    return bleach.clean(
+    return nh3.clean(
         rendered_html or "",
         tags=SANITIZE_TAGS,
         attributes=SANITIZE_ATTRS,
-        protocols=SANITIZE_PROTOCOLS,
-        strip=True,
+        url_schemes=SANITIZE_URL_SCHEMES,
         strip_comments=True,
+        link_rel=None,
     )
 
 
@@ -166,13 +166,13 @@ def _format_message_content_cached(raw_content: str) -> str:
 
     if markdown:
         content = markdown.markdown(content, extensions=["fenced_code", "tables", "nl2br"])
-        content = bleach.clean(
+        content = nh3.clean(
             content,
-            tags=SANITIZE_TAGS + ["code"],
+            tags=SANITIZE_TAGS | {"code"},
             attributes=SANITIZE_ATTRS,
-            protocols=SANITIZE_PROTOCOLS,
-            strip=True,
+            url_schemes=SANITIZE_URL_SCHEMES,
             strip_comments=True,
+            link_rel=None,
         )
     else:
         content = html.escape(content).replace("\n", "<br>")

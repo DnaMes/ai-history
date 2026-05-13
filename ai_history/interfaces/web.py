@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote, urlparse
 
-import bleach
+import nh3
 import markdown
 from flask import Flask, Response, g, has_request_context, jsonify, redirect, request
 
@@ -49,7 +49,7 @@ from .web_data import (
 )
 from .web_formatting import (
     SANITIZE_ATTRS,
-    SANITIZE_PROTOCOLS,
+    SANITIZE_URL_SCHEMES,
     SANITIZE_TAGS,
     format_message_content,
     format_tool_calls,
@@ -320,11 +320,11 @@ def _reload_sessions_index(
 
     if progress_callback:
         progress_callback(15, "Collecting provider sessions")
-    _build_index_from_extractors(
+    extractor_errors = _build_index_from_extractors(
         tool_filter=tool_filter or None,
         progress_callback=progress_callback,
         should_stop=should_stop,
-    )
+    ) or []
 
     if progress_callback:
         progress_callback(65, "Loading refreshed index")
@@ -402,6 +402,7 @@ def _reload_sessions_index(
         "by_tool": by_tool,
         "refreshed_tools": sorted([tool for tool in refreshed_tools if tool]),
         "revision": _current_revision(),
+        "errors": extractor_errors,
     }
 
 
@@ -915,13 +916,13 @@ def session_detail(session_id):
         md_text = Path(path_value).read_text(encoding="utf-8")
         if markdown:
             html_content = markdown.markdown(md_text, extensions=["fenced_code", "tables", "nl2br"])
-            html_content = bleach.clean(
+            html_content = nh3.clean(
                 html_content,
                 tags=SANITIZE_TAGS,
                 attributes=SANITIZE_ATTRS,
-                protocols=SANITIZE_PROTOCOLS,
-                strip=True,
+                url_schemes=SANITIZE_URL_SCHEMES,
                 strip_comments=True,
+                link_rel=None,
             )
         else:
             html_content = html.escape(md_text).replace("\n", "<br>")
@@ -1195,13 +1196,13 @@ def rules():
             rules_text = f.read()
     if rules_text and markdown:
         rules_text = markdown.markdown(rules_text, extensions=["fenced_code", "tables", "nl2br"])
-        rules_text = bleach.clean(
+        rules_text = nh3.clean(
             rules_text,
             tags=SANITIZE_TAGS,
             attributes=SANITIZE_ATTRS,
-            protocols=SANITIZE_PROTOCOLS,
-            strip=True,
+            url_schemes=SANITIZE_URL_SCHEMES,
             strip_comments=True,
+            link_rel=None,
         )
     elif rules_text:
         rules_text = html.escape(rules_text).replace("\n", "<br>")
