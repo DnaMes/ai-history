@@ -669,6 +669,9 @@ BASE_TEMPLATE = """
                             {% for provider in provider_tools %}<button onclick="runSync('reload', '{{ provider }}')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:{{ get_style(provider).color }}"></span>{{ get_style(provider).name }}
                             </button>{% endfor %}
+                            <button onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
+                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>Full rebuild (slow)
+                            </button>
                             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">Audit</div>
                             <button onclick="runSync('audit', '', 'index')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-green-400"></span>Quick (index)
@@ -1006,7 +1009,7 @@ BASE_TEMPLATE = """
             }
             }
 
-            async function runSync(action, provider, scope) {
+            async function runSync(action, provider, scope, full) {
             const btn = document.getElementById('syncBtn');
             const cancelBtn = document.getElementById('cancelActionBtn');
             if (!btn) return;
@@ -1014,7 +1017,8 @@ BASE_TEMPLATE = """
             btn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Syncing...';
             if (cancelBtn) { cancelBtn.hidden = false; cancelBtn.disabled = false; }
             const startedAt = Date.now();
-            setActionStatus(`Starting ${action}...`);
+            const actionLabel = full ? `${action} (full)` : action;
+            setActionStatus(`Starting ${actionLabel}...`);
             closeAllDropdowns();
             try {
                 const isReload = action === 'reload';
@@ -1022,6 +1026,7 @@ BASE_TEMPLATE = """
                 const url = new URL(isReload ? '/api/reload-sessions' : '/api/audit', window.location.origin);
                 url.searchParams.set('async', '1');
                 if (provider) url.searchParams.set('provider', provider);
+                if (isReload && full) url.searchParams.set('full', '1');
                 if (!isReload) url.searchParams.set('scope', auditScope);
                 const httpMethod = isReload ? 'POST' : 'GET';
                 const response = await fetch(url.toString(), { method: httpMethod, credentials: 'same-origin' });

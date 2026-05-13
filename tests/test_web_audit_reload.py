@@ -35,12 +35,13 @@ def test_api_reload_sessions_returns_status(monkeypatch):
     monkeypatch.setattr(
         web,
         "_reload_sessions_index",
-        lambda: {
+        lambda **kwargs: {
             "status": "ok",
             "reload_seconds": 0.123,
             "total_sessions": 42,
             "by_tool": {"opencode": 10},
             "revision": "test",
+            "mode": "incremental" if kwargs.get("incremental", True) else "full",
         },
     )
 
@@ -51,6 +52,13 @@ def test_api_reload_sessions_returns_status(monkeypatch):
     payload = response.get_json()
     assert payload["status"] == "ok"
     assert payload["total_sessions"] == 42
+    assert payload["mode"] == "incremental"
+
+    with web.app.test_client() as client:
+        full_response = client.post("/api/reload-sessions?full=1")
+
+    assert full_response.status_code == 200
+    assert full_response.get_json()["mode"] == "full"
 
 
 def test_api_audit_rejects_invalid_provider():
@@ -62,7 +70,14 @@ def test_api_audit_rejects_invalid_provider():
 
 
 def test_api_reload_accepts_async_job(monkeypatch):
-    monkeypatch.setattr(web, "_start_reload_job", lambda provider: "reload-job-1")
+    captured: dict = {}
+
+    def fake_start(provider, incremental=True):
+        captured["provider"] = provider
+        captured["incremental"] = incremental
+        return "reload-job-1"
+
+    monkeypatch.setattr(web, "_start_reload_job", fake_start)
 
     with web.app.test_client() as client:
         response = client.post("/api/reload-sessions?async=1&provider=opencode")
@@ -71,6 +86,15 @@ def test_api_reload_accepts_async_job(monkeypatch):
     payload = response.get_json()
     assert payload["status"] == "accepted"
     assert payload["job_id"] == "reload-job-1"
+    assert payload["mode"] == "incremental"
+    assert captured["incremental"] is True
+
+    with web.app.test_client() as client:
+        full_response = client.post("/api/reload-sessions?async=1&full=1")
+
+    assert full_response.status_code == 202
+    assert full_response.get_json()["mode"] == "full"
+    assert captured["incremental"] is False
 
 
 def test_api_reload_status_not_found():

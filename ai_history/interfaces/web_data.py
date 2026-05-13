@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder
+from ai_history.exporters.index import IndexBuilder, _stat_mtime_ns
 from ai_history.extractors.factory import get_all_extractors
 from ai_history.titles.generator import TitleGenerator, TitleStrategy
 
@@ -171,7 +171,15 @@ def _build_index_from_extractors(
     tool_filter: Optional[str] = None,
     progress_callback=None,
     should_stop=None,
+    incremental: bool = True,
 ):
+    """Build the search index.
+
+    When ``incremental=True`` (default) sessions already present in the
+    existing index whose source-file mtime hasn't changed are reused verbatim
+    instead of being re-processed by :class:`IndexBuilder`. Set
+    ``incremental=False`` to force a full rebuild.
+    """
     extractors = get_all_extractors()
     selected = [
         extractor
@@ -179,7 +187,21 @@ def _build_index_from_extractors(
         if extractor.is_available() and (not tool_filter or extractor.tool.value == tool_filter)
     ]
 
+    existing_by_id: dict[str, dict] = {}
+    if incremental and INDEX_PATH.exists():
+        try:
+            with open(INDEX_PATH, "r", encoding="utf-8") as handle:
+                existing_payload = json.load(handle)
+            for entry in existing_payload.get("sessions", []) or []:
+                sid = str(entry.get("id") or "")
+                if sid:
+                    existing_by_id[sid] = entry
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Failed to read existing index for incremental build: %s", exc)
+
     sessions = []
+    reused_entries: list[dict] = []
+    reused_ids: set[str] = set()
     errors: list[dict] = []
     title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
     total = len(selected) or 1
@@ -194,6 +216,22 @@ def _build_index_from_extractors(
             for session in extractor.extract_sessions():
                 if should_stop and should_stop():
                     raise ActionJobCancelledError("Cancelled by user")
+
+                if incremental:
+                    prior = existing_by_id.get(session.session_id)
+                    if prior is not None:
+                        prior_mtime = prior.get("source_mtime")
+                        current_mtime = _stat_mtime_ns(session.source_path)
+                        if (
+                            prior_mtime is not None
+                            and current_mtime is not None
+                            and prior_mtime == current_mtime
+                            and session.session_id not in reused_ids
+                        ):
+                            reused_entries.append(prior)
+                            reused_ids.add(session.session_id)
+                            continue
+
                 title = title_generator.generate(session, force=False)
                 if title:
                     session.title = title
@@ -213,10 +251,18 @@ def _build_index_from_extractors(
 
     deleted = load_deleted_session_ids()
     filtered = [session for session in sessions if session.session_id not in deleted]
-    IndexBuilder(OUTPUT_DIR).build_index(filtered, {})
+    reused_filtered = [entry for entry in reused_entries if entry.get("id") not in deleted]
+    IndexBuilder(OUTPUT_DIR).build_index(
+        filtered, {}, reused_entries=reused_filtered if reused_filtered else None
+    )
 
     if progress_callback:
-        progress_callback(62, "Index written")
+        message = (
+            f"Index written ({len(reused_filtered)} reused, {len(filtered)} refreshed)"
+            if incremental
+            else "Index written"
+        )
+        progress_callback(62, message)
 
     return errors
 

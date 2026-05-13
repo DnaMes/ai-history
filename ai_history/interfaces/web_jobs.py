@@ -126,7 +126,7 @@ def _get_reload_job(job_id: str) -> Optional[dict]:
         return dict(state)
 
 
-def _start_reload_job(provider: Optional[str]) -> str:
+def _start_reload_job(provider: Optional[str], incremental: bool = True) -> str:
     """Start a background reload job."""
     _metrics_inc("reload_jobs_started")
     job_id = f"reload-{uuid.uuid4().hex[:12]}"
@@ -138,6 +138,7 @@ def _start_reload_job(provider: Optional[str]) -> str:
             "job_id": job_id,
             "kind": "reload",
             "provider": provider or "",
+            "mode": "incremental" if incremental else "full",
             "status": "running",
             "progress": 0,
             "message": "Queued",
@@ -166,6 +167,7 @@ def _start_reload_job(provider: Optional[str]) -> str:
                 provider=provider,
                 progress_callback=progress_callback,
                 should_stop=should_stop,
+                incremental=incremental,
             )
             errors = list(payload.get("errors") or []) if isinstance(payload, dict) else []
             _set_reload_job(

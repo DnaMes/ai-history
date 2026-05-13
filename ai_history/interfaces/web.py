@@ -356,6 +356,7 @@ def _reload_sessions_index(
     provider: Optional[str] = None,
     progress_callback=None,
     should_stop=None,
+    incremental: bool = True,
 ) -> dict:
     start = datetime.now(timezone.utc)
 
@@ -372,11 +373,15 @@ def _reload_sessions_index(
 
     if progress_callback:
         progress_callback(15, "Collecting provider sessions")
-    extractor_errors = _build_index_from_extractors(
-        tool_filter=tool_filter or None,
-        progress_callback=progress_callback,
-        should_stop=should_stop,
-    ) or []
+    extractor_errors = (
+        _build_index_from_extractors(
+            tool_filter=tool_filter or None,
+            progress_callback=progress_callback,
+            should_stop=should_stop,
+            incremental=incremental,
+        )
+        or []
+    )
 
     if progress_callback:
         progress_callback(65, "Loading refreshed index")
@@ -454,6 +459,7 @@ def _reload_sessions_index(
         "by_tool": by_tool,
         "refreshed_tools": sorted([tool for tool in refreshed_tools if tool]),
         "revision": _current_revision(),
+        "mode": "incremental" if incremental else "full",
         "errors": extractor_errors,
     }
 
@@ -738,17 +744,25 @@ def api_reload_sessions():
     if provider and not validate_tool_name(provider):
         return jsonify({"status": "error", "error": "Invalid provider"}), 400
 
+    full_rebuild = (request.args.get("full") or "0").strip() == "1"
+    incremental = not full_rebuild
+
     async_mode = (request.args.get("async") or "0").strip() == "1"
     if async_mode:
-        job_id = _start_reload_job(provider or None)
+        job_id = _start_reload_job(provider or None, incremental=incremental)
         return (
-            jsonify({"status": "accepted", "job_id": job_id, "provider": provider or "all"}),
+            jsonify(
+                {
+                    "status": "accepted",
+                    "job_id": job_id,
+                    "provider": provider or "all",
+                    "mode": "incremental" if incremental else "full",
+                }
+            ),
             202,
         )
 
-    if provider:
-        return jsonify(_reload_sessions_index(provider=provider))
-    return jsonify(_reload_sessions_index())
+    return jsonify(_reload_sessions_index(provider=provider or None, incremental=incremental))
 
 
 @app.route("/api/cache/clear", methods=["POST"])
@@ -1638,13 +1652,9 @@ def api_v1_sessions():
         if tool:
             all_sessions = [s for s in all_sessions if s.get("tool") == tool]
         if project:
-            all_sessions = [
-                s for s in all_sessions if project in str(s.get("project") or "")
-            ]
+            all_sessions = [s for s in all_sessions if project in str(s.get("project") or "")]
         if thread_id:
-            all_sessions = [
-                s for s in all_sessions if str(s.get("thread_id") or "") == thread_id
-            ]
+            all_sessions = [s for s in all_sessions if str(s.get("thread_id") or "") == thread_id]
         all_sessions = sorted(
             all_sessions,
             key=lambda s: str(s.get("updated") or s.get("created") or ""),
