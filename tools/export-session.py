@@ -6,8 +6,8 @@ Extracts the session context and provides ready-to-paste text for Gemini, Codex,
 
 import json
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -46,9 +46,7 @@ def export_session(session_file: Path, context_messages: int = 10):
     # Validate session file path
     try:
         base_dir = Path.home() / ".claude"
-        validated_session = sanitize_path(
-            str(session_file), base_dir, allow_absolute=True
-        )
+        validated_session = sanitize_path(str(session_file), base_dir, allow_absolute=True)
     except ValueError as e:
         print(f"❌ Invalid session file path: {e}")
         sys.exit(1)
@@ -66,9 +64,7 @@ def export_session(session_file: Path, context_messages: int = 10):
     print(f"Exporting last {context_messages} messages...\n")
 
     # Get last N messages for context
-    recent_messages = (
-        messages[-context_messages:] if len(messages) > context_messages else messages
-    )
+    recent_messages = messages[-context_messages:] if len(messages) > context_messages else messages
 
     # Build export text
     export_lines = []
@@ -166,9 +162,7 @@ def export_session(session_file: Path, context_messages: int = 10):
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Export Claude Code session for other AI tools"
-    )
+    parser = argparse.ArgumentParser(description="Export Claude Code session for other AI tools")
     parser.add_argument(
         "--project",
         default="~/.claude/projects/-home-dnames-projects-spec-story-local",
@@ -181,9 +175,7 @@ def main():
         help="Number of recent messages to export (default: 10)",
     )
     parser.add_argument("--session", help="Specific session file to export")
-    parser.add_argument(
-        "--stdout", action="store_true", help="Print export to stdout (for piping)"
-    )
+    parser.add_argument("--stdout", action="store_true", help="Print export to stdout (for piping)")
 
     args = parser.parse_args()
 
@@ -191,9 +183,7 @@ def main():
         try:
             session_file = Path(args.session)
             base_dir = Path.home() / ".claude"
-            session_file = sanitize_path(
-                str(session_file), base_dir, allow_absolute=True
-            )
+            session_file = sanitize_path(str(session_file), base_dir, allow_absolute=True)
         except ValueError as e:
             print(f"❌ Invalid session file: {e}")
             sys.exit(1)

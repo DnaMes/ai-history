@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add local package to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from ai_history.interfaces.web import app, start_web_ui
+from ai_history.interfaces.web import start_web_ui
 
 
 def main():

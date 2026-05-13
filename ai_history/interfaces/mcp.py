@@ -3,16 +3,16 @@ import json
 import logging
 import subprocess
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+from ..exporters.index import IndexBuilder
 from ..extractors.factory import get_all_extractors
 from ..search.engine import SearchEngine
-from ..exporters.index import IndexBuilder
-from ..utils.datetime import parse_duration, make_naive
+from ..utils.datetime import make_naive, parse_duration
 from ..utils.security import (
     validate_search_param,
     validate_session_id,
@@ -65,9 +65,7 @@ class MCPServer:
         elif method == "notifications/initialized":
             return None  # No response for notifications
         else:
-            return self._error_response(
-                request_id, -32601, f"Method not found: {method}"
-            )
+            return self._error_response(request_id, -32601, f"Method not found: {method}")
 
     def _handle_initialize(self, request_id, params) -> dict:
         """Handle initialize request."""
@@ -109,9 +107,7 @@ class MCPServer:
         arguments = params.get("arguments", {})
 
         if tool_name not in self.tools:
-            return self._error_response(
-                request_id, -32602, f"Unknown tool: {tool_name}"
-            )
+            return self._error_response(request_id, -32602, f"Unknown tool: {tool_name}")
 
         try:
             handler = self.tools[tool_name]["handler"]
@@ -123,7 +119,7 @@ class MCPServer:
                     "content": [{"type": "text", "text": result}],
                 },
             }
-        except Exception as e:
+        except Exception:
             logger.exception("Tool %s raised an unexpected error", tool_name)
             return self._error_response(request_id, -32603, "Internal error")
 
@@ -244,9 +240,7 @@ def create_server() -> MCPServer:
             build_index_if_missing()
         return load_index()
 
-    def _normalize_limit(
-        raw_value: object, default: int = 10, max_value: int = 100
-    ) -> int:
+    def _normalize_limit(raw_value: object, default: int = 10, max_value: int = 100) -> int:
         if raw_value is None:
             return default
         if not isinstance(raw_value, int) or raw_value < 1 or raw_value > max_value:
@@ -283,11 +277,7 @@ def create_server() -> MCPServer:
     def _session_meta_by_id(session_id: str) -> Optional[dict]:
         idx = _ensure_index()
         return next(
-            (
-                session
-                for session in idx.get("sessions", [])
-                if session.get("id") == session_id
-            ),
+            (session for session in idx.get("sessions", []) if session.get("id") == session_id),
             None,
         )
 
@@ -366,32 +356,24 @@ def create_server() -> MCPServer:
         for session in _ensure_index().get("sessions", []):
             if tool_filter and session.get("tool") != tool_filter:
                 continue
-            if project_filter and project_filter not in str(
-                session.get("project") or ""
-            ):
+            if project_filter and project_filter not in str(session.get("project") or ""):
                 continue
             if thread_filter and session.get("thread_id") != thread_filter:
                 continue
             if cutoff:
                 created = session.get("created")
                 try:
-                    created_dt = datetime.fromisoformat(
-                        str(created).replace("Z", "+00:00")
-                    )
+                    created_dt = datetime.fromisoformat(str(created).replace("Z", "+00:00"))
                 except ValueError:
                     created_dt = None
                 if created_dt and make_naive(created_dt) < cutoff:
                     continue
             sessions.append(session)
 
-        sessions.sort(
-            key=lambda s: str(s.get("updated") or s.get("created") or ""), reverse=True
-        )
+        sessions.sort(key=lambda s: str(s.get("updated") or s.get("created") or ""), reverse=True)
         payload = {
             "count": min(len(sessions), limit),
-            "sessions": [
-                serialize_index_session_summary(session) for session in sessions[:limit]
-            ],
+            "sessions": [serialize_index_session_summary(session) for session in sessions[:limit]],
         }
         return _json_text(payload)
 
@@ -504,17 +486,14 @@ def create_server() -> MCPServer:
         limit = _normalize_limit(args.get("limit"), default=10)
         sessions = sorted(
             _ensure_index().get("sessions", []),
-            key=lambda session: str(
-                session.get("updated") or session.get("created") or ""
-            ),
+            key=lambda session: str(session.get("updated") or session.get("created") or ""),
             reverse=True,
         )
         return _json_text(
             {
                 "count": min(len(sessions), limit),
                 "sessions": [
-                    serialize_index_session_summary(session)
-                    for session in sessions[:limit]
+                    serialize_index_session_summary(session) for session in sessions[:limit]
                 ],
             }
         )
@@ -533,15 +512,11 @@ def create_server() -> MCPServer:
 
     async def list_projects(args: dict) -> str:
         limit = _normalize_limit(args.get("limit"), default=50)
-        projects = build_projects_payload(
-            _ensure_index().get("sessions", []), lambda value: value
-        )
+        projects = build_projects_payload(_ensure_index().get("sessions", []), lambda value: value)
         return _json_text(
             {
                 "count": min(len(projects), limit),
-                "projects": [
-                    serialize_project(project) for project in projects[:limit]
-                ],
+                "projects": [serialize_project(project) for project in projects[:limit]],
             }
         )
 
@@ -589,8 +564,7 @@ def create_server() -> MCPServer:
             payload["messages"] = serialize_thread_messages(detail["messages"])
             payload["thread_meta"] = detail["thread_meta"]
             payload["timeline"] = [
-                serialize_index_session_summary(session)
-                for session in detail["thread_timeline"]
+                serialize_index_session_summary(session) for session in detail["thread_timeline"]
             ]
         return _json_text(payload)
 
@@ -633,9 +607,7 @@ def create_server() -> MCPServer:
             cmd.extend(["--thread-id", thread_id])
 
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, check=False, timeout=30
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=30)
             if result.returncode == 0:
                 return f"✓ Context prepared for {normalized_tool}.\n\n{result.stdout}"
             else:

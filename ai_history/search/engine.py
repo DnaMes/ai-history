@@ -2,7 +2,8 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import Dict, List, Optional
-from ai_history.utils.security import validate_tool_name, validate_search_param
+
+from ai_history.utils.security import validate_search_param, validate_tool_name
 from ai_history.utils.tooling import normalize_tool_name
 
 

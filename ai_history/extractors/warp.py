@@ -2,18 +2,15 @@ import json
 import logging
 import re
 import sqlite3
-import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterator, Dict, List
-from datetime import datetime
+from typing import Dict, Iterator, List
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
-from ..utils.paths import safe_copy_db, make_thread_id
-
+from ..utils.paths import make_thread_id, safe_copy_db
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +19,12 @@ class WarpExtractor(BaseExtractor):
     """Extract chat history from Warp Terminal."""
 
     def __init__(self):
-        self.db_path = (
-            Path.home() / ".local" / "state" / "warp-terminal" / "warp.sqlite"
-        )
+        self.db_path = Path.home() / ".local" / "state" / "warp-terminal" / "warp.sqlite"
         self.db_paths = self._discover_db_paths()
 
     def _discover_db_paths(self):
         paths = [self.db_path]
-        for candidate in discover_home_marker_paths(
-            ".local/state/warp-terminal/warp.sqlite"
-        ):
+        for candidate in discover_home_marker_paths(".local/state/warp-terminal/warp.sqlite"):
             if candidate not in paths:
                 paths.append(candidate)
         return [path for path in paths if path.exists()]
@@ -107,14 +100,10 @@ class WarpExtractor(BaseExtractor):
                             queries,
                             assistant_by_conversation.get(conv_id, []),
                         )
-                        if session.message_count > 0 and self.should_import_session(
-                            session
-                        ):
+                        if session.message_count > 0 and self.should_import_session(session):
                             yield session
                     except Exception as e:
-                        logger.warning(
-                            "Failed to build Warp session %s: %s", conv_id, e
-                        )
+                        logger.warning("Failed to build Warp session %s: %s", conv_id, e)
 
             finally:
                 conn.close()
@@ -455,17 +444,13 @@ class WarpExtractor(BaseExtractor):
                 scored_messages.append((message, relevance, quality))
 
             relevant_messages = [
-                (msg, rel, qual)
-                for msg, rel, qual in scored_messages
-                if rel > 0 and qual >= 12
+                (msg, rel, qual) for msg, rel, qual in scored_messages if rel > 0 and qual >= 12
             ]
 
             if relevant_messages:
                 target_count = max(1, len(user_texts))
                 if len(relevant_messages) <= target_count:
-                    cleaned_assistant_messages = [
-                        msg for msg, _, _ in relevant_messages
-                    ]
+                    cleaned_assistant_messages = [msg for msg, _, _ in relevant_messages]
                 elif target_count == 1:
                     best = max(relevant_messages, key=lambda item: (item[1], item[2]))
                     cleaned_assistant_messages = [best[0]]

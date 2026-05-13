@@ -1,16 +1,13 @@
 import json
 import logging
-import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Optional
-from datetime import datetime
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
-from ..utils.datetime import parse_timestamp
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
-
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +16,14 @@ class VSCodeCopilotExtractor(BaseExtractor):
     """Extract chat history from VSCode Copilot (workspace chatSessions)."""
 
     def __init__(self):
-        self.workspace_storage = (
-            Path.home() / ".config" / "Code" / "User" / "workspaceStorage"
-        )
+        self.workspace_storage = Path.home() / ".config" / "Code" / "User" / "workspaceStorage"
         self.workspace_roots = self._discover_workspace_roots()
         self.MIN_MESSAGES = 1  # VSCode sessions often have only 1-2 exchanges
         self.MIN_CONTENT_SIZE = 50
 
     def _discover_workspace_roots(self):
         roots = [self.workspace_storage]
-        for candidate in discover_home_marker_paths(
-            ".config/Code/User/workspaceStorage"
-        ):
+        for candidate in discover_home_marker_paths(".config/Code/User/workspaceStorage"):
             if candidate not in roots:
                 roots.append(candidate)
         return [root for root in roots if root.exists()]
@@ -78,12 +71,9 @@ class VSCodeCopilotExtractor(BaseExtractor):
                         session = self._parse_session(session_file, project_path)
 
                         if self.should_import_session(session):
-
                             yield session
                     except Exception as e:
-                        logger.warning(
-                            "Failed to parse VSCode session %s: %s", session_file, e
-                        )
+                        logger.warning("Failed to parse VSCode session %s: %s", session_file, e)
 
     def _parse_session(self, path: Path, project_path: Optional[str]) -> UnifiedSession:
         """Parse a VSCode Copilot chat session file (.json or .jsonl).
@@ -96,9 +86,7 @@ class VSCodeCopilotExtractor(BaseExtractor):
             return self._parse_jsonl_session(path, project_path)
         return self._parse_json_session(path, project_path)
 
-    def _parse_jsonl_session(
-        self, path: Path, project_path: Optional[str]
-    ) -> UnifiedSession:
+    def _parse_jsonl_session(self, path: Path, project_path: Optional[str]) -> UnifiedSession:
         """Parse new .jsonl format (VSCode >= 1.96).
 
         Format per line:
@@ -174,9 +162,7 @@ class VSCodeCopilotExtractor(BaseExtractor):
                         user_text = msg.get("text", "").strip()
                         ts_ms = part.get("timestamp")
                         current_req_ts = (
-                            datetime.fromtimestamp(ts_ms / 1000)
-                            if ts_ms
-                            else fallback_ts
+                            datetime.fromtimestamp(ts_ms / 1000) if ts_ms else fallback_ts
                         )
 
                         if user_text:
@@ -224,9 +210,7 @@ class VSCodeCopilotExtractor(BaseExtractor):
             source_path=str(path),
         )
 
-    def _parse_json_session(
-        self, path: Path, project_path: Optional[str]
-    ) -> UnifiedSession:
+    def _parse_json_session(self, path: Path, project_path: Optional[str]) -> UnifiedSession:
         """Parse legacy .json format with 'requests' array."""
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             data = json.load(f)

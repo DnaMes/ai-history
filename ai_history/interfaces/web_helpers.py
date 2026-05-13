@@ -2,7 +2,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-
 TOOL_STYLES = {
     "claude-code": {"color": "#C084FC", "icon": "C", "name": "Claude"},
     "cursor": {"color": "#3B82F6", "icon": "Cu", "name": "Cursor"},

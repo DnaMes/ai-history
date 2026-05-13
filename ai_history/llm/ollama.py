@@ -10,9 +10,7 @@ class OllamaProvider(LLMProvider):
     def __init__(self, config: LLMConfig):
         super().__init__(config)
         self._client = None
-        self._cache_dir = Path(
-            config.cache_dir or Path.home() / ".ai-history" / "llm_cache"
-        )
+        self._cache_dir = Path(config.cache_dir or Path.home() / ".ai-history" / "llm_cache")
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_client(self):
@@ -65,8 +63,7 @@ class OllamaProvider(LLMProvider):
         result = LLMResponse(
             content=content,
             model=self.config.model,
-            tokens_used=response.get("eval_count", 0)
-            + response.get("prompt_eval_count", 0),
+            tokens_used=response.get("eval_count", 0) + response.get("prompt_eval_count", 0),
             cached=False,
         )
 

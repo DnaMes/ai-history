@@ -49,9 +49,7 @@ def sanitize_path(user_path: str, base_dir: Path, allow_absolute: bool = False) 
         try:
             resolved.relative_to(base_dir.resolve())
         except ValueError:
-            raise ValueError(
-                f"Path traversal detected: {user_path} resolves outside {base_dir}"
-            )
+            raise ValueError(f"Path traversal detected: {user_path} resolves outside {base_dir}")
 
     # Check for suspicious patterns
     path_str = str(user_path)

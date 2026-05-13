@@ -10,20 +10,20 @@ Usage:
 """
 
 import argparse
-import subprocess
 import shutil
+import subprocess
 import sys
-import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 from ai_history.utils.paths import make_thread_id
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from ai_history.extractors.factory import get_all_extractors
-from ai_history.utils.paths import get_current_project
-from ai_history.utils.datetime import make_naive
 from ai_history.exporters.context import format_context
+from ai_history.extractors.factory import get_all_extractors
+from ai_history.utils.datetime import make_naive
+from ai_history.utils.paths import get_current_project
 from ai_history.utils.security import get_safe_executable
 from ai_history.utils.tooling import normalize_tool_name, to_session_switch_tool
 
@@ -212,11 +212,7 @@ def list_sessions_cmd():
 
         # Show latest 3
         for session in tool_sessions[-3:]:
-            created = (
-                session.created_at.strftime("%Y-%m-%d %H:%M")
-                if session.created_at
-                else "???"
-            )
+            created = session.created_at.strftime("%Y-%m-%d %H:%M") if session.created_at else "???"
             msgs = len(session.messages)
             title = session.title or session.session_id[:12]
             print(f"   • {created} | {msgs:3d} msgs | {title}")

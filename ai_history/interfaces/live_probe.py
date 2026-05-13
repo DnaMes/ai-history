@@ -50,9 +50,7 @@ def is_gateway_auth_block(status_code: int, headers: dict) -> bool:
     return "basic" in header_value and "traefik" in header_value
 
 
-def evaluate_probe_result(
-    case: ProbeCase, status_code: int, body_text: str
-) -> Tuple[bool, str]:
+def evaluate_probe_result(case: ProbeCase, status_code: int, body_text: str) -> Tuple[bool, str]:
     if status_code != case.expected_status:
         return (
             False,
@@ -147,9 +145,7 @@ def run_probe_case(
     }
 
 
-def fetch_build_info(
-    base_url: str, auth_header: Optional[str], timeout_seconds: int
-) -> dict:
+def fetch_build_info(base_url: str, auth_header: Optional[str], timeout_seconds: int) -> dict:
     target = urljoin(base_url.rstrip("/") + "/", "api/build-info")
     headers = {"Accept": "application/json"}
     if auth_header:
@@ -224,9 +220,7 @@ def run_probe_matrix(
 
     blocked = any(result["blocked"] for result in results)
     passed = all(result["passed"] for result in results)
-    failures = [
-        result for result in results if not result["passed"] and not result["blocked"]
-    ]
+    failures = [result for result in results if not result["passed"] and not result["blocked"]]
 
     return {
         "base_url": base_url,
@@ -306,9 +300,7 @@ def main() -> int:
             f"module={build_info.get('module') or 'unknown'}"
         )
         for row in result["results"]:
-            status = (
-                "PASS" if row["passed"] else ("BLOCKED" if row["blocked"] else "FAIL")
-            )
+            status = "PASS" if row["passed"] else ("BLOCKED" if row["blocked"] else "FAIL")
             print(
                 f"[{status}] {row['path']} -> {row['status']} "
                 f"(expected {row['expected_status']}) - {row['detail']}"

@@ -1,8 +1,8 @@
 import json
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ...core.models import UnifiedSession
@@ -11,9 +11,7 @@ from ..base import LLMProvider
 
 
 class StatsGenerator:
-    def __init__(
-        self, provider: Optional[LLMProvider] = None, output_dir: Optional[Path] = None
-    ):
+    def __init__(self, provider: Optional[LLMProvider] = None, output_dir: Optional[Path] = None):
         self.provider = provider
         self.output_dir = output_dir or Path.home() / ".ai-history" / "stats"
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -77,9 +75,7 @@ class StatsGenerator:
         stats: Dict[str, Any],
         sessions: List["UnifiedSession"],
     ) -> Dict[str, Any]:
-        recent_sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)[
-            :10
-        ]
+        recent_sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)[:10]
         session_summaries = [
             {
                 "tool": s.tool.value,

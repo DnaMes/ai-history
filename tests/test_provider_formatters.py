@@ -8,9 +8,7 @@ from ai_history.interfaces.web_services import (
 
 
 def _msg(role: Role, content: str) -> UnifiedMessage:
-    return UnifiedMessage(
-        role=role, content=content, timestamp=datetime(2026, 3, 4, 12, 0, 0)
-    )
+    return UnifiedMessage(role=role, content=content, timestamp=datetime(2026, 3, 4, 12, 0, 0))
 
 
 def _session(tool: Tool, messages):

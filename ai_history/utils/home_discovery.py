@@ -39,9 +39,7 @@ def _scan_time_budget_seconds(default: float) -> float:
 
 
 @lru_cache(maxsize=64)
-def _discover_cached(
-    home: str, marker: str, max_depth: int, max_hits: int
-) -> tuple[str, ...]:
+def _discover_cached(home: str, marker: str, max_depth: int, max_hits: int) -> tuple[str, ...]:
     home_path = Path(home).expanduser()
     marker_rel = marker.strip("/")
     if not marker_rel or not home_path.exists():

@@ -7,8 +7,8 @@ from ai_history.interfaces.live_probe import (
     evaluate_probe_result,
     fetch_build_info,
     is_gateway_auth_block,
-    run_probe_matrix,
     run_probe_case,
+    run_probe_matrix,
 )
 
 
@@ -21,9 +21,7 @@ def test_build_basic_auth_header_encodes_expected_value():
 
 def test_is_gateway_auth_block_requires_401_traefik_basic_header():
     assert not is_gateway_auth_block(200, {"WWW-Authenticate": 'Basic realm="traefik"'})
-    assert not is_gateway_auth_block(
-        401, {"WWW-Authenticate": 'Bearer realm="traefik"'}
-    )
+    assert not is_gateway_auth_block(401, {"WWW-Authenticate": 'Bearer realm="traefik"'})
     assert is_gateway_auth_block(401, {"WWW-Authenticate": 'Basic realm="traefik"'})
     assert is_gateway_auth_block(401, {"Www-Authenticate": 'Basic realm="traefik"'})
 

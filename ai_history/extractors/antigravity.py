@@ -14,11 +14,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Optional
 
-from .base import BaseExtractor
 from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,7 @@ class AntigravityExtractor(BaseExtractor):
                     if session and self.should_import_session(session):
                         yield session
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to parse Antigravity session {session_dir}: {e}"
-                    )
+                    logger.debug(f"Failed to parse Antigravity session {session_dir}: {e}")
                     continue
 
     def _parse_session(self, session_dir: Path) -> Optional[UnifiedSession]:
@@ -115,9 +113,7 @@ class AntigravityExtractor(BaseExtractor):
                         with open(walkthrough_metadata, "r", encoding="utf-8") as f:
                             meta = json.load(f)
                             if meta.get("updatedAt"):
-                                walkthrough_time = parse_timestamp(
-                                    meta.get("updatedAt")
-                                )
+                                walkthrough_time = parse_timestamp(meta.get("updatedAt"))
                                 if walkthrough_time > last_updated:
                                     last_updated = walkthrough_time
                     except (json.JSONDecodeError, OSError):
@@ -145,9 +141,7 @@ class AntigravityExtractor(BaseExtractor):
             last_updated=last_updated,
             messages=messages,
             project_path=project_path,
-            thread_id=(
-                make_thread_id(project_path=project_path) if project_path else None
-            ),
+            thread_id=(make_thread_id(project_path=project_path) if project_path else None),
             title=title,
             summary=summary,
             source_path=str(session_dir),
@@ -168,9 +162,7 @@ class AntigravityExtractor(BaseExtractor):
                 return line[2:].strip()
         return None
 
-    def _extract_project_path(
-        self, task_content: str, walkthrough_content: str
-    ) -> Optional[str]:
+    def _extract_project_path(self, task_content: str, walkthrough_content: str) -> Optional[str]:
         combined = task_content + "\n" + walkthrough_content
         file_links = re.findall(r"file://([^\s\)]+)", combined)
 

@@ -3,7 +3,6 @@ from typing import Any, Dict, List
 
 from ai_history.utils.formatting import format_message as format_message_with_rules
 
-
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 LOCAL_COMMAND_TAG_RE = re.compile(r"</?local-command-[^>]+>", flags=re.IGNORECASE)
 GENERIC_XML_TAG_RE = re.compile(r"</?[a-z0-9_-]+(?:\s+[^>]*)?>", flags=re.IGNORECASE)
@@ -66,9 +65,7 @@ def compute_top_tags(all_sessions: List[Dict[str, Any]], limit: int = 12) -> Lis
             tag_counts[keyword] = tag_counts.get(keyword, 0) + 1
     return [
         keyword
-        for keyword, _ in sorted(
-            tag_counts.items(), key=lambda item: item[1], reverse=True
-        )[:limit]
+        for keyword, _ in sorted(tag_counts.items(), key=lambda item: item[1], reverse=True)[:limit]
     ]
 
 
@@ -118,9 +115,7 @@ def build_projects_payload(
                 "prompt_count": entry["prompt_count"],
                 "tools": sorted([tool for tool in entry["tools"] if tool]),
                 "tool_counts": dict(tool_counts_sorted),
-                "agents": [
-                    {"tool": tool, "count": count} for tool, count in tool_counts_sorted
-                ],
+                "agents": [{"tool": tool, "count": count} for tool, count in tool_counts_sorted],
                 "updated": entry["updated"][:10] if entry["updated"] else "n/a",
                 "recent_sessions": sessions_sorted[:3],
             }
@@ -138,9 +133,7 @@ def _clean_transcript_noise(text: str) -> str:
     cleaned = LOCAL_COMMAND_TAG_RE.sub("", text or "")
     cleaned = re.sub(r"\[Tool Result\]", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"^\s*Prompt\s*$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
-    cleaned = re.sub(
-        r"^\s*No files found\s*$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE
-    )
+    cleaned = re.sub(r"^\s*No files found\s*$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
     cleaned = _normalize_message_text(cleaned)
     return cleaned
 
@@ -205,9 +198,7 @@ def _summarize_unset_env_vars(text: str) -> str:
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     keys = []
     passthrough = []
-    pattern = re.compile(
-        r"^([A-Z][A-Z0-9_]{2,})\s*:\s*not set\s*$", flags=re.IGNORECASE
-    )
+    pattern = re.compile(r"^([A-Z][A-Z0-9_]{2,})\s*:\s*not set\s*$", flags=re.IGNORECASE)
 
     for line in lines:
         matched = pattern.match(line)
@@ -252,9 +243,7 @@ def _format_message_for_tool(
     text = _normalize_message_text(text)
     text = _clean_transcript_noise(text)
 
-    if tool == "claude-code" and _rule_enabled(
-        noise_rules, "claude_strip_command_xml", True
-    ):
+    if tool == "claude-code" and _rule_enabled(noise_rules, "claude_strip_command_xml", True):
 
         def repl_cmd_name(m):
             return f"[command: {m.group(1)}]"
@@ -265,18 +254,14 @@ def _format_message_for_tool(
         def repl_cmd_args(m):
             return f"({m.group(1)})"
 
-        text = re.sub(
-            r"<command-name>(.*?)</command-name>", repl_cmd_name, text, flags=re.DOTALL
-        )
+        text = re.sub(r"<command-name>(.*?)</command-name>", repl_cmd_name, text, flags=re.DOTALL)
         text = re.sub(
             r"<command-message>(.*?)</command-message>",
             repl_cmd_msg,
             text,
             flags=re.DOTALL,
         )
-        text = re.sub(
-            r"<command-args>(.*?)</command-args>", repl_cmd_args, text, flags=re.DOTALL
-        )
+        text = re.sub(r"<command-args>(.*?)</command-args>", repl_cmd_args, text, flags=re.DOTALL)
         text = _normalize_message_text(text)
 
     if (
@@ -303,16 +288,10 @@ def _format_message_for_tool(
         "warp": "warp_summarize_file_operations",
     }
     summarize_rule = summarize_rules.get(tool)
-    if (
-        role == "assistant"
-        and summarize_rule
-        and _rule_enabled(noise_rules, summarize_rule, False)
-    ):
+    if role == "assistant" and summarize_rule and _rule_enabled(noise_rules, summarize_rule, False):
         text = _summarize_file_operations(text)
 
-    if tool == "opencode" and _rule_enabled(
-        noise_rules, "opencode_summarize_unset_env_vars", True
-    ):
+    if tool == "opencode" and _rule_enabled(noise_rules, "opencode_summarize_unset_env_vars", True):
         text = _summarize_unset_env_vars(text)
 
     if (
@@ -359,9 +338,7 @@ def preview_normalize_message(
 
     configured_rules = noise_rules or DEFAULT_NOISE_RULES
     shared_rules = configured_rules.get("default", {})
-    provider_specific = (
-        configured_rules.get(normalized_tool, {}) if normalized_tool else {}
-    )
+    provider_specific = configured_rules.get(normalized_tool, {}) if normalized_tool else {}
     provider_rules = dict(shared_rules)
     provider_rules.update(provider_specific)
 
@@ -437,9 +414,7 @@ def enrich_session_for_detail(
             message.formatted_content = ""
 
         if message.formatted_content:
-            message.formatted_content = _clean_transcript_noise(
-                message.formatted_content
-            )
+            message.formatted_content = _clean_transcript_noise(message.formatted_content)
 
         if message.content or message.reasoning or message.formatted_content:
             visible_count += 1
@@ -479,9 +454,7 @@ def build_threads_overview(
             by_thread[thread_id]["updated"] = session.get("updated")
             by_thread[thread_id]["title"] = session.get("title") or session.get("id")
             by_thread[thread_id]["project"] = session.get("project")
-    return sorted(
-        by_thread.values(), key=lambda item: item.get("updated", ""), reverse=True
-    )
+    return sorted(by_thread.values(), key=lambda item: item.get("updated", ""), reverse=True)
 
 
 def build_thread_detail_payload(
@@ -497,9 +470,7 @@ def build_thread_detail_payload(
     thread_sessions = [
         session for session in index_sessions if session.get("thread_id") == thread_id
     ]
-    thread_sessions = sorted(
-        thread_sessions, key=lambda session: session.get("created", "")
-    )
+    thread_sessions = sorted(thread_sessions, key=lambda session: session.get("created", ""))
 
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for session in thread_sessions:
@@ -514,9 +485,7 @@ def build_thread_detail_payload(
         key=lambda item: item["tool"] or "",
     )
 
-    tool_filters = sorted(
-        {str(s.get("tool")) for s in thread_sessions if s.get("tool")}
-    )
+    tool_filters = sorted({str(s.get("tool")) for s in thread_sessions if s.get("tool")})
     target_ids_by_tool: Dict[str, set[str]] = {}
     for s in thread_sessions:
         tool = str(s.get("tool") or "")
@@ -596,12 +565,8 @@ def build_thread_detail_payload(
         "session_count": session_count,
         "message_count": len(messages),
         "tools": ", ".join(sorted(tool_set)) if tool_set else "n/a",
-        "start_date": (
-            messages[0]["timestamp"].strftime("%Y-%m-%d") if messages else "n/a"
-        ),
-        "end_date": (
-            messages[-1]["timestamp"].strftime("%Y-%m-%d") if messages else "n/a"
-        ),
+        "start_date": (messages[0]["timestamp"].strftime("%Y-%m-%d") if messages else "n/a"),
+        "end_date": (messages[-1]["timestamp"].strftime("%Y-%m-%d") if messages else "n/a"),
     }
 
     return {

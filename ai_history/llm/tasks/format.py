@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from ...core.models import UnifiedSession
@@ -35,9 +35,7 @@ class SessionFormatter:
         formatted_parts.append(f"# {session.title or 'Untitled Session'}\n")
         formatted_parts.append(f"**Tool:** {session.tool.value}")
         formatted_parts.append(f"**Project:** {session.project_path or 'Unknown'}")
-        formatted_parts.append(
-            f"**Date:** {session.created_at.strftime('%Y-%m-%d %H:%M')}"
-        )
+        formatted_parts.append(f"**Date:** {session.created_at.strftime('%Y-%m-%d %H:%M')}")
         formatted_parts.append(f"**Messages:** {session.message_count}\n")
         formatted_parts.append("---\n")
 

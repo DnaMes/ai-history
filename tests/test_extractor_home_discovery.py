@@ -42,15 +42,9 @@ def test_directory_extractors_discover_nested_home_locations(monkeypatch, tmp_pa
     assert paths["claude"].resolve() in {path.resolve() for path in claude.base_paths}
     assert paths["gemini"].resolve() in {path.resolve() for path in gemini.base_paths}
     assert paths["codex"].resolve() in {path.resolve() for path in codex.session_roots}
-    assert paths["copilot"].resolve() in {
-        path.resolve() for path in copilot.session_state_dirs
-    }
-    assert paths["vscode"].resolve() in {
-        path.resolve() for path in vscode.workspace_roots
-    }
-    assert paths["antigravity"].resolve() in {
-        path.resolve() for path in antigravity.base_paths
-    }
+    assert paths["copilot"].resolve() in {path.resolve() for path in copilot.session_state_dirs}
+    assert paths["vscode"].resolve() in {path.resolve() for path in vscode.workspace_roots}
+    assert paths["antigravity"].resolve() in {path.resolve() for path in antigravity.base_paths}
 
 
 def test_db_extractors_discover_nested_home_locations(monkeypatch, tmp_path):

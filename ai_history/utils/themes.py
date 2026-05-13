@@ -9,8 +9,8 @@ Themes based on semek.org color schemes:
 - Tokyo Night: Blue/purple Tokyo-inspired dark theme
 """
 
-from typing import Dict, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Dict
 
 
 @dataclass
@@ -56,12 +56,8 @@ class Theme:
     hljs_theme: str
 
     # Font settings
-    font_family_base: str = (
-        '"Inter", "SF Pro", -apple-system, BlinkMacSystemFont, sans-serif'
-    )
-    font_family_code: str = (
-        '"JetBrains Mono", "Fira Code", "SF Mono", Consolas, Monaco, monospace'
-    )
+    font_family_base: str = '"Inter", "SF Pro", -apple-system, BlinkMacSystemFont, sans-serif'
+    font_family_code: str = '"JetBrains Mono", "Fira Code", "SF Mono", Consolas, Monaco, monospace'
     font_size_base: str = "14px"
     font_size_code: str = "13px"
     line_height: str = "1.6"

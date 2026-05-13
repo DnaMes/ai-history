@@ -1,8 +1,7 @@
 from datetime import datetime
 
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.interfaces import web
-from ai_history.interfaces import web_utils
+from ai_history.interfaces import web, web_utils
 from ai_history.interfaces.web_services import normalize_session_messages_for_display
 
 

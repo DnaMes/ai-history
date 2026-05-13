@@ -1,6 +1,7 @@
 import re
 from typing import Iterable, List
-from ..core.models import UnifiedSession, Role
+
+from ..core.models import Role, UnifiedSession
 
 
 def extract_rules(sessions: Iterable[UnifiedSession], max_rules: int = 30) -> List[str]:
@@ -31,7 +32,7 @@ def extract_rules(sessions: Iterable[UnifiedSession], max_rules: int = 30) -> Li
             if msg.role != Role.ASSISTANT:
                 continue
             content = msg.content or ""
-            for sentence in re.split(r'(?<=[.!?])\s+', content):
+            for sentence in re.split(r"(?<=[.!?])\s+", content):
                 sentence = sentence.strip()
                 if len(sentence) < 20 or len(sentence) > 180:
                     continue

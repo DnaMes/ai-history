@@ -165,9 +165,7 @@ def _format_message_content_cached(raw_content: str) -> str:
     )
 
     if markdown:
-        content = markdown.markdown(
-            content, extensions=["fenced_code", "tables", "nl2br"]
-        )
+        content = markdown.markdown(content, extensions=["fenced_code", "tables", "nl2br"])
         content = bleach.clean(
             content,
             tags=SANITIZE_TAGS + ["code"],

@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from ..core.models import UnifiedSession
@@ -171,9 +171,7 @@ Conversation:
 Respond with ONLY the title, no quotes, no explanation."""
 
         try:
-            result = subprocess.run(
-                ["gemini", prompt], capture_output=True, text=True, timeout=10
-            )
+            result = subprocess.run(["gemini", prompt], capture_output=True, text=True, timeout=10)
 
             if result.returncode == 0:
                 title = result.stdout.strip()

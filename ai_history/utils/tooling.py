@@ -1,6 +1,5 @@
 from typing import Optional
 
-
 CANONICAL_TOOLS = {
     "claude-code",
     "gemini-cli",

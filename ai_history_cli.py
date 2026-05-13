@@ -27,24 +27,24 @@ Usage:
 
 import argparse
 import json
-import sys
-import time
-import subprocess
 import os
 import pty
-from pathlib import Path
+import subprocess
+import sys
+import time
 from datetime import datetime
+from pathlib import Path
 
 # Add local package to path if running from source
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from ai_history.core.models import Tool, UnifiedSession
+from ai_history.exporters.index import IndexBuilder
+from ai_history.exporters.markdown import MarkdownExporter
 from ai_history.extractors.factory import get_all_extractors
 from ai_history.extractors.opencode import OpenCodeExtractor
-from ai_history.core.models import Tool, UnifiedSession
-from ai_history.exporters.markdown import MarkdownExporter
-from ai_history.exporters.index import IndexBuilder
 from ai_history.search.engine import SearchEngine
-from ai_history.utils.datetime import parse_duration, make_naive
+from ai_history.utils.datetime import make_naive, parse_duration
 from ai_history.utils.paths import get_current_project, make_thread_id
 from ai_history.utils.rules import extract_rules
 from ai_history.utils.tooling import normalize_tool_name
@@ -69,9 +69,7 @@ def _index_entry_to_session(entry):
     created = entry.get("created")
     updated = entry.get("updated")
     try:
-        created_at = (
-            datetime.fromisoformat(created) if created else datetime.fromtimestamp(0)
-        )
+        created_at = datetime.fromisoformat(created) if created else datetime.fromtimestamp(0)
     except ValueError:
         created_at = datetime.fromtimestamp(0)
     try:
@@ -201,9 +199,7 @@ def cmd_list(args):
             print(f"{s.tool.value:<15} {date_str:<12} {s.message_count:>8}  {title}")
 
     if limit:
-        print(
-            f"\nShowing {len(sessions)} of {total_sessions} sessions (offset: {offset})"
-        )
+        print(f"\nShowing {len(sessions)} of {total_sessions} sessions (offset: {offset})")
         if offset + limit < total_sessions:
             print(f"  → Use --offset {offset + limit} --limit {limit} to see more")
     else:
@@ -240,7 +236,10 @@ def cmd_export(args):
             # Export to markdown (skips if file is already up-to-date)
             try:
                 candidate = exporter._candidate_path(session)
-                was_current = candidate.exists() and candidate.stat().st_mtime >= session.last_updated.timestamp()
+                was_current = (
+                    candidate.exists()
+                    and candidate.stat().st_mtime >= session.last_updated.timestamp()
+                )
                 path = exporter.export_session(session)
                 export_paths[session.session_id] = path
                 if not was_current:
@@ -415,7 +414,7 @@ def cmd_reindex(args):
 
 def cmd_analyze(args):
     """Generate AI-powered statistics and insights."""
-    from ai_history.llm import get_provider, LLMConfig
+    from ai_history.llm import LLMConfig, get_provider
     from ai_history.llm.tasks import StatsGenerator
 
     output_dir = Path(args.output_dir).expanduser()
@@ -456,27 +455,25 @@ def cmd_analyze(args):
     generator = StatsGenerator(provider, output_dir / "stats")
     stats = generator.generate_session_stats(sessions, use_llm=provider is not None)
 
-    output_file = (
-        Path(args.output) if args.output else generator.output_dir / "stats.json"
-    )
+    output_file = Path(args.output) if args.output else generator.output_dir / "stats.json"
     generator.save_stats(stats, output_file.name)
 
     print(f"\nStatistics saved to: {output_file}")
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Total sessions: {stats['total_sessions']}")
     print(f"  Total messages: {stats['total_messages']}")
     print(f"  Last 7 days: {stats['sessions_last_7_days']}")
     print(f"  Last 30 days: {stats['sessions_last_30_days']}")
 
     if "insights" in stats:
-        print(f"\nAI Insights:")
+        print("\nAI Insights:")
         for key, value in stats["insights"].items():
             print(f"  {key}: {value}")
 
 
 def cmd_knowledge(args):
     """Extract knowledge from sessions using LLM."""
-    from ai_history.llm import get_provider, LLMConfig
+    from ai_history.llm import LLMConfig, get_provider
     from ai_history.llm.tasks import KnowledgeExtractor
 
     output_dir = Path(args.output_dir).expanduser()
@@ -502,8 +499,7 @@ def cmd_knowledge(args):
     try:
         config = LLMConfig(
             provider=args.provider,
-            model=args.model
-            or ("gemini-2.0-flash" if args.provider == "gemini" else "llama3.2"),
+            model=args.model or ("gemini-2.0-flash" if args.provider == "gemini" else "llama3.2"),
         )
         provider = get_provider(
             provider=args.provider,
@@ -511,9 +507,7 @@ def cmd_knowledge(args):
         )
 
         if not provider.is_available():
-            print(
-                f"Error: {args.provider} not available. Set GEMINI_API_KEY or GOOGLE_API_KEY."
-            )
+            print(f"Error: {args.provider} not available. Set GEMINI_API_KEY or GOOGLE_API_KEY.")
             return 1
 
     except Exception as e:
@@ -527,11 +521,7 @@ def cmd_knowledge(args):
         print("No knowledge entries extracted.")
         return 1
 
-    output_file = (
-        Path(args.output)
-        if args.output
-        else extractor.output_dir / "knowledge_base.json"
-    )
+    output_file = Path(args.output) if args.output else extractor.output_dir / "knowledge_base.json"
     extractor.build_knowledge_base(entries, output_file.name)
 
     print(f"\nKnowledge base saved to: {output_file}")
@@ -539,14 +529,14 @@ def cmd_knowledge(args):
 
     # Show sample
     if entries:
-        print(f"\nSample entry:")
+        print("\nSample entry:")
         print(f"  Topic: {entries[0].topic}")
         print(f"  Key points: {', '.join(entries[0].key_points[:3])}")
 
 
 def cmd_format(args):
     """Format sessions with AI-generated summaries and tags."""
-    from ai_history.llm import get_provider, LLMConfig
+    from ai_history.llm import LLMConfig, get_provider
     from ai_history.llm.tasks import SessionFormatter
 
     output_dir = Path(args.output_dir).expanduser()
@@ -578,8 +568,7 @@ def cmd_format(args):
     try:
         config = LLMConfig(
             provider=args.provider,
-            model=args.model
-            or ("gemini-2.0-flash" if args.provider == "gemini" else "llama3.2"),
+            model=args.model or ("gemini-2.0-flash" if args.provider == "gemini" else "llama3.2"),
         )
         provider = get_provider(
             provider=args.provider,
@@ -587,9 +576,7 @@ def cmd_format(args):
         )
 
         if not provider.is_available():
-            print(
-                f"Error: {args.provider} not available. Set GEMINI_API_KEY or GOOGLE_API_KEY."
-            )
+            print(f"Error: {args.provider} not available. Set GEMINI_API_KEY or GOOGLE_API_KEY.")
             return 1
 
     except Exception as e:
@@ -661,9 +648,7 @@ def cmd_sync(args):
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             pass
 
-    merged_sessions = _merge_sessions_with_existing_index(
-        all_sessions, existing_index_sessions
-    )
+    merged_sessions = _merge_sessions_with_existing_index(all_sessions, existing_index_sessions)
 
     merged_paths = {**existing_paths, **export_paths}
 
@@ -1104,9 +1089,7 @@ Examples:
     list_parser.add_argument("--since", help="Filter by date (e.g., 7d, 2w)")
     list_parser.add_argument("--format", choices=["table", "json"], default="table")
     list_parser.add_argument("--limit", type=int, help="Limit number of results")
-    list_parser.add_argument(
-        "--offset", type=int, default=0, help="Offset for pagination"
-    )
+    list_parser.add_argument("--offset", type=int, default=0, help="Offset for pagination")
 
     # export command
     export_parser = subparsers.add_parser("export", help="Export sessions to Markdown")
@@ -1131,9 +1114,7 @@ Examples:
         default=60,
         help="Poll interval in seconds (default: 60)",
     )
-    watch_parser.add_argument(
-        "--git", action="store_true", help="Auto-commit new exports to git"
-    )
+    watch_parser.add_argument("--git", action="store_true", help="Auto-commit new exports to git")
 
     # check command
     subparsers.add_parser("check", help="Check tool availability")
@@ -1143,9 +1124,7 @@ Examples:
 
     # rules command
     rules_parser = subparsers.add_parser("rules", help="Generate derived rules")
-    rules_parser.add_argument(
-        "--limit", type=int, default=30, help="Max rules to extract"
-    )
+    rules_parser.add_argument("--limit", type=int, default=30, help="Max rules to extract")
 
     # prune command
     prune_parser = subparsers.add_parser("prune", help="Prune sessions by prompt count")
@@ -1155,9 +1134,7 @@ Examples:
         default=3,
         help="Delete sessions with this many prompts or fewer",
     )
-    prune_parser.add_argument(
-        "--dry-run", action="store_true", help="Show what would be pruned"
-    )
+    prune_parser.add_argument("--dry-run", action="store_true", help="Show what would be pruned")
 
     # sync command
     sync_parser = subparsers.add_parser("sync", help="Sync sessions for a tool")
@@ -1168,9 +1145,7 @@ Examples:
     # run command
     run_parser = subparsers.add_parser("run", help="Run a tool and sync after it exits")
     run_parser.add_argument("tool", help="Tool to run (e.g., codex, claude-code)")
-    run_parser.add_argument(
-        "tool_args", nargs=argparse.REMAINDER, help="Args passed to the tool"
-    )
+    run_parser.add_argument("tool_args", nargs=argparse.REMAINDER, help="Args passed to the tool")
     run_parser.add_argument("--no-pty", action="store_true", help="Disable PTY capture")
 
     # generate-titles command
@@ -1185,9 +1160,7 @@ Examples:
     )
     titles_parser.add_argument("--tool", help="Only generate for specific tool")
     titles_parser.add_argument("--since", help="Only sessions since (e.g., 7d, 2w)")
-    titles_parser.add_argument(
-        "--force", action="store_true", help="Regenerate even if cached"
-    )
+    titles_parser.add_argument("--force", action="store_true", help="Regenerate even if cached")
 
     subparsers.add_parser(
         "reindex",
@@ -1204,9 +1177,7 @@ Examples:
         default="gemini",
         help="LLM provider to use (default: gemini)",
     )
-    analyze_parser.add_argument(
-        "--model", help="Model name (e.g., gemini-2.0-flash, llama3.2)"
-    )
+    analyze_parser.add_argument("--model", help="Model name (e.g., gemini-2.0-flash, llama3.2)")
     analyze_parser.add_argument(
         "--no-llm",
         action="store_true",
@@ -1227,18 +1198,14 @@ Examples:
         default="gemini",
         help="LLM provider to use (default: gemini)",
     )
-    knowledge_parser.add_argument(
-        "--model", help="Model name (e.g., gemini-2.0-flash, llama3.2)"
-    )
+    knowledge_parser.add_argument("--model", help="Model name (e.g., gemini-2.0-flash, llama3.2)")
     knowledge_parser.add_argument(
         "--limit",
         type=int,
         default=50,
         help="Max sessions to process (default: 50)",
     )
-    knowledge_parser.add_argument(
-        "--tool", help="Only process sessions from specific tool"
-    )
+    knowledge_parser.add_argument("--tool", help="Only process sessions from specific tool")
     knowledge_parser.add_argument(
         "--output",
         help="Output file (default: ~/.ai-history/knowledge/knowledge_base.json)",
@@ -1254,9 +1221,7 @@ Examples:
         default="gemini",
         help="LLM provider to use (default: gemini)",
     )
-    format_parser.add_argument(
-        "--model", help="Model name (e.g., gemini-2.0-flash, llama3.2)"
-    )
+    format_parser.add_argument("--model", help="Model name (e.g., gemini-2.0-flash, llama3.2)")
     format_parser.add_argument("--session-id", help="Format specific session by ID")
     format_parser.add_argument("--tool", help="Format sessions from specific tool")
     format_parser.add_argument(

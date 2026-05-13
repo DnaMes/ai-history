@@ -77,9 +77,7 @@ def test_api_v1_sessions_and_projects_return_json_shapes(monkeypatch):
 def test_api_v1_session_detail_and_messages_use_live_session(monkeypatch):
     live_session = _build_live_session()
     monkeypatch.setattr(web, "load_index", lambda: _index_payload())
-    monkeypatch.setattr(
-        web, "load_sessions_for_tool", lambda _tool=None: [live_session]
-    )
+    monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [live_session])
 
     with web.app.test_client() as client:
         detail_response = client.get("/api/v1/sessions/session-1")
@@ -100,9 +98,7 @@ def test_api_v1_session_detail_and_messages_use_live_session(monkeypatch):
 def test_api_v1_thread_detail_returns_serialized_messages(monkeypatch):
     live_session = _build_live_session()
     monkeypatch.setattr(web, "load_index", lambda: _index_payload())
-    monkeypatch.setattr(
-        web, "load_sessions_for_tool", lambda _tool=None: [live_session]
-    )
+    monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [live_session])
 
     with web.app.test_client() as client:
         response = client.get("/api/v1/threads/thread-1")
@@ -118,9 +114,7 @@ def test_api_v1_thread_detail_returns_serialized_messages(monkeypatch):
 def test_mcp_server_returns_structured_json_for_new_tools(monkeypatch):
     live_session = _build_live_session()
     monkeypatch.setattr(mcp, "load_index", lambda: _index_payload())
-    monkeypatch.setattr(
-        mcp, "load_sessions_for_tool", lambda _tool=None: [live_session]
-    )
+    monkeypatch.setattr(mcp, "load_sessions_for_tool", lambda _tool=None: [live_session])
 
     server = mcp.create_server()
 

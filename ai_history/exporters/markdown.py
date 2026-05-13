@@ -1,9 +1,8 @@
 import json
-import re
 from pathlib import Path
-from typing import Dict, List, Optional
-from ..core.models import UnifiedSession, Role
-from ..utils.paths import sanitize_filename, project_to_dirname
+
+from ..core.models import Role, UnifiedSession
+from ..utils.paths import project_to_dirname, sanitize_filename
 
 
 class MarkdownExporter:
@@ -49,7 +48,8 @@ class MarkdownExporter:
         # Generate content
         content = self._generate_markdown(session)
 
-        import os, tempfile
+        import os
+
         tmp = file_path.with_suffix(".tmp")
         try:
             with open(tmp, "w", encoding="utf-8") as f:
@@ -136,7 +136,7 @@ class MarkdownExporter:
                 lines.append("")
                 for tc in msg.tool_calls:
                     tool_name = tc.get("name", "Unknown Tool")
-                    lines.append(f"<details>")
+                    lines.append("<details>")
                     lines.append(f"<summary>Tool: {tool_name}</summary>")
                     lines.append("")
                     lines.append("```json")

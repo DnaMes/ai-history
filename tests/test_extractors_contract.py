@@ -81,9 +81,7 @@ def test_gemini_parse_session_contract(tmp_path, monkeypatch):
                 "type": "gemini",
                 "timestamp": "2026-03-01T09:01:00",
                 "content": "",
-                "toolCalls": [
-                    {"name": "run_terminal_cmd", "args": {"command": "ls -la"}}
-                ],
+                "toolCalls": [{"name": "run_terminal_cmd", "args": {"command": "ls -la"}}],
             },
         ],
     }

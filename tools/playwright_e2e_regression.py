@@ -1,7 +1,8 @@
 import os
 import re
 import sys
-from playwright.sync_api import sync_playwright, expect
+
+from playwright.sync_api import expect, sync_playwright
 
 # Config
 BASE_URL = os.environ.get("AI_HISTORY_WEB_PROBE_BASE_URL", "http://127.0.0.1:5000")
@@ -165,9 +166,7 @@ def run():
         try:
             page.goto(BASE_URL, wait_until="networkidle")
             # Density toggle
-            density_btn = page.get_by_role(
-                "button", name=re.compile("Comfortable|Density", re.I)
-            )
+            density_btn = page.get_by_role("button", name=re.compile("Comfortable|Density", re.I))
             density_btn.click()
             # Theme toggle
             theme_btn = page.get_by_role("button", name=re.compile("◐|Theme", re.I))

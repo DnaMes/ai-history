@@ -1,6 +1,6 @@
-import re
 import html
 import json
+import re
 
 
 def strip_ansi(text: str) -> str:
@@ -17,7 +17,7 @@ def format_thinking(text: str) -> str:
         <summary>
             <svg class="action-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
             <span class="thinking-label">Thinking</span>
-            <span class="thinking-summary">{html.escape(text[:80]).strip()}{'...' if len(text) > 80 else ''}</span>
+            <span class="thinking-summary">{html.escape(text[:80]).strip()}{"..." if len(text) > 80 else ""}</span>
         </summary>
         <div class="action-content">
             <div class="thinking-content">{html.escape(text)}</div>
@@ -50,11 +50,7 @@ def _guess_language(tool_name: str, text: str) -> str:
     lowered_tool = tool_name.lower()
     lowered_text = text.lower()
     stripped_text = (text or "").lstrip()
-    if (
-        stripped_text.startswith("*** Begin Patch")
-        or "@@" in text
-        or "diff --git" in lowered_text
-    ):
+    if stripped_text.startswith("*** Begin Patch") or "@@" in text or "diff --git" in lowered_text:
         return "diff"
     if "bash" in lowered_tool or "shell" in lowered_tool:
         return "bash"
@@ -137,10 +133,7 @@ def format_tool_result(text: str) -> str:
     status = "neutral"
     if any(token in lowered for token in ("error", "exception", "traceback", "failed")):
         status = "error"
-    elif any(
-        token in lowered
-        for token in ("ok", "success", "completed", "created", "updated")
-    ):
+    elif any(token in lowered for token in ("ok", "success", "completed", "created", "updated")):
         status = "ok"
 
     first_line = next((line.strip() for line in lines if line.strip()), "Output")
@@ -187,9 +180,7 @@ def format_tool_result(text: str) -> str:
         chips.append(f'<span class="action-meta">diff +{additions}/-{deletions}</span>')
 
     importance = (
-        "major"
-        if status == "error" or (exit_code is not None and exit_code != 0)
-        else "minor"
+        "major" if status == "error" or (exit_code is not None and exit_code != 0) else "minor"
     )
 
     return f"""
@@ -198,7 +189,7 @@ def format_tool_result(text: str) -> str:
             <svg class="action-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
             <span class="tool-chip status-{status}">{status_label}</span>
             <span class="action-title truncate">Tool result</span>
-            <span class="action-meta-group">{''.join(chips)}</span>
+            <span class="action-meta-group">{"".join(chips)}</span>
             <span class="truncate opacity-75">{html.escape(summary)}</span>
         </summary>
         <div class="action-content">

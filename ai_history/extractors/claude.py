@@ -1,17 +1,15 @@
 import json
 import logging
 import os
-import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator
-from datetime import datetime
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
-
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +88,6 @@ class ClaudeCodeExtractor(BaseExtractor):
                         session = self._parse_session(jsonl_file, project_path)
 
                         if self.should_import_session(session):
-
                             yield session
                     except Exception as e:
                         logger.warning("Failed to parse %s: %s", jsonl_file, e)
@@ -144,19 +141,13 @@ class ClaudeCodeExtractor(BaseExtractor):
                                             )
                                         elif tool_name in ("Read", "Write", "Edit"):
                                             file_path = tool_input.get("file_path", "")
-                                            text_parts.append(
-                                                f"[Tool: {tool_name}] {file_path}"
-                                            )
+                                            text_parts.append(f"[Tool: {tool_name}] {file_path}")
                                         elif tool_name == "Glob":
                                             pattern = tool_input.get("pattern", "")
-                                            text_parts.append(
-                                                f"[Tool: {tool_name}] {pattern}"
-                                            )
+                                            text_parts.append(f"[Tool: {tool_name}] {pattern}")
                                         elif tool_name == "Grep":
                                             pattern = tool_input.get("pattern", "")
-                                            text_parts.append(
-                                                f"[Tool: {tool_name}] {pattern}"
-                                            )
+                                            text_parts.append(f"[Tool: {tool_name}] {pattern}")
                                         else:
                                             text_parts.append(f"[Tool: {tool_name}]")
                                 elif item.get("type") == "tool_result":
@@ -167,9 +158,7 @@ class ClaudeCodeExtractor(BaseExtractor):
                                         and len(result_content) > 500
                                     ):
                                         result_content = result_content[:500] + "..."
-                                    text_parts.append(
-                                        f"[Tool Result]\n{result_content}"
-                                    )
+                                    text_parts.append(f"[Tool Result]\n{result_content}")
                             elif isinstance(item, str):
                                 text_parts.append(item)
                         content = "\n".join(text_parts)

@@ -1,14 +1,15 @@
 from typing import List
+
+from .antigravity import AntigravityExtractor
 from .base import BaseExtractor
 from .claude import ClaudeCodeExtractor
-from .gemini import GeminiCLIExtractor
 from .codex import CodexExtractor
-from .warp import WarpExtractor
-from .cursor import CursorExtractor
-from .vscode import VSCodeCopilotExtractor
 from .copilot import CopilotCLIExtractor
+from .cursor import CursorExtractor
+from .gemini import GeminiCLIExtractor
 from .opencode import OpenCodeExtractor
-from .antigravity import AntigravityExtractor
+from .vscode import VSCodeCopilotExtractor
+from .warp import WarpExtractor
 
 
 def get_all_extractors() -> List[BaseExtractor]:

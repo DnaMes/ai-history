@@ -7,21 +7,21 @@ Extracts sessions from OpenCode's hierarchical storage:
 """
 
 import json
-import os
 import logging
+import os
 import sqlite3
 import sys
-from functools import lru_cache
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Set, TypedDict
+from typing import Dict, Iterator, List, Optional, TypedDict
 
-from .base import BaseExtractor
 from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
 from ..utils.security import sanitize_path
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,7 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 
 
 @lru_cache(maxsize=4)
-def _discover_home_subfolder_roots(
-    home_path: str, max_depth: int, max_hits: int
-) -> List[Path]:
+def _discover_home_subfolder_roots(home_path: str, max_depth: int, max_hits: int) -> List[Path]:
     """Find nested .opencode/storage roots under home with bounded traversal."""
     home = Path(home_path).expanduser()
     if not home.exists() or max_depth < 1 or max_hits < 1:
@@ -376,9 +374,7 @@ class OpenCodeExtractor(BaseExtractor):
                         if not session_id:
                             continue
 
-                        updated_timestamp = session_data.get("time", {}).get(
-                            "updated", 0
-                        )
+                        updated_timestamp = session_data.get("time", {}).get("updated", 0)
                         if not self.force_full and self._should_skip_session(
                             session_id, updated_timestamp
                         ):
@@ -390,10 +386,7 @@ class OpenCodeExtractor(BaseExtractor):
                             continue
 
                         existing = sessions_by_id.get(session.session_id)
-                        if (
-                            existing is None
-                            or session.last_updated >= existing.last_updated
-                        ):
+                        if existing is None or session.last_updated >= existing.last_updated:
                             sessions_by_id[session.session_id] = session
 
                         self.stats.sessions_loaded += 1
@@ -419,9 +412,7 @@ class OpenCodeExtractor(BaseExtractor):
         self.stats.sessions_loaded = len(sessions_by_id)
         self.stats.print_summary()
 
-        for session in sorted(
-            sessions_by_id.values(), key=lambda s: s.created_at, reverse=False
-        ):
+        for session in sorted(sessions_by_id.values(), key=lambda s: s.created_at, reverse=False):
             yield session
 
     def _extract_sessions_from_sqlite(self, db_path: Path) -> Dict[str, UnifiedSession]:
@@ -452,9 +443,7 @@ class OpenCodeExtractor(BaseExtractor):
 
             created_raw = int(row["time_created"] or 0)
             updated_raw = int(row["time_updated"] or 0)
-            if not self.force_full and self._should_skip_session(
-                session_id, updated_raw
-            ):
+            if not self.force_full and self._should_skip_session(session_id, updated_raw):
                 self.stats.sessions_skipped += 1
                 continue
 
@@ -467,9 +456,7 @@ class OpenCodeExtractor(BaseExtractor):
                 messages=messages,
                 project_path=str(row["directory"] or "") or None,
                 project_hash=str(row["project_id"] or "") or None,
-                thread_id=make_thread_id(
-                    project_path=str(row["directory"] or "") or None
-                ),
+                thread_id=make_thread_id(project_path=str(row["directory"] or "") or None),
                 title=str(row["title"] or "") or None,
                 cli_version=str(row["version"] or "") or None,
                 source_path=str(db_path),
@@ -519,9 +506,7 @@ class OpenCodeExtractor(BaseExtractor):
 
             role_str = str(payload.get("role") or "user")
             role = Role.USER if role_str == "user" else Role.ASSISTANT
-            created_ms = int(
-                (payload.get("time") or {}).get("created") or row["time_created"] or 0
-            )
+            created_ms = int((payload.get("time") or {}).get("created") or row["time_created"] or 0)
             timestamp = parse_timestamp(created_ms)
 
             content, reasoning, tool_calls = self._assemble_message_content_from_parts(
@@ -535,11 +520,7 @@ class OpenCodeExtractor(BaseExtractor):
                 if provider and model_id:
                     model = f"{provider}/{model_id}"
 
-            tokens = (
-                payload.get("tokens")
-                if isinstance(payload.get("tokens"), dict)
-                else None
-            )
+            tokens = payload.get("tokens") if isinstance(payload.get("tokens"), dict) else None
 
             messages.append(
                 UnifiedMessage(
@@ -613,16 +594,9 @@ class OpenCodeExtractor(BaseExtractor):
                 state = part.get("state") if isinstance(part.get("state"), dict) else {}
                 tool_input = state.get("input", {}) if isinstance(state, dict) else {}
                 tool_output = state.get("output", "") if isinstance(state, dict) else ""
-                status = (
-                    state.get("status", "unknown")
-                    if isinstance(state, dict)
-                    else "unknown"
-                )
+                status = state.get("status", "unknown") if isinstance(state, dict) else "unknown"
 
-                if (
-                    isinstance(tool_output, str)
-                    and len(tool_output) > self.MAX_TOOL_PART_CHARS
-                ):
+                if isinstance(tool_output, str) and len(tool_output) > self.MAX_TOOL_PART_CHARS:
                     tool_output = (
                         tool_output[: self.MAX_TOOL_PART_CHARS]
                         + f"\n... (truncated, {len(tool_output)} chars total)"
@@ -651,9 +625,7 @@ class OpenCodeExtractor(BaseExtractor):
         content = "\n".join(content_parts) if content_parts else ""
         return content, reasoning, tool_calls
 
-    def _parse_session(
-        self, session_file: Path, session_data: Dict
-    ) -> Optional[UnifiedSession]:
+    def _parse_session(self, session_file: Path, session_data: Dict) -> Optional[UnifiedSession]:
         """Parse a single session with all its messages."""
         session_id = session_data.get("id")
         if not session_id:
@@ -775,9 +747,7 @@ class OpenCodeExtractor(BaseExtractor):
             tool_calls=tool_calls,
         )
 
-    def _assemble_message_content(
-        self, message_id: str
-    ) -> tuple[str, Optional[str], List[Dict]]:
+    def _assemble_message_content(self, message_id: str) -> tuple[str, Optional[str], List[Dict]]:
         """Assemble message content from parts.
 
         Returns:
@@ -842,10 +812,7 @@ class OpenCodeExtractor(BaseExtractor):
                 status = state.get("status", "unknown")
 
                 # Truncate large tool outputs
-                if (
-                    isinstance(tool_output, str)
-                    and len(tool_output) > self.MAX_TOOL_PART_CHARS
-                ):
+                if isinstance(tool_output, str) and len(tool_output) > self.MAX_TOOL_PART_CHARS:
                     tool_output = (
                         tool_output[: self.MAX_TOOL_PART_CHARS]
                         + f"\n... (truncated, {len(tool_output)} chars total)"
@@ -865,9 +832,7 @@ class OpenCodeExtractor(BaseExtractor):
                 # Add summary to content
                 if tool_input and isinstance(tool_input, dict):
                     # Format tool input nicely
-                    input_summary = ", ".join(
-                        f"{k}={v}" for k, v in list(tool_input.items())[:3]
-                    )
+                    input_summary = ", ".join(f"{k}={v}" for k, v in list(tool_input.items())[:3])
                     if len(tool_input) > 3:
                         input_summary += ", ..."
                     content_parts.append(f"[Tool: {tool_name}] {input_summary}")

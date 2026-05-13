@@ -1,20 +1,17 @@
-import json
 import hashlib
+import json
 import logging
 import os
-import sys
-from pathlib import Path
 from collections import deque
-from typing import Iterator, Dict, Optional
-from datetime import datetime
+from pathlib import Path
+from typing import Dict, Iterator, Optional
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
 from ..utils.security import sanitize_path
-
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +49,9 @@ class GeminiCLIExtractor(BaseExtractor):
                 if not value:
                     continue
                 try:
-                    project_roots.append(
-                        sanitize_path(value, Path.home(), allow_absolute=True)
-                    )
+                    project_roots.append(sanitize_path(value, Path.home(), allow_absolute=True))
                 except ValueError as exc:
-                    logger.warning(
-                        "Ignoring unsafe GEMINI_PROJECT_ROOTS path '%s': %s", value, exc
-                    )
+                    logger.warning("Ignoring unsafe GEMINI_PROJECT_ROOTS path '%s': %s", value, exc)
 
         project_roots.extend(
             [
@@ -196,9 +189,7 @@ class GeminiCLIExtractor(BaseExtractor):
                         tool_parts.append(f"[Tool: Grep] {pattern}")
                     else:
                         # Generic tool formatting
-                        args_str = ", ".join(
-                            f"{k}={v}" for k, v in list(tool_args.items())[:3]
-                        )
+                        args_str = ", ".join(f"{k}={v}" for k, v in list(tool_args.items())[:3])
                         tool_parts.append(f"[Tool: {tool_name}] {args_str}")
 
                 content = "\n\n".join(tool_parts)
@@ -229,8 +220,6 @@ class GeminiCLIExtractor(BaseExtractor):
             messages=messages,
             project_path=project_path,
             project_hash=project_hash,
-            thread_id=make_thread_id(
-                project_path=project_path, project_hash=project_hash
-            ),
+            thread_id=make_thread_id(project_path=project_path, project_hash=project_hash),
             source_path=str(path),
         )

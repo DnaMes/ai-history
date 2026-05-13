@@ -1,6 +1,6 @@
 import time
-from ai_history.interfaces import web
-from ai_history.interfaces import web_jobs
+
+from ai_history.interfaces import web, web_jobs
 
 
 def test_api_audit_index_returns_uniformity_payload(monkeypatch):

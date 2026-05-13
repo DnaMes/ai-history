@@ -1,16 +1,14 @@
 import json
 import logging
-import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator
-from datetime import datetime
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
-
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +53,9 @@ class CodexExtractor(BaseExtractor):
                                 session = self._parse_session_file(session_file)
 
                                 if self.should_import_session(session):
-
                                     yield session
                             except Exception as e:
-                                logger.warning(
-                                    "Failed to parse %s: %s", session_file, e
-                                )
+                                logger.warning("Failed to parse %s: %s", session_file, e)
 
     def _parse_session_file(self, path: Path) -> UnifiedSession:
         """Parse a single Codex session file."""
@@ -172,17 +167,14 @@ class CodexExtractor(BaseExtractor):
                             cmd = func_args.get("command", "")
                             content = f"[Tool: Bash]\n```bash\n{cmd}\n```"
                         elif func_name in ("read_file", "str_replace_editor"):
-                            file_path = func_args.get(
-                                "path", func_args.get("file_path", "")
-                            )
+                            file_path = func_args.get("path", func_args.get("file_path", ""))
                             content = f"[Tool: {func_name}] {file_path}"
                         elif func_name == "write_file":
                             file_path = func_args.get("path", "")
                             content = f"[Tool: Write] {file_path}"
                         else:
                             args_preview = ", ".join(
-                                f"{k}={str(v)[:50]}"
-                                for k, v in list(func_args.items())[:3]
+                                f"{k}={str(v)[:50]}" for k, v in list(func_args.items())[:3]
                             )
                             content = f"[Tool: {func_name}] {args_preview}"
 

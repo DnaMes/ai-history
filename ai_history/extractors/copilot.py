@@ -1,16 +1,14 @@
 import json
 import logging
-import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator
-from datetime import datetime
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
 from ..utils.paths import make_thread_id
-
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +44,9 @@ class CopilotCLIExtractor(BaseExtractor):
                     session = self._parse_session(session_file)
 
                     if self.should_import_session(session):
-
                         yield session
                 except Exception as e:
-                    logger.warning(
-                        "Failed to parse Copilot CLI session %s: %s", session_file, e
-                    )
+                    logger.warning("Failed to parse Copilot CLI session %s: %s", session_file, e)
 
     def _parse_session(self, path: Path) -> UnifiedSession:
         """Parse a Copilot CLI session file."""

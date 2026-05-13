@@ -25,6 +25,13 @@ from ai_history.utils.security import (
 from ai_history.utils.text_processing import format_thinking
 from ai_history.utils.tooling import normalize_tool_name
 
+from .api_payloads import (
+    serialize_index_session_summary,
+    serialize_live_session,
+    serialize_project,
+    serialize_thread_messages,
+    serialize_thread_overview,
+)
 from .web_data import (
     DELETED_SESSIONS_PATH,
     INDEX_PATH,
@@ -39,13 +46,6 @@ from .web_data import (
     load_sessions_for_tool,
     remember_deleted_session_id,
     resolve_export_path,
-)
-from .api_payloads import (
-    serialize_index_session_summary,
-    serialize_live_session,
-    serialize_project,
-    serialize_thread_messages,
-    serialize_thread_overview,
 )
 from .web_formatting import (
     SANITIZE_ATTRS,
@@ -90,12 +90,12 @@ from .web_templates import (
     THREADS_LIST_TEMPLATE,
 )
 from .web_utils import (
-    ActionJobCancelledError,
-    ActionJobTimeoutError,
     METRICS,
     METRICS_LOCK,
     NOISE_RULES_PATH,
     RATE_LIMIT_STATE,
+    ActionJobCancelledError,
+    ActionJobTimeoutError,
     _client_ip,
     _consume_rate_limit,
     _json_request_logging_enabled,
@@ -445,9 +445,7 @@ def render(tpl_name, **kwargs):
     if "nav_back" not in kwargs:
         if has_request_context():
             nav_back = (
-                request.full_path[:-1]
-                if request.full_path.endswith("?")
-                else request.full_path
+                request.full_path[:-1] if request.full_path.endswith("?") else request.full_path
             )
             kwargs["nav_back"] = nav_back or "/"
         else:
@@ -478,9 +476,7 @@ def prepare_request_context_and_limit() -> Optional[Response]:
         return None
 
     client_ip = _client_ip()
-    allowed, retry_after, remaining, limit, reset_in = _consume_rate_limit(
-        request.path, client_ip
-    )
+    allowed, retry_after, remaining, limit, reset_in = _consume_rate_limit(request.path, client_ip)
     g.rate_limit_limit = limit
     g.rate_limit_remaining = remaining
     g.rate_limit_reset_in = reset_in
@@ -536,15 +532,9 @@ def add_security_headers(response):
     response.headers["Expires"] = "0"
 
     if _rate_limit_enabled() and _should_rate_limit(request.path):
-        response.headers["X-RateLimit-Limit"] = str(
-            getattr(g, "rate_limit_limit", 0) or 0
-        )
-        response.headers["X-RateLimit-Remaining"] = str(
-            getattr(g, "rate_limit_remaining", 0) or 0
-        )
-        response.headers["X-RateLimit-Reset"] = str(
-            getattr(g, "rate_limit_reset_in", 0) or 0
-        )
+        response.headers["X-RateLimit-Limit"] = str(getattr(g, "rate_limit_limit", 0) or 0)
+        response.headers["X-RateLimit-Remaining"] = str(getattr(g, "rate_limit_remaining", 0) or 0)
+        response.headers["X-RateLimit-Reset"] = str(getattr(g, "rate_limit_reset_in", 0) or 0)
 
     started_epoch = float(getattr(g, "request_started_epoch", time.time()))
     duration_ms = int((time.time() - started_epoch) * 1000)
@@ -587,13 +577,11 @@ def add_security_headers(response):
 
 
 @app.route("/api/build-info")
-
 def api_build_info():
     return jsonify(_build_info_payload())
 
 
 @app.route("/api/health")
-
 def api_health():
     uptime_seconds = max(0, int(time.time() - APP_STARTED_EPOCH))
     return jsonify(
@@ -607,7 +595,6 @@ def api_health():
 
 
 @app.route("/api/ready")
-
 def api_ready():
     checks: dict[str, Any] = {
         "output_dir_writable": False,
@@ -617,9 +604,7 @@ def api_ready():
 
     try:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        checks["output_dir_writable"] = OUTPUT_DIR.exists() and os.access(
-            OUTPUT_DIR, os.W_OK
-        )
+        checks["output_dir_writable"] = OUTPUT_DIR.exists() and os.access(OUTPUT_DIR, os.W_OK)
     except OSError as exc:
         errors.append(f"output_dir_error: {exc}")
 
@@ -639,7 +624,6 @@ def api_ready():
 
 
 @app.route("/api/metrics")
-
 def api_metrics():
     metrics_snapshot = _metrics_snapshot()
     uptime_seconds = max(0, int(time.time() - APP_STARTED_EPOCH))
@@ -668,7 +652,6 @@ def api_metrics():
 
 
 @app.route("/api/audit")
-
 def api_audit():
     scope = (request.args.get("scope") or "index").strip().lower()
     provider = normalize_tool_name((request.args.get("provider") or "").strip()) or ""
@@ -694,7 +677,6 @@ def api_audit():
 
 
 @app.route("/api/reload-sessions", methods=["POST"])
-
 def api_reload_sessions():
     if (err := _check_local_origin()) is not None:
         return err
@@ -706,9 +688,7 @@ def api_reload_sessions():
     if async_mode:
         job_id = _start_reload_job(provider or None)
         return (
-            jsonify(
-                {"status": "accepted", "job_id": job_id, "provider": provider or "all"}
-            ),
+            jsonify({"status": "accepted", "job_id": job_id, "provider": provider or "all"}),
             202,
         )
 
@@ -718,7 +698,6 @@ def api_reload_sessions():
 
 
 @app.route("/api/cache/clear", methods=["POST"])
-
 def api_clear_cache():
     """Clear all in-memory caches to force reload from disk."""
     if (err := _check_local_origin()) is not None:
@@ -729,7 +708,6 @@ def api_clear_cache():
 
 
 @app.route("/api/reload-status/<job_id>")
-
 def api_reload_status(job_id):
     state = _get_reload_job(job_id)
     if not state:
@@ -738,7 +716,6 @@ def api_reload_status(job_id):
 
 
 @app.route("/api/audit-status/<job_id>")
-
 def api_audit_status(job_id):
     state = _get_reload_job(job_id)
     if not state or state.get("kind") != "audit":
@@ -747,7 +724,6 @@ def api_audit_status(job_id):
 
 
 @app.route("/api/action-cancel/<job_id>", methods=["POST"])
-
 def api_action_cancel(job_id):
     state = _get_reload_job(job_id)
     if not state:
@@ -827,11 +803,7 @@ def sessions():
         tags=tags,
         start=start,
         end=end,
-        back_to=(
-            request.full_path[:-1]
-            if request.full_path.endswith("?")
-            else request.full_path
-        ),
+        back_to=(request.full_path[:-1] if request.full_path.endswith("?") else request.full_path),
         title="Sessions",
     )
 
@@ -901,9 +873,7 @@ def load_session_by_id(
     return None
 
 
-def _api_limit_param(
-    name: str = "limit", default: int = 20, max_value: int = 200
-) -> int:
+def _api_limit_param(name: str = "limit", default: int = 20, max_value: int = 200) -> int:
     raw_value = request.args.get(name, "").strip()
     if not raw_value:
         return default
@@ -919,11 +889,7 @@ def _api_limit_param(
 def _index_session_meta(session_id: str) -> Optional[dict[str, Any]]:
     idx = load_index()
     return next(
-        (
-            session
-            for session in idx.get("sessions", [])
-            if session.get("id") == session_id
-        ),
+        (session for session in idx.get("sessions", []) if session.get("id") == session_id),
         None,
     )
 
@@ -934,16 +900,12 @@ def session_detail(session_id):
         return "Invalid session ID", 400
 
     idx = load_index()
-    session_meta = next(
-        (s for s in idx.get("sessions", []) if s.get("id") == session_id), None
-    )
+    session_meta = next((s for s in idx.get("sessions", []) if s.get("id") == session_id), None)
 
     if not session_meta:
         return "Not found", 404
 
-    tool_filter = normalize_tool_name(
-        session_meta.get("tool") or ""
-    ) or session_meta.get("tool")
+    tool_filter = normalize_tool_name(session_meta.get("tool") or "") or session_meta.get("tool")
     back_target = _sanitize_next_url(request.args.get("back", "")) or "/sessions"
     export_path = resolve_export_path(session_meta.get("export_path"))
     if not export_path and _export_fallback_scan_enabled():
@@ -952,9 +914,7 @@ def session_detail(session_id):
     def _render_markdown(path_value):
         md_text = Path(path_value).read_text(encoding="utf-8")
         if markdown:
-            html_content = markdown.markdown(
-                md_text, extensions=["fenced_code", "tables", "nl2br"]
-            )
+            html_content = markdown.markdown(md_text, extensions=["fenced_code", "tables", "nl2br"])
             html_content = bleach.clean(
                 html_content,
                 tags=SANITIZE_TAGS,
@@ -1029,14 +989,10 @@ def session_detail(session_id):
         return None
 
     if export_path and not force_live:
-        parsed_from_md = build_session_from_export_markdown(
-            session_id, session_meta, export_path
-        )
+        parsed_from_md = build_session_from_export_markdown(session_id, session_meta, export_path)
         if parsed_from_md:
             if parsed_from_md.assistant_message_count == 0:
-                live_candidate = _load_preferred_live_session(
-                    allow_cross_tool_fallback=False
-                )
+                live_candidate = _load_preferred_live_session(allow_cross_tool_fallback=False)
                 if (
                     live_candidate
                     and live_candidate.assistant_message_count
@@ -1069,9 +1025,7 @@ def session_detail(session_id):
         try:
             return _render_markdown(export_path)
         except OSError as exc:
-            logger.debug(
-                "Failed to render export markdown for session %s: %s", session_id, exc
-            )
+            logger.debug("Failed to render export markdown for session %s: %s", session_id, exc)
 
     if tool_filter == "opencode":
         try:
@@ -1101,9 +1055,7 @@ def session_detail(session_id):
                             back_target=back_target,
                         )
         except Exception as exc:
-            logger.debug(
-                "OpenCode fallback parsing failed for session %s: %s", session_id, exc
-            )
+            logger.debug("OpenCode fallback parsing failed for session %s: %s", session_id, exc)
 
     live_session = None
     if tool_filter:
@@ -1131,7 +1083,6 @@ def session_detail(session_id):
 
 
 @app.route("/session/<session_id>/delete", methods=["POST"])
-
 def session_delete(session_id):
     if (err := _check_local_origin()) is not None:
         return err
@@ -1189,9 +1140,7 @@ def session_delete(session_id):
         referer = request.headers.get("Referer", "")
         parsed = urlparse(referer)
         if not parsed.netloc or parsed.netloc == request.host:
-            candidate = (parsed.path or "") + (
-                ("?" + parsed.query) if parsed.query else ""
-            )
+            candidate = (parsed.path or "") + (("?" + parsed.query) if parsed.query else "")
             next_url = _sanitize_next_url(candidate)
 
     return redirect(next_url or "/sessions")
@@ -1245,9 +1194,7 @@ def rules():
         with open(rules_path, "r", encoding="utf-8") as f:
             rules_text = f.read()
     if rules_text and markdown:
-        rules_text = markdown.markdown(
-            rules_text, extensions=["fenced_code", "tables", "nl2br"]
-        )
+        rules_text = markdown.markdown(rules_text, extensions=["fenced_code", "tables", "nl2br"])
         rules_text = bleach.clean(
             rules_text,
             tags=SANITIZE_TAGS,
@@ -1273,7 +1220,6 @@ def noise_rules_page():
 
 
 @app.route("/api/noise-rules", methods=["GET", "POST"])
-
 def api_noise_rules():
     if request.method == "POST":
         if (err := _check_local_origin()) is not None:
@@ -1291,7 +1237,6 @@ def api_noise_rules():
 
 
 @app.route("/api/noise-rules/preview", methods=["POST"])
-
 def api_noise_rules_preview():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -1326,7 +1271,6 @@ def api_noise_rules_preview():
 
 
 @app.route("/api/search")
-
 def api_search():
     q = request.args.get("q", "")
     if len(q) < 2:
@@ -1344,9 +1288,7 @@ def api_search():
     if project and not validate_search_param(project):
         return jsonify({"error": "Invalid project parameter"}), 400
 
-    res = SearchEngine(INDEX_PATH).search(
-        q, tool=tool or None, project=project or None
-    )[:10]
+    res = SearchEngine(INDEX_PATH).search(q, tool=tool or None, project=project or None)[:10]
     return jsonify(
         [
             {
@@ -1361,7 +1303,6 @@ def api_search():
 
 
 @app.route("/api/v1/search")
-
 def api_v1_search():
     q = request.args.get("q", "")
     if len(q) < 2:
@@ -1407,7 +1348,6 @@ def api_v1_search():
 
 
 @app.route("/api/v1/sessions")
-
 def api_v1_sessions():
     tool = request.args.get("tool", "")
     if tool and not validate_tool_name(tool):
@@ -1446,36 +1386,27 @@ def api_v1_sessions():
             sessions = [session for session in sessions if session.get("tool") == tool]
         if project:
             sessions = [
-                session
-                for session in sessions
-                if project in str(session.get("project") or "")
+                session for session in sessions if project in str(session.get("project") or "")
             ]
         if thread_id:
             sessions = [
-                session
-                for session in sessions
-                if str(session.get("thread_id") or "") == thread_id
+                session for session in sessions if str(session.get("thread_id") or "") == thread_id
             ]
         sessions = sorted(
             sessions,
-            key=lambda session: str(
-                session.get("updated") or session.get("created") or ""
-            ),
+            key=lambda session: str(session.get("updated") or session.get("created") or ""),
             reverse=True,
         )[:limit]
 
     return jsonify(
         {
             "count": len(sessions),
-            "sessions": [
-                serialize_index_session_summary(session) for session in sessions
-            ],
+            "sessions": [serialize_index_session_summary(session) for session in sessions],
         }
     )
 
 
 @app.route("/api/v1/sessions/<session_id>")
-
 def api_v1_session_detail(session_id):
     if not validate_session_id(session_id):
         return jsonify({"error": "Invalid session ID"}), 400
@@ -1501,7 +1432,6 @@ def api_v1_session_detail(session_id):
 
 
 @app.route("/api/v1/sessions/<session_id>/messages")
-
 def api_v1_session_messages(session_id):
     if not validate_session_id(session_id):
         return jsonify({"error": "Invalid session ID"}), 400
@@ -1542,7 +1472,6 @@ def api_v1_session_messages(session_id):
 
 
 @app.route("/api/v1/projects")
-
 def api_v1_projects():
     tool = request.args.get("tool", "")
     if tool and not validate_tool_name(tool):
@@ -1567,7 +1496,6 @@ def api_v1_projects():
 
 
 @app.route("/api/v1/threads")
-
 def api_v1_threads():
     try:
         limit = _api_limit_param(default=100, max_value=500)
@@ -1584,7 +1512,6 @@ def api_v1_threads():
 
 
 @app.route("/api/v1/threads/<thread_id>")
-
 def api_v1_thread_detail(thread_id):
     if not validate_session_id(thread_id):
         return jsonify({"error": "Invalid thread id"}), 400
@@ -1609,8 +1536,7 @@ def api_v1_thread_detail(thread_id):
                 **payload["thread_meta"],
             },
             "timeline": [
-                serialize_index_session_summary(session)
-                for session in payload["thread_timeline"]
+                serialize_index_session_summary(session) for session in payload["thread_timeline"]
             ],
             "messages": serialize_thread_messages(payload["messages"]),
             "toc_items": payload["toc_items"],
@@ -1639,9 +1565,7 @@ def export_session(session_id):
         return "Invalid session ID", 400
 
     idx = load_index()
-    session_meta = next(
-        (s for s in idx.get("sessions", []) if s.get("id") == session_id), None
-    )
+    session_meta = next((s for s in idx.get("sessions", []) if s.get("id") == session_id), None)
     from ..exporters.markdown import MarkdownExporter
 
     if session_meta:
@@ -1650,9 +1574,7 @@ def export_session(session_id):
             return Response(
                 export_path.read_text(encoding="utf-8", errors="replace"),
                 mimetype="text/markdown",
-                headers={
-                    "Content-Disposition": f'attachment; filename="{export_path.name}"'
-                },
+                headers={"Content-Disposition": f'attachment; filename="{export_path.name}"'},
             )
 
         tool_filter = normalize_tool_name(session_meta.get("tool") or "")

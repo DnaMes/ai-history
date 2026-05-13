@@ -1,10 +1,11 @@
 import json
-import pytest
 from datetime import datetime
 
+import pytest
+
+from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ai_history.interfaces import web
 from ai_history.interfaces.web_data import _annotate_display_titles
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 
 
 def test_annotate_display_titles_deduplicates_same_title():
@@ -48,9 +49,7 @@ def test_render_escapes_recent_titles(monkeypatch):
         "by_project": {},
     }
 
-    monkeypatch.setattr(
-        web, "load_index", lambda: {"sessions": sessions, "stats": stats}
-    )
+    monkeypatch.setattr(web, "load_index", lambda: {"sessions": sessions, "stats": stats})
 
     page = web.render(
         "dashboard",
@@ -117,13 +116,8 @@ def test_thread_continue_command_is_json_escaped():
         title="Thread",
     )
 
-    assert (
-        'copyCommand("ai-session switch gemini --thread-id bad\\";alert(1)//")' in page
-    )
-    assert (
-        'copyCommand("ai-session switch gemini --thread-id bad";alert(1)//")'
-        not in page
-    )
+    assert 'copyCommand("ai-session switch gemini --thread-id bad\\";alert(1)//")' in page
+    assert 'copyCommand("ai-session switch gemini --thread-id bad";alert(1)//")' not in page
 
 
 def test_threads_list_urlencodes_thread_links():
@@ -166,9 +160,7 @@ def test_session_template_urlencodes_export_link():
         active="sessions",
         session={
             "title": "t",
-            "created_at": type(
-                "_D", (), {"strftime": lambda self, fmt: "2026-01-01 00:00"}
-            )(),
+            "created_at": type("_D", (), {"strftime": lambda self, fmt: "2026-01-01 00:00"})(),
             "project_path": "",
             "prompt_count": 1,
             "thread_id": "thread-1",
@@ -366,9 +358,7 @@ def test_session_detail_live_mode_prefers_live_extractor(monkeypatch, tmp_path):
         ],
         title="live title",
     )
-    monkeypatch.setattr(
-        web, "load_sessions_for_tool", lambda _tool=None: [live_session]
-    )
+    monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [live_session])
     monkeypatch.setattr(web, "resolve_export_path", lambda _value: markdown_file)
 
     with web.app.test_client() as client:
@@ -380,9 +370,7 @@ def test_session_detail_live_mode_prefers_live_extractor(monkeypatch, tmp_path):
     assert "live title" in body
 
 
-def test_session_detail_prefers_live_when_markdown_has_no_assistant(
-    monkeypatch, tmp_path
-):
+def test_session_detail_prefers_live_when_markdown_has_no_assistant(monkeypatch, tmp_path):
     session_id = "ses-warp-stale-md"
     markdown_file = tmp_path / "session.md"
     markdown_file.write_text(
@@ -433,9 +421,7 @@ def test_session_detail_prefers_live_when_markdown_has_no_assistant(
         ],
         title="live warp title",
     )
-    monkeypatch.setattr(
-        web, "load_sessions_for_tool", lambda _tool=None: [live_session]
-    )
+    monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [live_session])
 
     with web.app.test_client() as client:
         response = client.get(f"/session/{session_id}")
@@ -526,9 +512,7 @@ def test_session_delete_removes_index_entry_and_export(monkeypatch, tmp_path):
     assert updated["stats"]["by_tool"] == {"codex": 1}
 
 
-def test_export_session_builds_markdown_from_live_indexed_session(
-    monkeypatch, tmp_path
-):
+def test_export_session_builds_markdown_from_live_indexed_session(monkeypatch, tmp_path):
     session_id = "ses-export-live"
     index_path = tmp_path / "index.json"
     index_payload = {
@@ -566,9 +550,7 @@ def test_export_session_builds_markdown_from_live_indexed_session(
     from ai_history.interfaces import web_data
 
     monkeypatch.setattr(web_data, "INDEX_PATH", index_path)
-    monkeypatch.setattr(
-        web, "load_sessions_for_tool", lambda _tool=None: [live_session]
-    )
+    monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [live_session])
 
     with web.app.test_client() as client:
         response = client.get(f"/export/{session_id}")
@@ -585,9 +567,7 @@ def test_session_template_includes_delete_button():
         active="sessions",
         session={
             "title": "t",
-            "created_at": type(
-                "_D", (), {"strftime": lambda self, fmt: "2026-01-01 00:00"}
-            )(),
+            "created_at": type("_D", (), {"strftime": lambda self, fmt: "2026-01-01 00:00"})(),
             "project_path": "",
             "prompt_count": 1,
             "thread_id": "thread-1",
@@ -632,14 +612,11 @@ def test_base_template_exposes_accessibility_attributes():
 
     assert response.status_code == 200
     body = response.get_data(as_text=True)
-    assert (
-        'id="actionStatus" role="status" aria-live="polite" aria-atomic="true"' in body
-    )
+    assert 'id="actionStatus" role="status" aria-live="polite" aria-atomic="true"' in body
     assert 'id="searchModal" role="dialog" aria-modal="true"' in body
     # Formatting buttons not on dashboard, but theme toggle is always present
     assert (
-        'id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false"'
-        in body
+        'id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false"' in body
     )
 
 

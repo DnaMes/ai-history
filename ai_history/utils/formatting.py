@@ -7,7 +7,7 @@ tool-specific artifacts, detects code blocks, and formats messages for display.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 class CodeLanguage(Enum):
@@ -196,9 +196,7 @@ class MessageFormatter:
                 try:
                     compiled.append((re.compile(pattern, flags), replacement))
                 except re.error as e:
-                    print(
-                        f"Warning: Failed to compile pattern '{pattern}' for {tool}: {e}"
-                    )
+                    print(f"Warning: Failed to compile pattern '{pattern}' for {tool}: {e}")
             self._compiled_patterns[tool] = compiled
 
     def format_message(self, content: str, tool: Optional[str] = None) -> str:
@@ -332,9 +330,7 @@ class MessageFormatter:
 
         return blocks
 
-    def format_tool_output(
-        self, output: str, tool_name: str, max_lines: int = 50
-    ) -> str:
+    def format_tool_output(self, output: str, tool_name: str, max_lines: int = 50) -> str:
         """Format tool output with optional summarization.
 
         Args:

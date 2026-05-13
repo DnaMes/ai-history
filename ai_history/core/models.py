@@ -76,11 +76,15 @@ class UnifiedSession:
 
     @property
     def user_prompt_count(self) -> int:
-        return sum(1 for msg in self.messages if msg.role == Role.USER and (msg.content or "").strip())
+        return sum(
+            1 for msg in self.messages if msg.role == Role.USER and (msg.content or "").strip()
+        )
 
     @property
     def assistant_message_count(self) -> int:
-        return sum(1 for msg in self.messages if msg.role == Role.ASSISTANT and (msg.content or "").strip())
+        return sum(
+            1 for msg in self.messages if msg.role == Role.ASSISTANT and (msg.content or "").strip()
+        )
 
     @property
     def total_tokens(self) -> Optional[int]:

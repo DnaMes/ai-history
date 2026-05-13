@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
 import re
+from datetime import datetime, timedelta
 
 
 def parse_duration(duration_str: str) -> timedelta:

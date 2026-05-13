@@ -1,12 +1,12 @@
-from pathlib import Path
-from typing import Optional
-import subprocess
+import hashlib
 import re
 import shutil
-import tempfile
+import subprocess
 import sys
-import hashlib
+import tempfile
 import uuid
+from pathlib import Path
+from typing import Optional
 
 
 def get_current_project(cwd: Optional[Path] = None) -> str:

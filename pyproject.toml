@@ -49,3 +49,22 @@ py-modules = ["ai_history_cli", "ai_session_cli", "ai_history_web_new", "ai_hist
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ai_history*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".claude", ".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "E203"]
+
+[tool.ruff.lint.per-file-ignores]
+# Embedded JS/CSS strings legitimately contain blank-line whitespace
+"ai_history/utils/themes.py" = ["W293"]
+# Lazy imports gated on optional dependency availability
+"ai_history/interfaces/mcp.py" = ["E402"]
+"ai_history/titles/generator.py" = ["E402"]
+# Pre-existing unused-locals slated for separate cleanup
+"ai_history/extractors/claude.py" = ["F841"]
+"ai_session_cli.py" = ["F841"]

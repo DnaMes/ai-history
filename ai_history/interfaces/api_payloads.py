@@ -61,10 +61,8 @@ def serialize_live_session(
         or (session_meta or {}).get("created"),
         "updated": _isoformat(getattr(session, "last_updated", None))
         or (session_meta or {}).get("updated"),
-        "project": getattr(session, "project_path", None)
-        or (session_meta or {}).get("project"),
-        "thread_id": getattr(session, "thread_id", None)
-        or (session_meta or {}).get("thread_id"),
+        "project": getattr(session, "project_path", None) or (session_meta or {}).get("project"),
+        "thread_id": getattr(session, "thread_id", None) or (session_meta or {}).get("thread_id"),
         "message_count": getattr(session, "message_count", 0),
         "prompt_count": getattr(session, "user_prompt_count", 0),
         "assistant_message_count": getattr(session, "assistant_message_count", 0),

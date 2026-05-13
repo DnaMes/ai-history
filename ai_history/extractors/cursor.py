@@ -1,17 +1,15 @@
 import json
 import logging
 import sqlite3
-import sys
-import re
-from pathlib import Path
-from typing import Iterator, Dict, Any, List, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Iterator, Optional
 
-from .base import BaseExtractor
-from ..core.models import Tool, Role, UnifiedSession, UnifiedMessage
+from ..core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ..utils.datetime import parse_timestamp
 from ..utils.home_discovery import discover_home_marker_paths
-from ..utils.paths import safe_copy_db, make_thread_id
+from ..utils.paths import make_thread_id, safe_copy_db
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +18,7 @@ class CursorExtractor(BaseExtractor):
     """Extract chat history from Cursor IDE."""
 
     def __init__(self):
-        self.db_path = (
-            Path.home()
-            / ".config"
-            / "Cursor"
-            / "User"
-            / "globalStorage"
-            / "state.vscdb"
-        )
+        self.db_path = Path.home() / ".config" / "Cursor" / "User" / "globalStorage" / "state.vscdb"
         self.db_paths = self._discover_db_paths()
 
     def _discover_db_paths(self):
@@ -87,9 +78,7 @@ class CursorExtractor(BaseExtractor):
                         try:
                             decoded = self._decode_blob(value)
                             data = json.loads(decoded)
-                            session = self._parse_composer(
-                                key.split(":")[-1], data, conn
-                            )
+                            session = self._parse_composer(key.split(":")[-1], data, conn)
                             if (
                                 session
                                 and (session.messages or session.title)
@@ -153,8 +142,7 @@ class CursorExtractor(BaseExtractor):
                     UnifiedMessage(
                         role=role,
                         content=text,
-                        timestamp=parse_timestamp(msg.get("timestamp", 0))
-                        or created_at,
+                        timestamp=parse_timestamp(msg.get("timestamp", 0)) or created_at,
                     )
                 )
 
@@ -171,18 +159,14 @@ class CursorExtractor(BaseExtractor):
             # Fetch bubble content
             key = f"bubbleId:{composer_id}:{bubble_id}"
             try:
-                row = conn.execute(
-                    "SELECT value FROM cursorDiskKV WHERE key=?", (key,)
-                ).fetchone()
+                row = conn.execute("SELECT value FROM cursorDiskKV WHERE key=?", (key,)).fetchone()
                 if row:
                     val = self._decode_blob(row[0])
                     bdata = json.loads(val)
                     text = bdata.get("text", "")
                     if text:
                         messages.append(
-                            UnifiedMessage(
-                                role=role, content=text, timestamp=created_at
-                            )
+                            UnifiedMessage(role=role, content=text, timestamp=created_at)
                         )
             except (json.JSONDecodeError, sqlite3.Error) as e:
                 logger.debug(f"Failed to fetch bubble {bubble_id}: {e}")
@@ -196,9 +180,7 @@ class CursorExtractor(BaseExtractor):
                 )
             )
 
-        title = data.get("name") or (
-            data.get("text", "")[:50] if messages else "Composer Session"
-        )
+        title = data.get("name") or (data.get("text", "")[:50] if messages else "Composer Session")
         return UnifiedSession(
             tool=Tool.CURSOR,
             session_id=composer_id,
@@ -223,9 +205,7 @@ class CursorExtractor(BaseExtractor):
             role = Role.USER if bubble.get("type") == "user" else Role.ASSISTANT
             text = bubble.get("text", "") or bubble.get("richText", "")
             if text:
-                messages.append(
-                    UnifiedMessage(role=role, content=str(text), timestamp=created_at)
-                )
+                messages.append(UnifiedMessage(role=role, content=str(text), timestamp=created_at))
 
         if not messages:
             return None

@@ -22,10 +22,8 @@ Requirements:
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -64,11 +62,7 @@ class RcloneBackend(SyncBackend):
     def is_configured(self) -> bool:
         """Check if the remote is configured."""
         try:
-            result = subprocess.run(
-                ["rclone", "listremotes"],
-                capture_output=True,
-                text=True
-            )
+            result = subprocess.run(["rclone", "listremotes"], capture_output=True, text=True)
             return f"{self.remote_name}:" in result.stdout
         except Exception:
             return False
@@ -90,7 +84,7 @@ class RcloneBackend(SyncBackend):
         if self.is_configured():
             print(f"\n✓ Remote '{self.remote_name}' is already configured.")
             overwrite = input("Reconfigure? [y/N]: ").strip().lower()
-            if overwrite != 'y':
+            if overwrite != "y":
                 return True
 
         print("\nStarting rclone configuration for Google Drive...")
@@ -98,22 +92,23 @@ class RcloneBackend(SyncBackend):
 
         try:
             # Create rclone config for Google Drive
-            subprocess.run([
-                "rclone", "config", "create",
-                self.remote_name, "drive",
-                "scope", "drive.file"
-            ], check=True)
+            subprocess.run(
+                ["rclone", "config", "create", self.remote_name, "drive", "scope", "drive.file"],
+                check=True,
+            )
 
             print("\n✓ Google Drive configured successfully!")
             print(f"  Remote: {self.remote_name}:")
-            print(f"  Sync folder: ai-history/")
+            print("  Sync folder: ai-history/")
 
             # Save config
-            self._save_config({
-                "backend": "rclone",
-                "remote_name": self.remote_name,
-                "setup_date": datetime.now().isoformat()
-            })
+            self._save_config(
+                {
+                    "backend": "rclone",
+                    "remote_name": self.remote_name,
+                    "setup_date": datetime.now().isoformat(),
+                }
+            )
 
             return True
 
@@ -133,13 +128,21 @@ class RcloneBackend(SyncBackend):
 
         try:
             # Exclude sync state files
-            result = subprocess.run([
-                "rclone", "sync",
-                str(local_path), remote,
-                "--exclude", "sync-*.json",
-                "--exclude", "*.tmp",
-                "-v"
-            ], capture_output=True, text=True)
+            result = subprocess.run(
+                [
+                    "rclone",
+                    "sync",
+                    str(local_path),
+                    remote,
+                    "--exclude",
+                    "sync-*.json",
+                    "--exclude",
+                    "*.tmp",
+                    "-v",
+                ],
+                capture_output=True,
+                text=True,
+            )
 
             if result.returncode == 0:
                 self._update_sync_state("push")
@@ -164,13 +167,21 @@ class RcloneBackend(SyncBackend):
         print(f"\n📥 Pulling from {remote}...")
 
         try:
-            result = subprocess.run([
-                "rclone", "sync",
-                remote, str(local_path),
-                "--exclude", "sync-*.json",
-                "--exclude", "*.tmp",
-                "-v"
-            ], capture_output=True, text=True)
+            result = subprocess.run(
+                [
+                    "rclone",
+                    "sync",
+                    remote,
+                    str(local_path),
+                    "--exclude",
+                    "sync-*.json",
+                    "--exclude",
+                    "*.tmp",
+                    "-v",
+                ],
+                capture_output=True,
+                text=True,
+            )
 
             if result.returncode == 0:
                 self._update_sync_state("pull")
@@ -192,7 +203,7 @@ class RcloneBackend(SyncBackend):
             "rclone_available": self.is_available(),
             "remote_configured": self.is_configured(),
             "last_sync": None,
-            "remote_size": None
+            "remote_size": None,
         }
 
         # Load last sync state
@@ -207,7 +218,9 @@ class RcloneBackend(SyncBackend):
             try:
                 result = subprocess.run(
                     ["rclone", "size", self.remote_path, "--json"],
-                    capture_output=True, text=True, timeout=30
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
                 )
                 if result.returncode == 0:
                     size_info = json.loads(result.stdout)
@@ -222,7 +235,7 @@ class RcloneBackend(SyncBackend):
     @staticmethod
     def _format_size(bytes_size: int) -> str:
         """Format bytes to human readable."""
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if bytes_size < 1024:
                 return f"{bytes_size:.1f} {unit}"
             bytes_size /= 1024
@@ -231,7 +244,7 @@ class RcloneBackend(SyncBackend):
     def _save_config(self, config: dict):
         """Save sync configuration."""
         AI_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-        with open(SYNC_CONFIG_PATH, 'w') as f:
+        with open(SYNC_CONFIG_PATH, "w") as f:
             json.dump(config, f, indent=2)
 
     def _update_sync_state(self, action: str):
@@ -244,7 +257,7 @@ class RcloneBackend(SyncBackend):
         state["last_sync"] = datetime.now().isoformat()
         state["last_action"] = action
 
-        with open(SYNC_STATE_PATH, 'w') as f:
+        with open(SYNC_STATE_PATH, "w") as f:
             json.dump(state, f, indent=2)
 
 
@@ -263,12 +276,18 @@ class LocalBackend(SyncBackend):
 
             # Use rsync if available, otherwise shutil
             if shutil.which("rsync"):
-                subprocess.run([
-                    "rsync", "-av", "--delete",
-                    "--exclude", "sync-*.json",
-                    str(local_path) + "/",
-                    str(self.target_dir) + "/"
-                ], check=True)
+                subprocess.run(
+                    [
+                        "rsync",
+                        "-av",
+                        "--delete",
+                        "--exclude",
+                        "sync-*.json",
+                        str(local_path) + "/",
+                        str(self.target_dir) + "/",
+                    ],
+                    check=True,
+                )
             else:
                 # Manual copy
                 if self.target_dir.exists():
@@ -292,12 +311,18 @@ class LocalBackend(SyncBackend):
 
         try:
             if shutil.which("rsync"):
-                subprocess.run([
-                    "rsync", "-av", "--delete",
-                    "--exclude", "sync-*.json",
-                    str(self.target_dir) + "/",
-                    str(local_path) + "/"
-                ], check=True)
+                subprocess.run(
+                    [
+                        "rsync",
+                        "-av",
+                        "--delete",
+                        "--exclude",
+                        "sync-*.json",
+                        str(self.target_dir) + "/",
+                        str(local_path) + "/",
+                    ],
+                    check=True,
+                )
             else:
                 if local_path.exists():
                     shutil.rmtree(local_path)
@@ -314,7 +339,7 @@ class LocalBackend(SyncBackend):
         return {
             "backend": "local",
             "target_dir": str(self.target_dir),
-            "target_exists": self.target_dir.exists()
+            "target_exists": self.target_dir.exists(),
         }
 
 
@@ -326,23 +351,23 @@ def print_status(status: dict):
 
     print(f"\n📦 Backend: {status.get('backend', 'unknown')}")
 
-    if status.get('backend') == 'rclone':
+    if status.get("backend") == "rclone":
         print(f"   Remote: {status.get('remote_name', 'unknown')}:")
 
-        if status.get('rclone_available'):
+        if status.get("rclone_available"):
             print("   rclone: ✓ installed")
         else:
             print("   rclone: ❌ not installed")
 
-        if status.get('remote_configured'):
+        if status.get("remote_configured"):
             print("   Remote: ✓ configured")
         else:
             print("   Remote: ❌ not configured")
 
-        if status.get('remote_size'):
+        if status.get("remote_size"):
             print(f"   Cloud: {status.get('remote_files', 0)} files, {status['remote_size']}")
 
-    if status.get('last_sync'):
+    if status.get("last_sync"):
         print(f"\n🕐 Last sync: {status['last_sync'][:19]}")
         print(f"   Action: {status.get('last_action', 'unknown')}")
     else:
@@ -368,21 +393,19 @@ Supported cloud providers (via rclone):
     - OneDrive
     - Amazon S3
     - And 40+ more: https://rclone.org/overview/
-        """
+        """,
     )
 
-    parser.add_argument("--setup", choices=["gdrive", "dropbox", "local"],
-                        help="Setup sync backend")
-    parser.add_argument("--push", action="store_true",
-                        help="Push local changes to cloud")
-    parser.add_argument("--pull", action="store_true",
-                        help="Pull cloud changes to local")
-    parser.add_argument("--status", action="store_true",
-                        help="Show sync status")
-    parser.add_argument("--local-dir", type=Path,
-                        help="Target directory for local sync")
-    parser.add_argument("--remote", default="ai-history",
-                        help="rclone remote name (default: ai-history)")
+    parser.add_argument(
+        "--setup", choices=["gdrive", "dropbox", "local"], help="Setup sync backend"
+    )
+    parser.add_argument("--push", action="store_true", help="Push local changes to cloud")
+    parser.add_argument("--pull", action="store_true", help="Pull cloud changes to local")
+    parser.add_argument("--status", action="store_true", help="Show sync status")
+    parser.add_argument("--local-dir", type=Path, help="Target directory for local sync")
+    parser.add_argument(
+        "--remote", default="ai-history", help="rclone remote name (default: ai-history)"
+    )
 
     args = parser.parse_args()
 

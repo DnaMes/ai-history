@@ -1,9 +1,9 @@
-from abc import ABC, abstractmethod
 import logging
 import os
+from abc import ABC, abstractmethod
 from typing import Iterator
-from ..core.models import Role, TitleSource, Tool, UnifiedSession
 
+from ..core.models import Role, TitleSource, Tool, UnifiedSession
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,6 @@ class BaseExtractor(ABC):
 
         session.title = f"{session.tool.value.replace('-', ' ').title()} Session {session.created_at.strftime('%Y-%m-%d')}"
         session.title_source = TitleSource.FALLBACK
-
 
     def _effective_thresholds(self) -> tuple[int, int, int]:
         profile = os.environ.get("AI_HISTORY_IMPORT_PROFILE", "relaxed").strip().lower()

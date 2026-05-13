@@ -12,13 +12,12 @@ import threading
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ai_history.exporters.index import IndexBuilder
 from ai_history.extractors.factory import get_all_extractors
 from ai_history.titles.generator import TitleGenerator, TitleStrategy
-from ai_history.utils.text_processing import strip_ansi
 
 from .web_utils import ActionJobCancelledError
 
@@ -86,9 +85,7 @@ def load_deleted_session_ids() -> set[str]:
             )
         )
     except Exception as exc:
-        logger.warning(
-            "Failed to load deleted session ids from %s: %s", DELETED_SESSIONS_PATH, exc
-        )
+        logger.warning("Failed to load deleted session ids from %s: %s", DELETED_SESSIONS_PATH, exc)
         return set()
 
 
@@ -131,9 +128,7 @@ def _apply_deleted_filter(payload: dict) -> dict:
         return payload
 
     sessions = [
-        session
-        for session in payload.get("sessions", [])
-        if session.get("id") not in deleted
+        session for session in payload.get("sessions", []) if session.get("id") not in deleted
     ]
 
     by_tool: dict[str, int] = {}
@@ -183,8 +178,7 @@ def _build_index_from_extractors(
     selected = [
         extractor
         for extractor in extractors
-        if extractor.is_available()
-        and (not tool_filter or extractor.tool.value == tool_filter)
+        if extractor.is_available() and (not tool_filter or extractor.tool.value == tool_filter)
     ]
 
     sessions = []
@@ -195,9 +189,7 @@ def _build_index_from_extractors(
         if should_stop and should_stop():
             raise ActionJobCancelledError("Cancelled by user")
         if progress_callback:
-            progress_callback(
-                15 + int((i - 1) / total * 45), f"Loading {extractor.tool.value}"
-            )
+            progress_callback(15 + int((i - 1) / total * 45), f"Loading {extractor.tool.value}")
         try:
             extracted_sessions = []
             for session in extractor.extract_sessions():
@@ -211,9 +203,7 @@ def _build_index_from_extractors(
         except ActionJobCancelledError:
             raise
         except Exception as exc:
-            logger.debug(
-                "Extractor %s failed during index build: %s", extractor.tool.value, exc
-            )
+            logger.debug("Extractor %s failed during index build: %s", extractor.tool.value, exc)
             continue
 
     deleted = load_deleted_session_ids()
@@ -247,9 +237,7 @@ def load_sessions_for_tool(tool: Optional[str] = None):
             continue
     deleted = load_deleted_session_ids()
     if deleted:
-        sessions = [
-            session for session in sessions if session.session_id not in deleted
-        ]
+        sessions = [session for session in sessions if session.session_id not in deleted]
     return sessions
 
 
@@ -295,9 +283,7 @@ def _annotate_display_titles(sessions):
             else:
                 session["display_title"] = raw_title
         else:
-            session["display_title"] = (
-                session_id[:12] if session_id else "Untitled Session"
-            )
+            session["display_title"] = session_id[:12] if session_id else "Untitled Session"
     return sessions
 
 
@@ -370,18 +356,14 @@ def build_session_from_export_markdown(
 
     title_match = re.search(r"^#\s+(.+)$", text, flags=re.MULTILINE)
     title = title_match.group(1).strip() if title_match else session_meta.get("title")
-    if title and (
-        title.lower().startswith("session ") or title.lower().startswith("chat ")
-    ):
+    if title and (title.lower().startswith("session ") or title.lower().startswith("chat ")):
         title = None
 
     created_raw = session_meta.get("created")
     updated_raw = session_meta.get("updated")
     try:
         created_at = (
-            datetime.fromisoformat(created_raw)
-            if created_raw
-            else datetime.fromtimestamp(0)
+            datetime.fromisoformat(created_raw) if created_raw else datetime.fromtimestamp(0)
         )
     except ValueError:
         created_at = datetime.fromtimestamp(0)
@@ -430,9 +412,7 @@ def build_session_from_export_markdown(
 
         time_part = match.group(2)
         try:
-            msg_time = datetime.fromisoformat(
-                f"{created_at.date().isoformat()}T{time_part}"
-            )
+            msg_time = datetime.fromisoformat(f"{created_at.date().isoformat()}T{time_part}")
         except ValueError:
             msg_time = created_at
 

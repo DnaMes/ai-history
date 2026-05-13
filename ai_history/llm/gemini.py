@@ -14,9 +14,7 @@ class GeminiProvider(LLMProvider):
     def __init__(self, config: LLMConfig):
         super().__init__(config)
         self._client = None
-        self._cache_dir = Path(
-            config.cache_dir or Path.home() / ".ai-history" / "llm_cache"
-        )
+        self._cache_dir = Path(config.cache_dir or Path.home() / ".ai-history" / "llm_cache")
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Gemini CLI OAuth client credentials — read from env vars or ~/.gemini/oauth_creds.json.
@@ -62,9 +60,7 @@ class GeminiProvider(LLMProvider):
             # Method 1: API Key (highest priority if provided)
             api_key = self.config.api_key
             if not api_key:
-                api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get(
-                    "GOOGLE_API_KEY"
-                )
+                api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
             if api_key:
                 genai.configure(api_key=api_key)
@@ -72,9 +68,7 @@ class GeminiProvider(LLMProvider):
                 return self._client
 
             # Method 2: OAuth2 credentials from config
-            client_id = self.config.oauth_client_id or os.environ.get(
-                "GOOGLE_CLIENT_ID"
-            )
+            client_id = self.config.oauth_client_id or os.environ.get("GOOGLE_CLIENT_ID")
             client_secret = self.config.oauth_client_secret or os.environ.get(
                 "GOOGLE_CLIENT_SECRET"
             )
@@ -156,9 +150,7 @@ class GeminiProvider(LLMProvider):
 
         generation_config = client.types.GenerationConfig(
             max_output_tokens=max_tokens or self.config.max_tokens,
-            temperature=(
-                temperature if temperature is not None else self.config.temperature
-            ),
+            temperature=(temperature if temperature is not None else self.config.temperature),
         )
 
         response = model.generate_content(prompt, generation_config=generation_config)

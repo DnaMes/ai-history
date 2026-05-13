@@ -3,9 +3,10 @@ import os
 import re
 import sqlite3
 import tempfile
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any
+from pathlib import Path
+from typing import Dict, List
+
 from ..core.models import UnifiedSession
 
 
@@ -17,9 +18,7 @@ class IndexBuilder:
         self.index_path = output_dir / "index.json"
         self.sqlite_path = output_dir / "index.sqlite"
 
-    def build_index(
-        self, sessions: List[UnifiedSession], export_paths: Dict[str, Path]
-    ) -> None:
+    def build_index(self, sessions: List[UnifiedSession], export_paths: Dict[str, Path]) -> None:
         """Build and save the search index."""
         ignored_ids = self._load_ignored()
         if ignored_ids:
@@ -93,9 +92,7 @@ class IndexBuilder:
             by_tool[tool_name] = by_tool.get(tool_name, 0) + 1
 
             if session.project_path:
-                by_project[session.project_path] = (
-                    by_project.get(session.project_path, 0) + 1
-                )
+                by_project[session.project_path] = by_project.get(session.project_path, 0) + 1
 
         return {
             "total_sessions": len(sessions),
@@ -289,27 +286,17 @@ class IndexBuilder:
                 )
             """
             )
-            columns = {
-                row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()
-            }
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
             if "prompts" not in columns:
                 conn.execute("ALTER TABLE sessions ADD COLUMN prompts INTEGER")
             if "prompt_outline" not in columns:
                 conn.execute("ALTER TABLE sessions ADD COLUMN prompt_outline TEXT")
             conn.execute("DELETE FROM sessions")
 
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_sessions_tool ON sessions(tool)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_sessions_thread_id ON sessions(thread_id)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_tool ON sessions(tool)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_thread_id ON sessions(thread_id)")
 
             conn.execute(
                 """
