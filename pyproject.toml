@@ -7,25 +7,23 @@ name = "ai-history"
 version = "2.0.0"
 description = "Local-first AI chat history manager and session switcher for Claude, Cursor, Gemini, Codex, Warp, and more"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "ai-history contributors"}
+    {name = "André Semek", email = "erdna1982@gmail.com"}
 ]
 keywords = ["ai", "chat-history", "session-management", "claude", "gemini", "cursor", "codex", "warp", "opencode"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
 ]
+
 dependencies = [
     "flask>=3.0.0,<4.0.0",
     "markdown>=3.5.0,<4.0.0",
@@ -34,6 +32,11 @@ dependencies = [
     "google-generativeai>=0.3.0,<1.0.0",
     "google-auth>=2.0.0,<3.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/DnaMes/ai-history"
+Repository = "https://github.com/DnaMes/ai-history"
+Issues = "https://github.com/DnaMes/ai-history/issues"
 
 [project.scripts]
 ai-history = "ai_history_cli:main"
