@@ -45,6 +45,7 @@ from ai_history.extractors.factory import get_all_extractors
 from ai_history.extractors.opencode import OpenCodeExtractor
 from ai_history.search.engine import SearchEngine
 from ai_history.utils.datetime import make_naive, parse_duration
+from ai_history.utils.git import get_git_info
 from ai_history.utils.paths import get_current_project, make_thread_id
 from ai_history.utils.rules import extract_rules
 from ai_history.utils.tooling import normalize_tool_name
@@ -231,6 +232,14 @@ def cmd_export(args):
             if args.project and session.project_path != args.project:
                 continue
 
+            # Tag session with current git branch/SHA of its project directory
+            if session.git_branch is None or session.git_commit is None:
+                info = get_git_info(session.project_path)
+                if session.git_branch is None:
+                    session.git_branch = info["branch"]
+                if session.git_commit is None:
+                    session.git_commit = info["sha"]
+
             sessions.append(session)
 
             # Export to markdown (skips if file is already up-to-date)
@@ -250,10 +259,21 @@ def cmd_export(args):
     # Build index
     print("\nBuilding index...")
     all_sessions = []
+    git_info_cache = {}
     for extractor in get_all_extractors():
         if not extractor.is_available():
             continue
-        all_sessions.extend(extractor.extract_sessions())
+        for session in extractor.extract_sessions():
+            if session.git_branch is None or session.git_commit is None:
+                key = session.project_path or ""
+                if key not in git_info_cache:
+                    git_info_cache[key] = get_git_info(session.project_path)
+                info = git_info_cache[key]
+                if session.git_branch is None:
+                    session.git_branch = info["branch"]
+                if session.git_commit is None:
+                    session.git_commit = info["sha"]
+            all_sessions.append(session)
 
     existing_paths = {}
     index_path = output_dir / "index.json"

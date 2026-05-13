@@ -69,6 +69,7 @@ def serialize_live_session(
         "total_tokens": getattr(session, "total_tokens", None),
         "summary": getattr(session, "summary", None),
         "git_branch": getattr(session, "git_branch", None),
+        "git_commit": getattr(session, "git_commit", None),
         "source_path": getattr(session, "source_path", None),
         "cli_version": getattr(session, "cli_version", None),
         "export_path": (session_meta or {}).get("export_path"),

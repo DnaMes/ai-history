@@ -82,6 +82,8 @@ class MarkdownExporter:
             lines.append(f"cli_version: {session.cli_version}")
         if session.git_branch:
             lines.append(f"git_branch: {session.git_branch}")
+        if getattr(session, "git_commit", None):
+            lines.append(f"git_commit: {session.git_commit}")
         lines.append("---")
         lines.append("")
 

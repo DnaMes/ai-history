@@ -65,6 +65,7 @@ class UnifiedSession:
     summary: Optional[str] = None
     cli_version: Optional[str] = None
     git_branch: Optional[str] = None
+    git_commit: Optional[str] = None
     source_path: Optional[str] = None
     generated_title: Optional[str] = None
     title_source: Optional[TitleSource] = None

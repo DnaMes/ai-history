@@ -5,9 +5,19 @@ import sqlite3
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ..core.models import UnifiedSession
+
+
+def _stat_mtime_ns(path_value: Optional[str]) -> Optional[int]:
+    """Return the mtime_ns of ``path_value`` if it exists, else None."""
+    if not path_value:
+        return None
+    try:
+        return os.stat(path_value).st_mtime_ns
+    except OSError:
+        return None
 
 
 class IndexBuilder:
@@ -18,20 +28,41 @@ class IndexBuilder:
         self.index_path = output_dir / "index.json"
         self.sqlite_path = output_dir / "index.sqlite"
 
-    def build_index(self, sessions: List[UnifiedSession], export_paths: Dict[str, Path]) -> None:
-        """Build and save the search index."""
+    def build_index(
+        self,
+        sessions: List[UnifiedSession],
+        export_paths: Dict[str, Path],
+        reused_entries: Optional[List[Dict]] = None,
+    ) -> None:
+        """Build and save the search index.
+
+        When ``reused_entries`` is provided, those pre-built session dicts are
+        included verbatim (no re-extraction of keywords/search_text). They must
+        be disjoint from ``sessions`` by ``session_id``.
+        """
         ignored_ids = self._load_ignored()
         if ignored_ids:
             sessions = [s for s in sessions if s.session_id not in ignored_ids]
+            if reused_entries:
+                reused_entries = [
+                    entry for entry in reused_entries if entry.get("id") not in ignored_ids
+                ]
+
         index = {
             "version": "1.0.0",
             "generated_at": datetime.now().isoformat(),
-            "stats": self._compute_stats(sessions),
+            "stats": {},
             "sessions": [],
             "search_index": {},
         }
 
         keyword_index: Dict[str, List[str]] = {}
+
+        if reused_entries:
+            for entry in reused_entries:
+                index["sessions"].append(entry)
+                for kw in entry.get("keywords") or []:
+                    keyword_index.setdefault(kw, []).append(entry.get("id", ""))
 
         for session in sessions:
             export_path = export_paths.get(session.session_id, "")
@@ -54,6 +85,10 @@ class IndexBuilder:
                 "prompts": prompt_count,
                 "prompt_outline": prompt_outline,
                 "export_path": str(export_path) if export_path else None,
+                "git_branch": getattr(session, "git_branch", None),
+                "git_commit": getattr(session, "git_commit", None),
+                "source_path": session.source_path,
+                "source_mtime": _stat_mtime_ns(session.source_path),
                 "keywords": keywords,
                 "search_text": self._build_search_text(session),
             }
@@ -65,6 +100,7 @@ class IndexBuilder:
                     keyword_index[kw] = []
                 keyword_index[kw].append(session.session_id)
 
+        index["stats"] = self._compute_stats_from_entries(index["sessions"])
         index["search_index"] = keyword_index
 
         # Atomic write: write to temp file then os.replace to avoid partial reads on SIGINT
@@ -80,7 +116,27 @@ class IndexBuilder:
             tmp_path = tmp.name
         os.replace(tmp_path, self.index_path)
 
-        self._build_sqlite_index(sessions, export_paths)
+        self._build_sqlite_index(sessions, export_paths, reused_entries=reused_entries)
+
+    def _compute_stats_from_entries(self, entries: List[Dict]) -> Dict:
+        """Compute statistics from already-built session dict entries."""
+        by_tool: Dict[str, int] = {}
+        by_project: Dict[str, int] = {}
+        total_messages = 0
+        for entry in entries:
+            tool_name = str(entry.get("tool") or "")
+            if tool_name:
+                by_tool[tool_name] = by_tool.get(tool_name, 0) + 1
+            project = entry.get("project")
+            if project:
+                by_project[project] = by_project.get(project, 0) + 1
+            total_messages += int(entry.get("messages") or 0)
+        return {
+            "total_sessions": len(entries),
+            "total_messages": total_messages,
+            "by_tool": by_tool,
+            "by_project": by_project,
+        }
 
     def _compute_stats(self, sessions: List[UnifiedSession]) -> Dict:
         """Compute statistics from sessions."""
@@ -260,7 +316,10 @@ class IndexBuilder:
         return text[:20000]
 
     def _build_sqlite_index(
-        self, sessions: List[UnifiedSession], export_paths: Dict[str, Path]
+        self,
+        sessions: List[UnifiedSession],
+        export_paths: Dict[str, Path],
+        reused_entries: Optional[List[Dict]] = None,
     ) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -308,6 +367,33 @@ class IndexBuilder:
 
             rows = []
             fts_rows = []
+            if reused_entries:
+                for entry in reused_entries:
+                    rows.append(
+                        (
+                            entry.get("id"),
+                            entry.get("tool"),
+                            entry.get("project"),
+                            entry.get("thread_id"),
+                            entry.get("title"),
+                            entry.get("created"),
+                            entry.get("updated"),
+                            int(entry.get("messages") or 0),
+                            int(entry.get("prompts") or 0),
+                            entry.get("prompt_outline"),
+                            entry.get("export_path"),
+                            entry.get("search_text") or "",
+                        )
+                    )
+                    fts_rows.append(
+                        (
+                            entry.get("id"),
+                            entry.get("title") or "",
+                            entry.get("project") or "",
+                            entry.get("tool") or "",
+                            entry.get("search_text") or "",
+                        )
+                    )
             for session in sessions:
                 export_path = export_paths.get(session.session_id, "")
                 search_text = self._build_search_text(session)
