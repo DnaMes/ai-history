@@ -29,8 +29,7 @@ classifiers = [
 dependencies = [
     "flask>=3.0.0,<4.0.0",
     "markdown>=3.5.0,<4.0.0",
-    "bleach>=6.1.0,<7.0.0",
-    "webencodings>=0.5.1",
+    "nh3>=0.2.0",
 
     "google-generativeai>=0.3.0,<1.0.0",
     "google-auth>=2.0.0,<3.0.0",
@@ -39,12 +38,12 @@ dependencies = [
 [project.scripts]
 ai-history = "ai_history_cli:main"
 ai-session = "ai_session_cli:main"
-ai-history-web = "ai_history_web_new:main"
-ai-history-mcp = "ai_history_mcp_new:main_sync"
+ai-history-web = "ai_history.cli.web:main"
+ai-history-mcp = "ai_history.cli.mcp:main_sync"
 ai-history-web-probe = "ai_history.interfaces.live_probe:main"
 
 [tool.setuptools]
-py-modules = ["ai_history_cli", "ai_session_cli", "ai_history_web_new", "ai_history_mcp_new"]
+py-modules = ["ai_history_cli", "ai_session_cli"]
 
 [tool.setuptools.packages.find]
 where = ["."]

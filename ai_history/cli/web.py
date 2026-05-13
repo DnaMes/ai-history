@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-import os
-import sys
-from pathlib import Path
+"""CLI entry point for the ai-history web UI."""
 
-# Add local package to path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from __future__ import annotations
+
+import os
 
 from ai_history.interfaces.web import start_web_ui
 
 
-def main():
+def main() -> None:
     host = os.environ.get("FLASK_HOST", "127.0.0.1")
     port = int(os.environ.get("FLASK_PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"

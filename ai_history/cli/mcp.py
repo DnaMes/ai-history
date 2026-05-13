@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 """CLI entry point for the ai-history MCP server."""
 
-import asyncio
-import sys
-from pathlib import Path
+from __future__ import annotations
 
-# Add local package to path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+import asyncio
 
 from ai_history.interfaces.mcp import create_server
 
 
-async def main():
+async def main() -> None:
     """Run the MCP server over stdio."""
     server = create_server()
     await server.run()
 
 
-def main_sync():
+def main_sync() -> None:
     """Synchronous script wrapper for setuptools entry points."""
     asyncio.run(main())
 
