@@ -217,7 +217,7 @@ def format_tool_calls(tool_calls):
 __all__ = [
     "SANITIZE_TAGS",
     "SANITIZE_ATTRS",
-    "SANITIZE_PROTOCOLS",
+    "SANITIZE_URL_SCHEMES",
     "sanitize_rendered_html",
     "_format_message_content_cached",
     "format_message_content",
