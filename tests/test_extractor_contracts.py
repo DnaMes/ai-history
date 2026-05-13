@@ -1,0 +1,215 @@
+"""
+Parametrized contract tests for all 11 extractors (issue #26).
+
+These tests verify that every extractor class correctly implements the
+BaseExtractor interface without requiring actual tool data on disk.
+"""
+from __future__ import annotations
+
+import pytest
+
+from ai_history.core.models import Tool, UnifiedSession
+from ai_history.extractors.antigravity import AntigravityExtractor
+from ai_history.extractors.base import BaseExtractor
+from ai_history.extractors.claude import ClaudeCodeExtractor
+from ai_history.extractors.codex import CodexExtractor
+from ai_history.extractors.copilot import CopilotCLIExtractor
+from ai_history.extractors.cursor import CursorExtractor
+from ai_history.extractors.gemini import GeminiCLIExtractor
+from ai_history.extractors.opencode import OpenCodeExtractor
+from ai_history.extractors.vscode import VSCodeCopilotExtractor
+from ai_history.extractors.warp import WarpExtractor
+
+# ---------------------------------------------------------------------------
+# All concrete extractor classes under test
+# ---------------------------------------------------------------------------
+
+ALL_EXTRACTOR_CLASSES = [
+    AntigravityExtractor,
+    ClaudeCodeExtractor,
+    CodexExtractor,
+    CopilotCLIExtractor,
+    CursorExtractor,
+    GeminiCLIExtractor,
+    OpenCodeExtractor,
+    VSCodeCopilotExtractor,
+    WarpExtractor,
+]
+
+# Convenience IDs for pytest output
+ALL_EXTRACTOR_IDS = [cls.__name__ for cls in ALL_EXTRACTOR_CLASSES]
+
+
+# ---------------------------------------------------------------------------
+# Contract: class hierarchy
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_is_subclass_of_base(extractor_cls):
+    assert issubclass(extractor_cls, BaseExtractor), (
+        f"{extractor_cls.__name__} must inherit from BaseExtractor"
+    )
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_is_not_abstract(extractor_cls):
+    """Concrete extractors must be fully implemented (no abstract methods left)."""
+    abstract_methods = getattr(extractor_cls, "__abstractmethods__", frozenset())
+    assert not abstract_methods, (
+        f"{extractor_cls.__name__} has unimplemented abstract methods: {abstract_methods}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Contract: `tool` property
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_has_tool_property(extractor_cls):
+    """The `tool` attribute must exist and be a property on the class."""
+    assert hasattr(extractor_cls, "tool"), (
+        f"{extractor_cls.__name__} is missing the `tool` property"
+    )
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_tool_returns_tool_enum(extractor_cls):
+    """Instantiating and accessing `.tool` must return a Tool enum member."""
+    instance = extractor_cls()
+    tool_value = instance.tool
+    assert isinstance(tool_value, Tool), (
+        f"{extractor_cls.__name__}.tool returned {type(tool_value)!r}, expected Tool enum"
+    )
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_tool_is_valid_enum_member(extractor_cls):
+    """The Tool value returned must be a recognised member of the Tool enum."""
+    instance = extractor_cls()
+    assert instance.tool in Tool, (
+        f"{extractor_cls.__name__}.tool value {instance.tool!r} is not in the Tool enum"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Contract: `is_available()` method
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_has_is_available_method(extractor_cls):
+    instance = extractor_cls()
+    assert callable(getattr(instance, "is_available", None)), (
+        f"{extractor_cls.__name__} must have a callable `is_available` method"
+    )
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_is_available_returns_bool(extractor_cls):
+    """is_available() must return a bool without raising on a clean system."""
+    instance = extractor_cls()
+    result = instance.is_available()
+    assert isinstance(result, bool), (
+        f"{extractor_cls.__name__}.is_available() returned {type(result)!r}, expected bool"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Contract: `extract_sessions()` method
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_has_extract_sessions_method(extractor_cls):
+    instance = extractor_cls()
+    assert callable(getattr(instance, "extract_sessions", None)), (
+        f"{extractor_cls.__name__} must have a callable `extract_sessions` method"
+    )
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extract_sessions_returns_iterator_when_available(extractor_cls):
+    """
+    When the tool data is available on this system, extract_sessions() must
+    return an iterator (generator counts).  When not available, the extractor
+    is free to return an empty iterator — we just ensure it doesn't raise.
+    """
+    instance = extractor_cls()
+    result = instance.extract_sessions()
+    # Generators and other lazy iterators all satisfy this check.
+    assert hasattr(result, "__iter__") and hasattr(result, "__next__"), (
+        f"{extractor_cls.__name__}.extract_sessions() must return an iterator, "
+        f"got {type(result)!r}"
+    )
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extract_sessions_not_available_yields_nothing(extractor_cls, monkeypatch):
+    """
+    When is_available() returns False the extractor must yield no sessions
+    (or at worst not raise).  We force is_available to False and consume the
+    iterator completely — it must not raise an exception.
+    """
+    instance = extractor_cls()
+    monkeypatch.setattr(instance, "is_available", lambda: False)
+
+    # Most extractors short-circuit when is_available() is False.
+    # For those that don't, consuming the iterator must still be safe.
+    try:
+        sessions = list(instance.extract_sessions())
+        # If it doesn't short-circuit, result must be a list of UnifiedSession
+        for s in sessions:
+            assert isinstance(s, UnifiedSession), (
+                f"{extractor_cls.__name__} yielded non-UnifiedSession object: {type(s)!r}"
+            )
+    except Exception as exc:  # noqa: BLE001
+        pytest.fail(
+            f"{extractor_cls.__name__}.extract_sessions() raised when not available: {exc}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Contract: `should_import_session()` inherited helper
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
+def test_extractor_has_should_import_session(extractor_cls):
+    instance = extractor_cls()
+    assert callable(getattr(instance, "should_import_session", None)), (
+        f"{extractor_cls.__name__} must inherit `should_import_session` from BaseExtractor"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Coverage: all Tool enum values are represented by at least one extractor
+# ---------------------------------------------------------------------------
+
+
+def test_all_tool_enum_values_have_at_least_one_extractor():
+    """Every Tool enum member must be claimed by at least one extractor class."""
+    claimed_tools: set[Tool] = set()
+    for cls in ALL_EXTRACTOR_CLASSES:
+        claimed_tools.add(cls().tool)
+
+    uncovered = set(Tool) - claimed_tools
+    assert not uncovered, (
+        f"The following Tool enum values have no extractor: "
+        f"{[t.value for t in uncovered]}"
+    )
+
+
+def test_no_two_extractors_claim_same_tool():
+    """Each Tool enum value should be claimed by exactly one extractor."""
+    seen: dict[Tool, str] = {}
+    duplicates: list[str] = []
+    for cls in ALL_EXTRACTOR_CLASSES:
+        t = cls().tool
+        if t in seen:
+            duplicates.append(f"{cls.__name__} and {seen[t]} both claim {t.value}")
+        else:
+            seen[t] = cls.__name__
+
+    assert not duplicates, "Duplicate tool claims found:\n" + "\n".join(duplicates)

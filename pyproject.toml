@@ -77,3 +77,9 @@ skips = ["B101"]  # assert statements ok in tests
 # Pre-existing unused-locals slated for separate cleanup
 "ai_history/extractors/claude.py" = ["F841"]
 "ai_session_cli.py" = ["F841"]
+
+[tool.pyright]
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+reportUnusedParameter = false
