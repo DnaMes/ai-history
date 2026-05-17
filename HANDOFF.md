@@ -5,16 +5,16 @@
 ## Current Task
 
 Project finalization for public release — **all P0/P1 closed**; working
-through optional P2/P3 enhancements. Aider extractor (#51) done this session.
-7 P2/P3 issues remain, none release-blocking.
+through optional P2/P3 enhancements. Aider extractor (#51) and digest
+command (#43) done this session. 6 P2/P3 issues remain, none release-blocking.
 
-## ⚠️ Forgejo out of sync
+## Forgejo remotes
 
-The Forgejo remote (`100.119.46.15:2222`, Tailscale) is unreachable — the
-self-hosted box appears offline. GitHub is fully synced. Forgejo is behind
-by 4 commits (`08c40bf`, `74fe889`, `9aa71f4`, `1df6c2e`).
-**Action:** run `git push forgejo master` once the box is back online —
-it's a fast-forward, no `--force` needed.
+- `forgejo` — `ssh://git@100.119.46.15:2222/...` (Tailscale, only when the
+  self-hosted box is online).
+- `forgejo-https` — `https://git.erdlabs.com/erdna/ai-history.git` (added
+  this session; reachable via Cloudflare, needs a Forgejo access token —
+  `git-credential-libsecret` caches it after the first `! git push`).
 
 ## Decisions Made
 
@@ -47,11 +47,11 @@ it's a fast-forward, no `--force` needed.
 
 ## Current State
 
-- **Tests**: 700 passing, 80.78% coverage
-- **GitHub issues**: 7 open (down from 32) — **all P0/P1 closed**
-- **GitHub** `master` at `1df6c2e`; **Forgejo** behind (host offline — see above)
+- **Tests**: 716 passing, 81.18% coverage
+- **GitHub issues**: 6 open (down from 32) — **all P0/P1 closed**
+- **GitHub** `master` at `327acf8`; **Forgejo** sync via `forgejo-https`
 
-## Open Issues (7 remaining — all P2/P3, not release-blocking)
+## Open Issues (6 remaining — all P2/P3, not release-blocking)
 
 | # | Label | Issue |
 |---|-------|-------|
@@ -60,27 +60,23 @@ it's a fast-forward, no `--force` needed.
 | 30 | p2 | Move HTML from web_templates.py to Jinja2 template files |
 | 29 | p2 | MCP-over-HTTP transport (streamable-http) |
 | 28 | p2 | Shareable static HTML export per session |
-| 27 | p2 | ai-history digest — weekly summary command |
 | 24 | p2 | Scoped MCP search (user_only / assistant_only / tool_results) |
 
-## Aider extractor (#51) — done this session
+## Done this session
 
-- `ai_history/extractors/aider.py`: parses `.aider.chat.history.md`
-  (one file per project, discovered under `$HOME`). Each
-  `# aider chat started at ...` block → one session. `#### ` = user,
-  `> ` = tool, un-prefixed = assistant. Hash-based stable session IDs.
-- `Tool.AIDER` added; registered in factory + `tooling`/`security`
-  allowlists + web `TOOL_STYLES`. 15 tests + contract-suite coverage.
+- **#51 Aider extractor** — `ai_history/extractors/aider.py` parses
+  `.aider.chat.history.md`; `Tool.AIDER` + factory/allowlist/styles. 15 tests.
+- **#43 Digest command** — `ai_history/digest.py` (pure `build_digest` /
+  `format_digest`) + `ai-history digest --since 7d [--format markdown]`.
+  16 tests.
 
 ## Next Steps (recommended order — all optional enhancements)
 
-1. **#27 — Digest command**: `ai-history digest --since 7d` → summary of
-   recent sessions (LLM-backed).
-2. **#24 — Scoped MCP search**: add `scope=user_only|assistant_only|tool_results`
+1. **#24 — Scoped MCP search**: add `scope=user_only|assistant_only|tool_results`
    to the MCP search tool.
-3. **#28 — Static HTML export**: `ai-history export --html <session>` →
+2. **#28 — Static HTML export**: `ai-history export --html <session>` →
    self-contained shareable HTML file.
-4. **#30 — Jinja2 file migration**: move templates out of `web_templates.py`
+3. **#30 — Jinja2 file migration**: move templates out of `web_templates.py`
    strings into real `.html` files (large refactor, cosmetic).
 
 Release-blocking work is complete: the project is in a publishable state.
