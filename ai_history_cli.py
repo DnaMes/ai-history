@@ -18,6 +18,7 @@ Usage:
     ai-history export [--all] [--tool TOOL] [--project PATH]
     ai-history search QUERY [--tool TOOL] [--context N]
     ai-history stats
+    ai-history digest [--since 7d] [--format text|markdown]
     ai-history watch [--interval SECS] [--git]
     ai-history check
     ai-history sync TOOL [--session-id ID] [--project PATH]
@@ -838,6 +839,31 @@ def cmd_stats(args):
         print(f"  {project}: {count}")
 
 
+def cmd_digest(args):
+    """Print a periodic activity digest (sessions by day, tool, project)."""
+    output_dir = Path(args.output_dir).expanduser()
+    index_path = output_dir / "index.json"
+
+    if not index_path.exists():
+        print("No index found. Run 'ai-history export --all' first.")
+        sys.exit(1)
+
+    try:
+        cutoff = datetime.now() - parse_duration(args.since)
+    except ValueError as exc:
+        print(f"Invalid --since value: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(index_path, "r", encoding="utf-8") as f:
+        index = json.load(f)
+
+    from ai_history.digest import build_digest, format_digest
+
+    digest = build_digest(index.get("sessions", []), since=cutoff)
+    fmt = "markdown" if args.format == "markdown" else "text"
+    print(format_digest(digest, fmt=fmt))
+
+
 def cmd_threads(args):
     """List threads across sessions."""
     output_dir = Path(args.output_dir).expanduser()
@@ -1136,6 +1162,22 @@ Examples:
     # stats command
     subparsers.add_parser("stats", help="Show statistics")
 
+    # digest command
+    digest_parser = subparsers.add_parser(
+        "digest", help="Print an activity digest for a recent time window"
+    )
+    digest_parser.add_argument(
+        "--since",
+        default="7d",
+        help="Time window to summarize (e.g., 7d, 2w, 1m; default: 7d)",
+    )
+    digest_parser.add_argument(
+        "--format",
+        choices=["text", "markdown"],
+        default="text",
+        help="Output format (default: text)",
+    )
+
     # watch command
     watch_parser = subparsers.add_parser("watch", help="Watch for new sessions")
     watch_parser.add_argument(
@@ -1275,6 +1317,8 @@ Examples:
         cmd_search(args)
     elif args.command == "stats":
         cmd_stats(args)
+    elif args.command == "digest":
+        cmd_digest(args)
     elif args.command == "watch":
         cmd_watch(args)
     elif args.command == "check":

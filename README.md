@@ -100,6 +100,10 @@ ai-history check
 # List recent sessions
 ai-history list --since 7d
 
+# Weekly activity digest (sessions by day, tool, top projects)
+ai-history digest --since 7d
+ai-history digest --since 2w --format markdown
+
 # Search across all sessions
 ai-history search "database migration"
 
