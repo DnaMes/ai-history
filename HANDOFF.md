@@ -1,62 +1,69 @@
-# HANDOFF — ai-history — 2026-05-13
+# HANDOFF — ai-history — 2026-05-17
 
 > Claude: update this before session ends with /compact or on Stop.
 
 ## Current Task
 
-Project finalization for public release — all P0 and P1 issues resolved, 10 P2/P3 issues remain.
+Project finalization for public release — **all P0 and P1 issues resolved**.
+8 P2/P3 issues remain, none release-blocking.
 
 ## Decisions Made
 
-- CSP nonces: `secrets.token_urlsafe(16)` per-request, stored in `flask.g.csp_nonce`; all 8 inline script/style tags updated
-- Coverage gate: 80% via `[tool.coverage.*]` in pyproject.toml; excluded LLM/watcher/SQLite-only extractors from coverage
-- API contract tests use `app.test_client()` with mocked `load_index` — no disk needed
-- `project_label` and `parse_date_param` now accept `Optional[str]` (was `str`) — matches how they're called from tests
+- **/sessions pagination (#17):** server renders only the first 50 sessions;
+  remaining pages load lazily via `GET /sessions/rows` (HTML fragments) behind
+  a "Load more" button. Row markup extracted into shared `SESSION_ROWS_TEMPLATE`.
+  Chosen over wiring the JSON `/api/v1/sessions` API into the frontend because
+  the API summary serializer lacks `prompt_outline` and `tag`/date filters.
+- **Vendored assets (#19):** Tailwind 3.4.16 + highlight.js 11.9.0 checked into
+  `ai_history/interfaces/static/`, served by Flask's static route. No CDN —
+  works air-gapped. `scripts/vendor_assets.py` re-downloads + SHA-256-verifies.
+- **CSP after vendoring:** `script-src` stays nonce-only; `style-src` keeps
+  `'unsafe-inline'` because the Tailwind JIT injects an un-nonced runtime
+  `<style>`. Style injection ≠ script injection risk — accepted trade-off.
+- Dropped the Source Code Pro Google Font (local monospace fallback in CSS).
 
 ## Files Changed This Session
 
 | File | Change |
 |------|--------|
-| `ai_history/interfaces/web.py` | CSP nonces via before_request, ProxyFix, SECRET_KEY warning, incremental reload, resume endpoint, stats endpoint |
-| `ai_history/interfaces/web_templates.py` | nonce="{{ nonce }}" on all inline script/style tags; STATS_TEMPLATE added |
-| `ai_history/interfaces/web_helpers.py` | Optional[str] on project_label/parse_date_param |
-| `ai_history/interfaces/web_data.py` | threadsafe_lru_cache types, incremental index build |
-| `ai_history/watcher.py` | new SessionWatcher class |
-| `ai_history/utils/git.py` | new get_git_info() |
-| `ai_history/exporters/markdown.py` | mtime-based skip, atomic writes, git_commit frontmatter |
-| `ai_history/exporters/index.py` | incremental reuse, _stat_mtime_ns exported |
-| `pyproject.toml` | [tool.pyright], [tool.coverage.*], [tool.pytest.ini_options] with addopts |
-| `.github/workflows/tests.yml` | --cov-fail-under=80 added |
-| `README.md` | CI badges, ASCII mockup, fixed clone URL, Python 3.11+ |
-| `tests/test_api_contract.py` | 25 API route contract tests |
-| `tests/test_extractor_contracts.py` | 101 parametrized extractor interface tests |
-| `tests/test_csp_nonces.py` | 13 CSP nonce tests |
-| `tests/test_*.py` (12 new) | coverage tests for extractors, utils, web layer |
+| `ai_history/interfaces/web.py` | `/sessions` paginates (50/page); new `/sessions/rows` fragment route; `import math` hoisted; Flask `static_folder`; CSP drops CDN origins |
+| `ai_history/interfaces/web_templates.py` | new `SESSION_ROWS_TEMPLATE` partial; `/sessions` "Load more" button + JS; `/static/` asset URLs; Google Font removed |
+| `ai_history/interfaces/static/*` | vendored tailwind-3.4.16.min.js, highlight-11.9.0.min.js, highlight-github-11.9.0.min.css |
+| `scripts/vendor_assets.py` | new — re-download + SHA-256-verify pinned assets |
+| `pyproject.toml` | `[tool.setuptools.package-data]` ships static dir in wheel |
+| `tests/test_sessions_pagination.py` | new — 7 pagination tests |
+| `tests/test_vendored_assets.py` | new — 9 offline/vendoring tests |
+| `tests/test_csp_nonces.py` | updated for vendored-asset CSP (no-CDN, style-src policy) |
+| `README.md`, `CLAUDE.md` | note assets are vendored, not CDN |
 
 ## Current State
 
-- **Tests**: 656 passing, 80.33% coverage
-- **GitHub issues**: 10 open (down from 32), all P0 closed, all P1 closed except #17 (split index.json) and #19 (vendor Tailwind)
-- **Both remotes in sync**: `github` and `forgejo` both at `7cea447`
+- **Tests**: 674 passing, 80.45% coverage
+- **GitHub issues**: 8 open (down from 32) — **all P0 and P1 closed**
+- **Both remotes synced**: `github` and `forgejo` at `74fe889`
 
-## Open Issues (10 remaining)
+## Open Issues (8 remaining — all P2/P3, not release-blocking)
 
 | # | Label | Issue |
 |---|-------|-------|
 | 32 | p3 | Single SQLite source of truth (v3 milestone) |
 | 31 | p2 | Decompose mcp.create_server() — 445 LOC |
-| 30 | p2 | Move HTML to Jinja2 templates |
-| 29 | p2 | MCP-over-HTTP transport |
-| 28 | p2 | Shareable static HTML export |
-| 27 | p2 | ai-history digest command |
-| 24 | p2 | Scoped MCP search |
-| 22 | p2 | Aider extractor |
-| 16 | p1 | Vendor Tailwind CSS + highlight.js |
-| 15 | p1 | Split index.json (19 MB payload) |
+| 30 | p2 | Move HTML from web_templates.py to Jinja2 template files |
+| 29 | p2 | MCP-over-HTTP transport (streamable-http) |
+| 28 | p2 | Shareable static HTML export per session |
+| 27 | p2 | ai-history digest — weekly summary command |
+| 24 | p2 | Scoped MCP search (user_only / assistant_only / tool_results) |
+| 22 | p2 | Aider extractor (`~/.aider/` chat logs) |
 
-## Next Steps (recommended order)
+## Next Steps (recommended order — all optional enhancements)
 
-1. **#17 / issue 15** — Split index.json: paginated API already exists (`/api/v1/sessions?page=N`), need frontend to use it instead of loading all at once
-2. **#19 / issue 16** — Vendor Tailwind + highlight.js: `npm run build` → single CSS bundle, no CDN needed
-3. **#51 / issue 22** — Aider extractor: reads `~/.aider/` chat logs (JSON/markdown format)
-4. **#43 / issue 27** — Digest command: `ai-history digest --since 7d` → LLM summary of what was built
+1. **#22 — Aider extractor**: new `BaseExtractor` subclass reading `~/.aider/`
+   chat logs; smallest scoped win, follows the existing extractor pattern.
+2. **#27 — Digest command**: `ai-history digest --since 7d` → summary of
+   recent sessions (LLM-backed).
+3. **#24 — Scoped MCP search**: add `scope=user_only|assistant_only|tool_results`
+   to the MCP search tool.
+4. **#30 — Jinja2 file migration**: move templates out of `web_templates.py`
+   strings into real `.html` files (large refactor, cosmetic).
+
+Release-blocking work is complete: the project is in a publishable state.
