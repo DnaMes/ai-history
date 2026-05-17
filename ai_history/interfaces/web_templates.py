@@ -1600,6 +1600,36 @@ DASHBOARD_TEMPLATE = """
 {% endblock %}
 """
 
+# Just the <a>...row markup, shared by the full page and the lazy-load fragment.
+SESSION_ROWS_TEMPLATE = """
+{% for s in sessions %}
+<div class="compact-row flex items-start gap-3 group">
+    <a href="/session/{{ s.id|urlpath }}?back={{ (back_to or '/sessions')|urlpath }}" class="flex items-center gap-3 flex-1">
+        <div class="w-4 h-4 rounded border border-slate-200 bg-white mt-1"></div>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200" style="color: {{ get_style(s.tool).color }}">
+            {{ get_style(s.tool).icon }}
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="compact-title text-slate-900 group-hover:text-slate-900 truncate">{{ s.display_title or s.title or s.id }}</div>
+            {% if s.prompt_outline %}
+            <div class="text-xs text-slate-500 mt-2">{{ s.prompt_outline }}</div>
+            {% endif %}
+            <div class="flex flex-wrap gap-2 mt-3 text-[10px]">
+                <span class="tag-chip">via {{ get_style(s.tool).name }}</span>
+                <span class="tag-chip">{{ project_label(s.project) }}</span>
+                <span class="tag-chip">{{ s.prompts or s.messages }} prompts</span>
+            </div>
+        </div>
+        <div class="text-[10px] font-mono text-slate-500 group-hover:text-slate-700">{{ s.created[:10] }}</div>
+    </a>
+    <form action="/session/{{ s.id|urlpath }}/delete" method="POST" onsubmit="return confirm('Delete this session?');" class="ml-2">
+        <input type="hidden" name="next" value="{{ back_to or '/sessions' }}">
+        <button type="submit" class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg transition-all bg-white">×</button>
+    </form>
+</div>
+{% endfor %}
+"""
+
 SESSIONS_LIST_TEMPLATE = """
 {% extends "base" %}
 {% block content %}
@@ -1608,6 +1638,7 @@ SESSIONS_LIST_TEMPLATE = """
         <div>
             <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Archive</div>
             <h1 class="title-font page-headline text-slate-900 mt-2">Sessions</h1>
+            <p class="text-sm text-slate-500 mt-2">{{ total }} session{{ '' if total == 1 else 's' }}</p>
         </div>
     </div>
     <form method="get" data-autosubmit="true" class="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-8">
@@ -1623,35 +1654,57 @@ SESSIONS_LIST_TEMPLATE = """
         <input type="date" name="end" onchange="this.form.submit()" value="{{ end or '' }}" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
         <button type="submit" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">Apply</button>
     </form>
-    <div class="compact-list">
-        {% for s in sessions %}
-        <div class="compact-row flex items-start gap-3 group">
-            <a href="/session/{{ s.id|urlpath }}?back={{ (back_to or '/sessions')|urlpath }}" class="flex items-center gap-3 flex-1">
-                <div class="w-4 h-4 rounded border border-slate-200 bg-white mt-1"></div>
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200" style="color: {{ get_style(s.tool).color }}">
-                    {{ get_style(s.tool).icon }}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="compact-title text-slate-900 group-hover:text-slate-900 truncate">{{ s.display_title or s.title or s.id }}</div>
-                    {% if s.prompt_outline %}
-                    <div class="text-xs text-slate-500 mt-2">{{ s.prompt_outline }}</div>
-                    {% endif %}
-                    <div class="flex flex-wrap gap-2 mt-3 text-[10px]">
-                        <span class="tag-chip">via {{ get_style(s.tool).name }}</span>
-                        <span class="tag-chip">{{ project_label(s.project) }}</span>
-                        <span class="tag-chip">{{ s.prompts or s.messages }} prompts</span>
-                    </div>
-                </div>
-                <div class="text-[10px] font-mono text-slate-500 group-hover:text-slate-700">{{ s.created[:10] }}</div>
-            </a>
-            <form action="/session/{{ s.id|urlpath }}/delete" method="POST" onsubmit="return confirm('Delete this session?');" class="ml-2">
-                <input type="hidden" name="next" value="{{ back_to or '/sessions' }}">
-                <button type="submit" class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg transition-all bg-white">×</button>
-            </form>
-        </div>
-        {% endfor %}
+    <div class="compact-list" id="sessionRows"
+         data-tool="{{ tool }}" data-tag="{{ tag }}" data-start="{{ start or '' }}"
+         data-end="{{ end or '' }}" data-back="{{ back_to or '/sessions' }}"
+         data-per-page="{{ per_page }}" data-pages="{{ pages }}">
+        {% include "session_rows" %}
     </div>
+    {% if pages > 1 %}
+    <div class="flex justify-center mt-8">
+        <button type="button" id="loadMoreSessions" data-next-page="2"
+                class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-5 py-2.5 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">
+            Load more
+        </button>
+    </div>
+    {% endif %}
 </section>
+<script nonce="{{ nonce }}">
+(function () {
+    const btn = document.getElementById('loadMoreSessions');
+    const rows = document.getElementById('sessionRows');
+    if (!btn || !rows) return;
+    const totalPages = parseInt(rows.dataset.pages || '1', 10);
+    btn.addEventListener('click', async function () {
+        const page = parseInt(btn.dataset.nextPage || '2', 10);
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        const params = new URLSearchParams({
+            page: String(page),
+            tool: rows.dataset.tool || '',
+            tag: rows.dataset.tag || '',
+            start: rows.dataset.start || '',
+            end: rows.dataset.end || '',
+        });
+        try {
+            const resp = await fetch('/sessions/rows?' + params.toString(), { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const html = await resp.text();
+            rows.insertAdjacentHTML('beforeend', html);
+            if (page + 1 > totalPages) {
+                btn.remove();
+            } else {
+                btn.dataset.nextPage = String(page + 1);
+                btn.disabled = false;
+                btn.textContent = 'Load more';
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = 'Load more (retry)';
+        }
+    });
+})();
+</script>
 {% endblock %}
 """
 

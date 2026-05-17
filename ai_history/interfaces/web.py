@@ -2,6 +2,7 @@ import html
 import importlib
 import json
 import logging
+import math
 import os
 import secrets
 import sys
@@ -87,6 +88,7 @@ from .web_templates import (
     NOISE_RULES_TEMPLATE,
     PROJECTS_TEMPLATE,
     RULES_TEMPLATE,
+    SESSION_ROWS_TEMPLATE,
     SESSION_TEMPLATE,
     SESSIONS_LIST_TEMPLATE,
     STATS_TEMPLATE,
@@ -482,6 +484,7 @@ def render(tpl_name, **kwargs):
         "dashboard": DASHBOARD_TEMPLATE,
         "session": SESSION_TEMPLATE,
         "sessions": SESSIONS_LIST_TEMPLATE,
+        "session_rows": SESSION_ROWS_TEMPLATE,
         "projects": PROJECTS_TEMPLATE,
         "threads": THREADS_LIST_TEMPLATE,
         "thread_detail": THREAD_DETAIL_TEMPLATE,
@@ -851,10 +854,28 @@ def dashboard():
     )
 
 
+# Sessions are rendered server-side one page at a time so the initial HTML
+# payload stays small (was up to ~19 MB when every session was inlined).
+SESSIONS_PER_PAGE = 50
+
+
+def _filtered_sorted_sessions(tool, tag, start, end):
+    """Apply list filters and sort newest-first. Returns the full filtered list."""
+    all_s = load_index().get("sessions", [])
+    start_dt = parse_date_param(start)
+    end_dt = parse_date_param(end)
+    filtered = filter_sessions(
+        all_s, tool=tool or None, tag=tag or None, start=start_dt, end=end_dt
+    )
+    return sorted(
+        filtered,
+        key=lambda s: s.get("updated") or s.get("created") or "",
+        reverse=True,
+    )
+
+
 @app.route("/sessions")
 def sessions():
-    idx = load_index()
-    all_s = idx.get("sessions", [])
     tool = request.args.get("tool", "")
     tag = request.args.get("tag", "")
     start = request.args.get("start", "")
@@ -867,22 +888,19 @@ def sessions():
     if tag and not validate_search_param(tag):
         return "Invalid tag parameter", 400
 
-    start_dt = parse_date_param(start)
-    end_dt = parse_date_param(end)
-    filtered = filter_sessions(
-        all_s, tool=tool or None, tag=tag or None, start=start_dt, end=end_dt
-    )
-    filtered = sorted(
-        filtered,
-        key=lambda s: s.get("updated") or s.get("created") or "",
-        reverse=True,
-    )
+    filtered = _filtered_sorted_sessions(tool, tag, start, end)
+    total = len(filtered)
+    pages = max(1, math.ceil(total / SESSIONS_PER_PAGE))
+    first_page = filtered[:SESSIONS_PER_PAGE]
 
-    tags = compute_top_tags(all_s, limit=12)
+    tags = compute_top_tags(load_index().get("sessions", []), limit=12)
     return render(
         "sessions",
         active="sessions",
-        sessions=filtered,
+        sessions=first_page,
+        total=total,
+        pages=pages,
+        per_page=SESSIONS_PER_PAGE,
         tools=list(TOOL_STYLES.keys()),
         tool=tool,
         tag=tag,
@@ -892,6 +910,36 @@ def sessions():
         back_to=(request.full_path[:-1] if request.full_path.endswith("?") else request.full_path),
         title="Sessions",
     )
+
+
+@app.route("/sessions/rows")
+def sessions_rows():
+    """Return an HTML fragment of session rows for one page (lazy 'Load more')."""
+    tool = request.args.get("tool", "")
+    tag = request.args.get("tag", "")
+    start = request.args.get("start", "")
+    end = request.args.get("end", "")
+
+    if tool and not validate_tool_name(tool):
+        return "Invalid tool parameter", 400
+    tool = normalize_tool_name(tool) or ""
+
+    if tag and not validate_search_param(tag):
+        return "Invalid tag parameter", 400
+
+    try:
+        page = int(request.args.get("page", "1"))
+    except ValueError:
+        return "Invalid page parameter", 400
+    if page < 1:
+        return "Invalid page parameter", 400
+
+    filtered = _filtered_sorted_sessions(tool, tag, start, end)
+    offset = (page - 1) * SESSIONS_PER_PAGE
+    page_sessions = filtered[offset : offset + SESSIONS_PER_PAGE]
+
+    html = render("session_rows", sessions=page_sessions, back_to="/sessions")
+    return Response(html, mimetype="text/html")
 
 
 @app.route("/projects")
@@ -1684,8 +1732,6 @@ def api_v1_sessions():
     if use_pagination:
         offset = (page - 1) * per_page
         page_sessions = all_sessions[offset : offset + per_page]
-        import math
-
         pages = math.ceil(total / per_page) if per_page else 1
         return jsonify(
             {
