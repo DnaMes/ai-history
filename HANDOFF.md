@@ -4,8 +4,17 @@
 
 ## Current Task
 
-Project finalization for public release — **all P0 and P1 issues resolved**.
-8 P2/P3 issues remain, none release-blocking.
+Project finalization for public release — **all P0/P1 closed**; working
+through optional P2/P3 enhancements. Aider extractor (#51) done this session.
+7 P2/P3 issues remain, none release-blocking.
+
+## ⚠️ Forgejo out of sync
+
+The Forgejo remote (`100.119.46.15:2222`, Tailscale) is unreachable — the
+self-hosted box appears offline. GitHub is fully synced. Forgejo is behind
+by 4 commits (`08c40bf`, `74fe889`, `9aa71f4`, `1df6c2e`).
+**Action:** run `git push forgejo master` once the box is back online —
+it's a fast-forward, no `--force` needed.
 
 ## Decisions Made
 
@@ -38,11 +47,11 @@ Project finalization for public release — **all P0 and P1 issues resolved**.
 
 ## Current State
 
-- **Tests**: 674 passing, 80.45% coverage
-- **GitHub issues**: 8 open (down from 32) — **all P0 and P1 closed**
-- **Both remotes synced**: `github` and `forgejo` at `74fe889`
+- **Tests**: 700 passing, 80.78% coverage
+- **GitHub issues**: 7 open (down from 32) — **all P0/P1 closed**
+- **GitHub** `master` at `1df6c2e`; **Forgejo** behind (host offline — see above)
 
-## Open Issues (8 remaining — all P2/P3, not release-blocking)
+## Open Issues (7 remaining — all P2/P3, not release-blocking)
 
 | # | Label | Issue |
 |---|-------|-------|
@@ -53,16 +62,24 @@ Project finalization for public release — **all P0 and P1 issues resolved**.
 | 28 | p2 | Shareable static HTML export per session |
 | 27 | p2 | ai-history digest — weekly summary command |
 | 24 | p2 | Scoped MCP search (user_only / assistant_only / tool_results) |
-| 22 | p2 | Aider extractor (`~/.aider/` chat logs) |
+
+## Aider extractor (#51) — done this session
+
+- `ai_history/extractors/aider.py`: parses `.aider.chat.history.md`
+  (one file per project, discovered under `$HOME`). Each
+  `# aider chat started at ...` block → one session. `#### ` = user,
+  `> ` = tool, un-prefixed = assistant. Hash-based stable session IDs.
+- `Tool.AIDER` added; registered in factory + `tooling`/`security`
+  allowlists + web `TOOL_STYLES`. 15 tests + contract-suite coverage.
 
 ## Next Steps (recommended order — all optional enhancements)
 
-1. **#22 — Aider extractor**: new `BaseExtractor` subclass reading `~/.aider/`
-   chat logs; smallest scoped win, follows the existing extractor pattern.
-2. **#27 — Digest command**: `ai-history digest --since 7d` → summary of
+1. **#27 — Digest command**: `ai-history digest --since 7d` → summary of
    recent sessions (LLM-backed).
-3. **#24 — Scoped MCP search**: add `scope=user_only|assistant_only|tool_results`
+2. **#24 — Scoped MCP search**: add `scope=user_only|assistant_only|tool_results`
    to the MCP search tool.
+3. **#28 — Static HTML export**: `ai-history export --html <session>` →
+   self-contained shareable HTML file.
 4. **#30 — Jinja2 file migration**: move templates out of `web_templates.py`
    strings into real `.html` files (large refactor, cosmetic).
 
