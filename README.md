@@ -63,6 +63,7 @@ docker compose up -d
 | **Codex** | `~/.codex/` | OpenAI Codex CLI sessions |
 | **OpenCode** | `~/.opencode/` | OpenCode agent sessions |
 | **Antigravity** | Varies | Experimental tool support |
+| **Aider** | `.aider.chat.history.md` per project | Markdown chat logs, discovered under your home dir |
 
 ---
 

@@ -12,6 +12,7 @@ TOOL_STYLES = {
     "copilot-cli": {"color": "#0284c7", "icon": "Gh", "name": "Copilot CLI"},
     "opencode": {"color": "#F97316", "icon": "O", "name": "OpenCode"},
     "antigravity": {"color": "#8B5CF6", "icon": "A", "name": "Antigravity"},
+    "aider": {"color": "#14B8A6", "icon": "Ai", "name": "Aider"},
 }
 
 

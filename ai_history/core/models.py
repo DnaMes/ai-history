@@ -14,6 +14,7 @@ class Tool(Enum):
     CODEX = "codex"
     OPENCODE = "opencode"
     ANTIGRAVITY = "antigravity"
+    AIDER = "aider"
 
 
 class Role(Enum):

@@ -1,5 +1,5 @@
 """
-Parametrized contract tests for all 11 extractors (issue #26).
+Parametrized contract tests for all extractors (issue #26).
 
 These tests verify that every extractor class correctly implements the
 BaseExtractor interface without requiring actual tool data on disk.
@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from ai_history.core.models import Tool, UnifiedSession
+from ai_history.extractors.aider import AiderExtractor
 from ai_history.extractors.antigravity import AntigravityExtractor
 from ai_history.extractors.base import BaseExtractor
 from ai_history.extractors.claude import ClaudeCodeExtractor
@@ -25,6 +26,7 @@ from ai_history.extractors.warp import WarpExtractor
 # ---------------------------------------------------------------------------
 
 ALL_EXTRACTOR_CLASSES = [
+    AiderExtractor,
     AntigravityExtractor,
     ClaudeCodeExtractor,
     CodexExtractor,

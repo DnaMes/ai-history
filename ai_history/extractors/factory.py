@@ -1,5 +1,6 @@
 from typing import List
 
+from .aider import AiderExtractor
 from .antigravity import AntigravityExtractor
 from .base import BaseExtractor
 from .claude import ClaudeCodeExtractor
@@ -23,4 +24,5 @@ def get_all_extractors() -> List[BaseExtractor]:
         CopilotCLIExtractor(),
         OpenCodeExtractor(),
         AntigravityExtractor(),
+        AiderExtractor(),
     ]

@@ -10,6 +10,7 @@ CANONICAL_TOOLS = {
     "copilot-cli",
     "opencode",
     "antigravity",
+    "aider",
 }
 
 
@@ -27,6 +28,7 @@ TOOL_ALIASES = {
     "copilot-cli": "copilot-cli",
     "opencode": "opencode",
     "antigravity": "antigravity",
+    "aider": "aider",
 }
 
 

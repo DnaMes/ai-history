@@ -213,6 +213,7 @@ def validate_tool_name(tool: str) -> bool:
         "copilot-cli",
         "opencode",
         "antigravity",
+        "aider",
     ]
     return tool in valid_tools
 
