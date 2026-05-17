@@ -55,6 +55,10 @@ py-modules = ["ai_history_cli", "ai_session_cli"]
 where = ["."]
 include = ["ai_history*"]
 
+[tool.setuptools.package-data]
+# Vendored web assets (Tailwind, highlight.js) must ship in the wheel.
+"ai_history.interfaces" = ["static/*.js", "static/*.css"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

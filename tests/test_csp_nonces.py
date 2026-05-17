@@ -2,11 +2,13 @@
 
 Verifies that:
 - Every HTML response sets a Content-Security-Policy header with 'nonce-<value>'
-- The CSP header no longer contains 'unsafe-inline'
+- script-src stays nonce-only (no 'unsafe-inline')
+- style-src keeps 'unsafe-inline' for the Tailwind JIT runtime sheet (#19)
 - All inline <script> and <style> tags carry the matching nonce attribute
 - The nonce changes between requests (per-request entropy)
 - get_csp_nonce() returns a safe fallback outside a request context
 """
+
 import re
 
 from ai_history.interfaces import web
@@ -15,6 +17,7 @@ from ai_history.interfaces import web
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_nonce_from_csp(csp: str) -> str | None:
     """Pull the nonce value out of a CSP header like ``'nonce-abc123'``."""
@@ -39,12 +42,40 @@ def _inline_style_nonces(html: str) -> list[str]:
 # CSP header structure
 # ---------------------------------------------------------------------------
 
+
 class TestCspHeader:
     def test_no_unsafe_inline_in_script_src(self):
         with web.app.test_client() as client:
             response = client.get("/")
         csp = response.headers.get("Content-Security-Policy", "")
-        assert "unsafe-inline" not in csp, f"CSP still contains unsafe-inline: {csp}"
+        script_src = next((d for d in csp.split(";") if "script-src" in d), "")
+        assert "unsafe-inline" not in script_src, f"script-src must stay nonce-only: {script_src}"
+
+    def test_style_src_keeps_unsafe_inline_for_tailwind_jit(self):
+        """The vendored Tailwind JIT injects an un-nonced runtime <style>.
+
+        script-src stays strict (nonce-only); style-src must allow
+        'unsafe-inline' so that injected sheet is not blocked (issue #19).
+        """
+        with web.app.test_client() as client:
+            response = client.get("/")
+        csp = response.headers.get("Content-Security-Policy", "")
+        style_src = next((d for d in csp.split(";") if "style-src" in d), "")
+        assert "unsafe-inline" in style_src, f"style-src needs unsafe-inline: {style_src}"
+
+    def test_no_cdn_origins_in_csp(self):
+        """Issue #19: all assets are vendored — no third-party origins allowed."""
+        with web.app.test_client() as client:
+            response = client.get("/")
+        csp = response.headers.get("Content-Security-Policy", "")
+        for origin in (
+            "cdn.tailwindcss.com",
+            "cdnjs.cloudflare.com",
+            "cdn.jsdelivr.net",
+            "fonts.googleapis.com",
+            "fonts.gstatic.com",
+        ):
+            assert origin not in csp, f"CDN origin {origin} still in CSP: {csp}"
 
     def test_nonce_present_in_csp(self):
         with web.app.test_client() as client:
@@ -80,6 +111,7 @@ class TestCspHeader:
 # Nonce rotation
 # ---------------------------------------------------------------------------
 
+
 class TestNonceRotation:
     def test_nonce_changes_between_requests(self):
         with web.app.test_client() as client:
@@ -106,6 +138,7 @@ class TestNonceRotation:
 # HTML — nonce attribute on inline elements
 # ---------------------------------------------------------------------------
 
+
 class TestInlineNonceAttributes:
     def _get_html_and_nonce(self, path: str = "/") -> tuple[str, str]:
         with web.app.test_client() as client:
@@ -121,9 +154,9 @@ class TestInlineNonceAttributes:
         found = _inline_script_nonces(html)
         assert len(found) > 0, "No <script nonce=...> tags found in response"
         for tag_nonce in found:
-            assert tag_nonce == nonce, (
-                f"Inline script has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
-            )
+            assert (
+                tag_nonce == nonce
+            ), f"Inline script has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
 
     def test_all_inline_styles_carry_nonce(self):
         html, nonce = self._get_html_and_nonce("/")
@@ -131,9 +164,9 @@ class TestInlineNonceAttributes:
         found = _inline_style_nonces(html)
         assert len(found) > 0, "No <style nonce=...> tags found in response"
         for tag_nonce in found:
-            assert tag_nonce == nonce, (
-                f"Inline style has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
-            )
+            assert (
+                tag_nonce == nonce
+            ), f"Inline style has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
 
     def test_no_unnnonced_inline_scripts(self):
         """Ensure there are no bare <script> tags (without a nonce or src)."""
@@ -161,6 +194,7 @@ class TestInlineNonceAttributes:
 # ---------------------------------------------------------------------------
 # get_csp_nonce() fallback
 # ---------------------------------------------------------------------------
+
 
 class TestGetCspNonceFallback:
     def test_fallback_outside_request_context(self):

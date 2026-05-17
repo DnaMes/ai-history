@@ -291,8 +291,8 @@ Exit codes:
 - Python 3.11+
 - Flask (for Web UI)
 - Markdown (for rendering)
-- highlight.js (included via CDN)
-- Tailwind CSS (included via CDN)
+- highlight.js (vendored — no CDN, works offline)
+- Tailwind CSS (vendored — no CDN, works offline)
 
 ## ⚙️ Gemini Project Resolution
 

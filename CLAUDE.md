@@ -45,7 +45,7 @@ Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.
 - **`ai_history/interfaces/web_data.py`** — `load_index()`, `_build_index_from_extractors()`, `OUTPUT_DIR`, `INDEX_PATH`. All index I/O lives here. Uses file-stat-keyed LRU cache (`threadsafe_lru_cache`) — call `clear_index_cache()` after writes.
 - **`ai_history/interfaces/web_jobs.py`** — In-memory `RELOAD_JOBS` dict + threading logic for async reload/audit. TTL=3600s, max=256 jobs. Job state: `queued → running → done/error/cancelled`.
 - **`ai_history/interfaces/web_utils.py`** — `NOISE_RULES_PATH`, `RATE_LIMIT_STATE`, `METRICS`, `METRICS_LOCK`, rate-limiting, request IDs, metrics counters.
-- **`ai_history/interfaces/web_templates.py`** — All HTML/CSS/JS as Python strings (Tailwind + highlight.js, no build step).
+- **`ai_history/interfaces/web_templates.py`** — All HTML/CSS/JS as Python strings (Tailwind + highlight.js, no build step). Tailwind/highlight.js are vendored under `ai_history/interfaces/static/` and served by Flask (no CDN — offline-safe); re-vendor via `scripts/vendor_assets.py --download`.
 - **`ai_history/interfaces/web_services.py`** — Session enrichment, thread building, project payload assembly.
 
 ### Entry Points

@@ -15,9 +15,8 @@ BASE_TEMPLATE = """
             } catch (_) {}
         })();
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&display=swap">
+    <script src="/static/tailwind-3.4.16.min.js"></script>
+    <link rel="stylesheet" href="/static/highlight-github-11.9.0.min.css">
     <script nonce="{{ nonce }}">
         tailwind.config = {
             darkMode: 'class',
@@ -727,7 +726,7 @@ BASE_TEMPLATE = """
             <div id="searchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="/static/highlight-11.9.0.min.js"></script>
     <script nonce="{{ nonce }}">
         if (typeof window.hljs !== 'undefined') {
             window.hljs.configure({ ignoreUnescapedHTML: true });

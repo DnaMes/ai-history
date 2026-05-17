@@ -144,7 +144,14 @@ preview_normalize_message = _web_services.preview_normalize_message
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder=Path(__file__).parent.parent / "templates")
+app = Flask(
+    __name__,
+    template_folder=Path(__file__).parent.parent / "templates",
+    # Vendored Tailwind / highlight.js live in interfaces/static/ so the UI
+    # works fully offline (air-gapped installs) — no CDN dependency.
+    static_folder=Path(__file__).parent / "static",
+    static_url_path="/static",
+)
 
 _flask_secret = os.environ.get("FLASK_SECRET_KEY")
 if not _flask_secret:
@@ -590,12 +597,21 @@ def prepare_request_context_and_limit() -> Optional[Response]:
 def add_security_headers(response):
     nonce = get_csp_nonce()
     nonce_src = f"'nonce-{nonce}'" if nonce else ""
+    # All assets (Tailwind, highlight.js) are vendored under /static/ — no CDN
+    # origins are allowed, so the UI works in air-gapped installs.
+    #
+    # style-src keeps 'unsafe-inline': the Tailwind JIT runtime injects an
+    # un-nonced <style> element it generates at runtime, which a nonce-only
+    # policy would block. CSP3 ignores 'unsafe-inline' for our own
+    # nonce-carrying <style> blocks, so those stay nonce-protected; only the
+    # dynamic Tailwind sheet relies on it. Style injection cannot exfiltrate
+    # data the way script injection can, so this is an accepted trade-off.
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        f"script-src 'self' {nonce_src} https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
-        f"style-src 'self' {nonce_src} https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        f"script-src 'self' {nonce_src}; "
+        f"style-src 'self' {nonce_src} 'unsafe-inline'; "
         "img-src 'self' data:; "
-        "font-src 'self' data: https://fonts.gstatic.com; "
+        "font-src 'self' data:; "
         "connect-src 'self'; "
         "object-src 'none'; "
         "base-uri 'self'; "
