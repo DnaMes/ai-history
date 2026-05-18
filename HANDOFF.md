@@ -2,62 +2,52 @@
 
 > Claude: update this before session ends with /compact or on Stop.
 
-## Current Task
+## Current State — production-ready, released 2.2.0
 
-A four-agent QA review (architecture, security, accessibility, test
-coverage) plus a hands-on UI inspection produced 16 issues (#34–#49).
-**All 16 are now fixed and closed.** The project is in materially better
-shape than the "787 tests green" claim implied.
+All open bug/security/P0/P1 issues are closed. The project is in a
+publishable, production-usable state. Tagged **v2.2.0**.
 
-## What the review found and how it was fixed
+- **Tests**: 945 passing, 83.85% coverage
+- **GitHub** `master` at `2607602`, tags `v2.1.0` + `v2.2.0`
+- **Open issues**: 4 — all intentional, none blocking:
+  - #33 — Vision tracking issue (permanent)
+  - #48, #30, #29 — `roadmap`-labelled, deferred with documented rationale
+    (JSON retirement, Jinja-file migration, MCP-over-HTTP) — not blockers
 
-| Issue | Severity | Fix (commit) |
-|---|---|---|
-| #34 search read legacy DB while load_index read v2 | P0 | search routed through v2 search_index (660f520) |
-| #35 v2 messages incomplete after incremental sync | P0 | reused_sessions written full + messages_synced flag (2b90f5c) |
-| #36 no v2 staleness check; generated_at unset | P0 | store_meta + staleness compare (9163215) |
-| #37 coverage omit list hid 4 extractors | P1 | omit trimmed, 61 fixture tests (commit w/ #39) |
-| #38 mobile layout broken | P1 | off-canvas drawer (4bdaa96) |
-| #39 WCAG AA failures | P1 | contrast/modals/markup (commit w/ #37) |
-| #40 no concurrency test, no busy_timeout | P1 | busy_timeout + 10 tests (e554dc8) |
-| #41/#42/#45 security hardening | P2 | file perms, memory caps, CSRF guards (4d08c5f) |
-| #44/#46/#49 dead code + migrations + polish | P2 | (e554dc8, 4bdaa96) |
-| #50 CSP nonce left the UI unstyled | P0-class | style-src unsafe-inline only (4bdaa96) |
+## What this session delivered
 
-The #50 CSP bug was the scariest find: a nonce in `style-src` made CSP3
-ignore `'unsafe-inline'`, blocking every Tailwind-injected style — the
-whole UI rendered unstyled. Caught only by a hands-on headless screenshot,
-not by the suite. Fixed; consider a render-smoke-test as follow-up.
+- **Vision (#33)**: v2 SQLite store, cross-tool agent memory, semantic
+  recall (optional `[semantic]` extra), `/memory` web page.
+- **Features**: scoped MCP search (#24), standalone HTML export (#28),
+  `ai-history digest`, Aider extractor, package versioning + `--version`.
+- **Refactors**: `services/` layer (killed 4 duplications, fixed the
+  mcp→web_data inversion), decomposed `mcp.create_server()` 550→15 lines.
+- **Two QA review rounds** (architecture/security/accessibility/test):
+  16 issues found+fixed in round 1, 5 hardening fixes in round 2.
 
-## Current State
+## Storage architecture (issue #44 — complete)
 
-- **Tests**: 887 passing, ~82% coverage (real — the 4 dark extractors
-  are now counted, not omitted)
-- **GitHub** `master` at `4bdaa96`; issues #34–#50 all closed
-- **`AI_HISTORY_USE_V2` is back to default-on** — the v2 store is now
-  consistency-checked and concurrency-hardened
-- Open issues: #33 (vision tracking), #24/#28/#29/#30/#31 (P2 enhancements)
+`ai_history/storage/`: schema (10 migrations, idempotent), writer
+(dual-write), reader (staleness check), search (v2 FTS + scoped), memory
+(agent memory + caps), embeddings (optional semantic). WAL + busy_timeout.
+`ai_history/services/`: cache, extraction (the Sync engine), index.
 
-## Storage layer (issue #44) — now solid
+## Roadmap (deferred, not blocking — see the labelled issues)
 
-`ai_history/storage/`: schema (9 migrations, idempotent ALTERs),
-writer (dual-write, messages_synced), reader (staleness check), search
-(v2 FTS), memory (agent memory + input caps). WAL + busy_timeout.
-
-## Next Steps
-
-1. **#33 vision** — semantic memory search (embeddings / sqlite-vec),
-   memory_sources auto-linking, a web UI for memory.
-2. Remaining P2 enhancements (#24 scoped MCP search, #28 static HTML
-   export, #30 Jinja file migration, #31 mcp decomposition).
-3. Optional: headless render-smoke-test so a CSP/asset regression like
-   #50 is caught automatically.
+1. #33 vision next steps: `memory_sources` auto-linking (Memory ↔ source
+   sessions), then the repo-split decision.
+2. #48 JSON retirement, #30 Jinja files, #29 MCP-over-HTTP — when the
+   need is concrete.
+3. Minor QA follow-ups noted by the agents: real-extractor end-to-end
+   test, exporter protocol unification, IndexBuilder relocation.
 
 ## Gotchas
 
-- The Docker container on port 5000 runs an old (Apr-13) image — local
-  dev must use a different port. Rebuild needs the Debian mirror
-  reachable; `daemon.json` DNS fix is in place.
-- v2 DB is located via `INDEX_PATH.parent`; tests patching `INDEX_PATH`
-  stay isolated. Patch `web_data.INDEX_PATH` (not just `web.INDEX_PATH`)
-  for anything that calls `load_index()`.
+- Docker container on port 5000 runs an old image; local dev uses a
+  different port. `daemon.json` DNS fix is in place.
+- v2 DB located via `INDEX_PATH.parent`; patch `web_data.INDEX_PATH`
+  (not just `web.INDEX_PATH`) for anything calling `load_index()`.
+- `fastembed` is installed in this venv; semantic tests run for real.
+  Without it they skip cleanly (CI-safe).
+- Forgejo remote `forgejo-https` (git.erdlabs.com) needs a fresh token
+  to push; GitHub is the synced remote.
