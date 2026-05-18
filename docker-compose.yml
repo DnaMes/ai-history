@@ -2,8 +2,12 @@
 services:
   app:
     build: .
-    container_name: ai-history-app
+    container_name: lore-app
     restart: unless-stopped
+    # Run as the host user so the bind-mounted ~/.lore (owner-only, 0700)
+    # stays writable without loosening its permissions. Override via a .env
+    # file if your uid/gid differ from 1000.
+    user: "${LORE_UID:-1000}:${LORE_GID:-1000}"
     ports:
       - "5000:5000"
     volumes:
@@ -17,8 +21,8 @@ services:
       - ${HOME}/.local/share/opencode/storage:/home/ai/.local/share/opencode/storage:ro
       - ${HOME}/.local/share/opencode:/home/ai/.local/share/opencode:ro
       - ${HOME}/.copilot:/home/ai/.copilot:ro
-      # Mount output directory (ReadWrite)
-      - ${HOME}/.ai-history:/home/ai/.ai-history
+      # Mount Lore's data directory (ReadWrite)
+      - ${HOME}/.lore:/home/ai/.lore
     environment:
       - HOME=/home/ai
       # Set a stable secret key so sessions survive container restarts.

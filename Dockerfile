@@ -8,8 +8,11 @@ RUN apt-get update && apt-get install -y \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd -m -u 10001 ai
+# Create the non-root user. Its home is made traversable (0711) so the
+# container can also run as the host user via compose's `user:` override —
+# the process must be able to *enter* /home/ai to reach the bind-mounted
+# /home/ai/.lore data volume. 0711 allows traversal without listing.
+RUN useradd -m -u 10001 ai && chmod 0711 /home/ai
 
 # Copy package files
 COPY pyproject.toml README.md ./
