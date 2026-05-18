@@ -281,10 +281,13 @@ def create_server() -> MCPServer:
         )
 
     async def search_history(args: dict) -> str:
+        from ..storage.search import SEARCH_SCOPES
+
         query = args.get("query", "")
         tool_filter = normalize_tool_name(args.get("tool") or "") or None
         project_filter = args.get("project") or None
         limit = _normalize_limit(args.get("limit"), default=10)
+        scope = str(args.get("scope") or "all").strip().lower()
 
         if not query or not validate_search_param(query):
             return "Invalid search query parameter."
@@ -292,18 +295,25 @@ def create_server() -> MCPServer:
             return "Invalid tool parameter."
         if project_filter and not validate_search_param(project_filter):
             return "Invalid project parameter."
+        if scope not in SEARCH_SCOPES:
+            return f"Invalid scope parameter. Expected one of: {', '.join(sorted(SEARCH_SCOPES))}."
 
         _ensure_index()
-        results = search_index(
-            query,
-            tool=tool_filter,
-            project=project_filter,
-            limit=limit,
-        )
+        try:
+            results = search_index(
+                query,
+                tool=tool_filter,
+                project=project_filter,
+                limit=limit,
+                scope=scope,
+            )
+        except ValueError as exc:
+            return str(exc)
         payload = {
             "query": query,
             "tool": tool_filter,
             "project": project_filter,
+            "scope": scope,
             "count": len(results),
             "results": [
                 {
@@ -317,7 +327,8 @@ def create_server() -> MCPServer:
 
     server.register_tool(
         "search_history",
-        "Search across all AI chat sessions.",
+        "Search across all AI chat sessions. Use 'scope' to limit matches to "
+        "a message-role subset: user_only, assistant_only or tool_results.",
         {
             "type": "object",
             "properties": {
@@ -325,6 +336,12 @@ def create_server() -> MCPServer:
                 "tool": {"type": "string"},
                 "project": {"type": "string"},
                 "limit": {"type": "integer"},
+                "scope": {
+                    "type": "string",
+                    "enum": ["all", "user_only", "assistant_only", "tool_results"],
+                    "description": "Restrict matches to a message-role subset "
+                    "(default 'all' searches whole sessions).",
+                },
             },
             "required": ["query"],
         },

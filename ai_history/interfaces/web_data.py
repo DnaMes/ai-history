@@ -263,9 +263,7 @@ def _build_index_from_extractors(
     deleted = load_deleted_session_ids()
     filtered = [session for session in sessions if session.session_id not in deleted]
     reused_filtered = [entry for entry in reused_entries if entry.get("id") not in deleted]
-    reused_sessions_filtered = [
-        s for s in reused_sessions if s.session_id not in deleted
-    ]
+    reused_sessions_filtered = [s for s in reused_sessions if s.session_id not in deleted]
     IndexBuilder(OUTPUT_DIR).build_index(
         filtered,
         {},
@@ -363,14 +361,23 @@ def _load_index_v2_cached(db_path: str, _mtime_ns: int, _size: int):
     return load_index_v2(Path(db_path).parent)
 
 
-def search_index(query, tool=None, project=None, limit=50):
+def search_index(query, tool=None, project=None, limit=50, scope=None):
     """Search sessions, reading from whichever store load_index() uses (#34).
 
     When the v2 store is the active source, search v2's FTS5 index so search
     results and the session list stay consistent. Otherwise fall back to the
     legacy SearchEngine over index.sqlite.
 
+    ``scope`` optionally restricts matches to a message-role subset (issue
+    #24): ``"user_only"``, ``"assistant_only"`` or ``"tool_results"``; unset
+    or ``"all"`` searches whole sessions. Scoped search needs the v2 store's
+    per-message rows — on the legacy fallback path scope is a no-op and the
+    unfiltered legacy result is returned.
+
     Returns ``[{"session": <dict>, "score": <float>}]``.
+
+    Raises:
+        ValueError: when ``scope`` is not a recognised value.
     """
     index_dir = INDEX_PATH.parent
     if _v2_enabled():
@@ -379,11 +386,23 @@ def search_index(query, tool=None, project=None, limit=50):
 
             if v2_is_available(index_dir):
                 results = search_sessions(
-                    index_dir, query, tool=tool, project=project, limit=limit
+                    index_dir, query, tool=tool, project=project, limit=limit, scope=scope
                 )
                 return _apply_deleted_filter_to_results(results)
+        except ValueError:
+            # Invalid scope — surface to the caller, do not fall back.
+            raise
         except Exception as exc:
             logger.warning("v2 search failed, falling back to legacy: %s", exc)
+
+    # Legacy SearchEngine has no per-message rows; validate scope but treat
+    # any non-"all" value as a no-op (return the unfiltered legacy result).
+    from ai_history.storage.search import SEARCH_SCOPES
+
+    if (scope or "all").strip().lower() not in SEARCH_SCOPES:
+        raise ValueError(
+            f"Invalid scope '{scope}'. " f"Expected one of: {', '.join(sorted(SEARCH_SCOPES))}."
+        )
 
     from ai_history.search.engine import SearchEngine
 

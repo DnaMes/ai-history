@@ -22,6 +22,16 @@ from .reader import _row_to_session_dict
 from .schema import open_connection
 from .writer import v2_db_path
 
+# Valid values for the optional ``scope`` argument of ``search_sessions``.
+# Maps the public scope name to the set of message ``role`` values that a
+# matching message must have. ``"all"`` (or None) skips role filtering.
+SEARCH_SCOPES: Dict[str, tuple] = {
+    "all": (),
+    "user_only": ("user",),
+    "assistant_only": ("assistant",),
+    "tool_results": ("tool",),
+}
+
 
 def search_sessions(
     output_dir: Path,
@@ -30,6 +40,7 @@ def search_sessions(
     tool: Optional[str] = None,
     project: Optional[str] = None,
     limit: int = 50,
+    scope: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Full-text search sessions in the v2 store.
 
@@ -39,12 +50,25 @@ def search_sessions(
         tool: optional exact tool filter.
         project: optional substring project filter.
         limit: max results.
+        scope: optional message-role scope. One of ``SEARCH_SCOPES`` keys.
+            ``None`` or ``"all"`` searches whole sessions (default). Any other
+            value keeps only sessions that have at least one message of the
+            requested role whose content matches every query term.
 
     Returns:
         ``[{"session": <legacy session dict>, "score": <float>}]`` ordered
         best-match-first. Empty list when the v2 store is absent, the query
         is too short, or the FTS expression is malformed.
+
+    Raises:
+        ValueError: when ``scope`` is not a recognised value.
     """
+    scope_value = (scope or "all").strip().lower()
+    if scope_value not in SEARCH_SCOPES:
+        raise ValueError(
+            f"Invalid scope '{scope}'. Expected one of: {', '.join(sorted(SEARCH_SCOPES))}."
+        )
+    scope_roles = SEARCH_SCOPES[scope_value]
     db = v2_db_path(output_dir)
     if not db.exists():
         return []
@@ -79,6 +103,14 @@ def search_sessions(
     finally:
         conn.close()
 
+    # For a scoped search, pre-compute which candidate sessions have at least
+    # one message of the requested role whose content matches every query
+    # term. Done with one query over the per-message ``messages`` table.
+    scoped_session_ids: Optional[set] = None
+    if scope_roles:
+        candidate_ids = [row["id"] for row in rows]
+        scoped_session_ids = _sessions_matching_scope(db, candidate_ids, terms, scope_roles)
+
     results: List[Dict[str, Any]] = []
     for row in rows:
         session = _row_to_session_dict(row)
@@ -86,7 +118,47 @@ def search_sessions(
             continue
         if project and project not in str(session.get("project") or ""):
             continue
+        if scoped_session_ids is not None and session.get("id") not in scoped_session_ids:
+            continue
         results.append({"session": session, "score": float(row["score"])})
         if len(results) >= limit:
             break
     return results
+
+
+def _sessions_matching_scope(
+    db: Path,
+    session_ids: List[str],
+    terms: List[str],
+    roles: tuple,
+) -> set:
+    """Return the subset of ``session_ids`` with a matching message in ``roles``.
+
+    A message matches when its role is in ``roles`` and its content contains
+    every term in ``terms`` (case-insensitive substring match, same prefix
+    semantics as the FTS query). Used to scope a search to user/assistant/
+    tool-result messages only.
+    """
+    if not session_ids:
+        return set()
+
+    id_placeholders = ",".join("?" for _ in session_ids)
+    role_placeholders = ",".join("?" for _ in roles)
+    term_clauses = " AND ".join("LOWER(content) LIKE ?" for _ in terms)
+    like_params = [f"%{t.lower()}%" for t in terms]
+
+    sql = (
+        f"SELECT DISTINCT session_id FROM messages "
+        f"WHERE session_id IN ({id_placeholders}) "
+        f"AND role IN ({role_placeholders}) "
+        f"AND {term_clauses}"
+    )
+
+    conn = open_connection(db)
+    try:
+        rows = conn.execute(sql, [*session_ids, *roles, *like_params]).fetchall()
+    except sqlite3.Error:
+        return set()
+    finally:
+        conn.close()
+    return {row["session_id"] for row in rows}

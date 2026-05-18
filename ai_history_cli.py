@@ -296,6 +296,67 @@ def cmd_export(args):
     print(f"\nExported {len(sessions)} sessions to {output_dir}")
 
 
+def _find_session_by_id(session_id: str):
+    """Resolve a session id to a fully-loaded UnifiedSession from any tool.
+
+    Matches on exact id first, then on a unique prefix so short ids work.
+    """
+    exact = None
+    prefix_matches = []
+    for extractor in get_all_extractors():
+        if not extractor.is_available():
+            continue
+        try:
+            sessions = extractor.extract_sessions()
+        except Exception:
+            continue
+        for session in sessions:
+            if session.session_id == session_id:
+                exact = session
+                break
+            if session.session_id.startswith(session_id):
+                prefix_matches.append(session)
+        if exact:
+            break
+
+    if exact:
+        return exact
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
+    if len(prefix_matches) > 1:
+        raise ValueError(f"Ambiguous session id '{session_id}' matches {len(prefix_matches)}")
+    return None
+
+
+def cmd_export_html(args):
+    """Export a single session as a standalone, shareable HTML file."""
+    from ai_history.exporters.html import render_session_html
+
+    try:
+        session = _find_session_by_id(args.session_id)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    if session is None:
+        print(f"Error: no session found for id '{args.session_id}'", file=sys.stderr)
+        return 1
+
+    output_path = (
+        Path(args.output).expanduser() if args.output else Path.cwd() / f"{session.session_id}.html"
+    )
+    if output_path.is_dir():
+        output_path = output_path / f"{session.session_id}.html"
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    html_doc = render_session_html(session)
+    output_path.write_text(html_doc, encoding="utf-8")
+
+    print(f"Exported session {session.session_id} ({session.message_count} messages)")
+    print(f"  → {output_path}")
+    return 0
+
+
 def cmd_prune(args):
     """Prune sessions from the export/index based on prompt count."""
     output_dir = Path(args.output_dir).expanduser()
@@ -1223,6 +1284,16 @@ Examples:
     export_parser.add_argument("--tool", help="Export only specific tool")
     export_parser.add_argument("--project", help="Export only specific project")
 
+    # export-html command — single shareable standalone HTML file
+    export_html_parser = subparsers.add_parser(
+        "export-html", help="Export one session as a standalone HTML file"
+    )
+    export_html_parser.add_argument("session_id", help="Session ID (full or unique prefix)")
+    export_html_parser.add_argument(
+        "--output",
+        help="Output file or directory (default: <session-id>.html in cwd)",
+    )
+
     # search command
     search_parser = subparsers.add_parser("search", help="Search sessions")
     search_parser.add_argument("query", help="Search query")
@@ -1418,6 +1489,8 @@ Examples:
         cmd_list(args)
     elif args.command == "export":
         cmd_export(args)
+    elif args.command == "export-html":
+        sys.exit(cmd_export_html(args) or 0)
     elif args.command == "search":
         cmd_search(args)
     elif args.command == "stats":
