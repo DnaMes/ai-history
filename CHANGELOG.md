@@ -1,6 +1,39 @@
 # Changelog
 
+All notable changes to this project are documented here.
+The version is the single source of truth in `ai_history/__init__.py`.
+
 ## [Unreleased]
+
+## [2.1.0] - 2026-05-18
+### Added
+- **v2 SQLite store** as the single source of truth (issue #44): sessions,
+  messages and a unified FTS5 search index, with a staged migration runner.
+  `load_index()` reads v2 with transparent JSON fallback.
+- **Shared cross-tool agent memory** (#33): `memory_write` / `memory_recall`
+  MCP tools and an `ai-history memory` CLI — facts, decisions and lessons any
+  AI tool can record and recall.
+- **Semantic memory search**: optional embedding backend (`ai-history[semantic]`)
+  ranks recall by meaning; falls back to keyword search when absent.
+- **`/memory` web page**: browse, search (keyword or semantic) and delete memory.
+- **Aider extractor** (#51) and an `ai-history digest` activity-summary command.
+- Vendored Tailwind + highlight.js — the web UI works fully offline (#19).
+- Server-side pagination for `/sessions` (#17); mobile sidebar drawer.
+- Package versioning: `--version` CLI flag, version shown in the web UI.
+
+### Changed
+- Search routes and MCP search now read the v2 store (#34), keeping search
+  and the session list consistent.
+- CSP: `script-src` is nonce-only; `style-src` uses `'unsafe-inline'` so the
+  Tailwind runtime works.
+
+### Fixed
+- Concurrency: `busy_timeout` + idempotent migrations for the SQLite store.
+- WCAG AA: contrast, keyboard-operable theme picker, modal focus traps.
+- Security: owner-only data-file permissions, memory input caps, CSRF guards.
+
+### Security
+- 80%+ test coverage gate; `pip-audit` and a security workflow in CI.
 
 ## [0.1.0] - 2026-05-13
 ### Added
