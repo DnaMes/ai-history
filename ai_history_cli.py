@@ -966,6 +966,7 @@ def cmd_memory(args):
                 author=args.author or "human",
                 scope_project=args.project,
                 tags=args.tag or None,
+                source_session=getattr(args, "from_session", None),
             )
         except ValueError as exc:
             print(f"Could not add memory: {exc}", file=sys.stderr)
@@ -1356,6 +1357,9 @@ Examples:
     mem_add.add_argument("--project", help="optional project scope")
     mem_add.add_argument("--author", help="who recorded it (default: human)")
     mem_add.add_argument("--tag", action="append", help="tag (repeatable: --tag db --tag infra)")
+    mem_add.add_argument(
+        "--from-session", help="id of the session this memory came from (provenance)"
+    )
 
     mem_list = memory_sub.add_parser("list", help="List recorded memories")
     mem_list.add_argument("--kind", help="filter by kind")

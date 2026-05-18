@@ -2016,6 +2016,15 @@ MEMORY_TEMPLATE = """
             <div class="text-[10px] text-slate-500 mt-3 uppercase tracking-tight">
                 {{ m.author or 'unknown' }} · {{ m.created[:10] }}
             </div>
+            {% if m.sources %}
+            <div class="text-[10px] text-slate-500 mt-2 flex flex-wrap gap-1.5 items-center">
+                <span class="uppercase tracking-tight">From:</span>
+                {% for src in m.sources %}
+                <a href="/session/{{ src.session_id|urlpath }}" class="tag-chip hover:text-slate-900"
+                   title="Session this memory was recorded from">{{ src.session_id[:16] }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
         </article>
         {% else %}
         <div class="surface-card p-8 text-center">

@@ -97,8 +97,13 @@ def add_memory(
     scope_tool: Optional[str] = None,
     tags: Optional[List[str]] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    source_session: Optional[str] = None,
 ) -> int:
     """Record a new memory and index it for search. Returns the new memory id.
+
+    When ``source_session`` is given, a row is recorded in ``memory_sources``
+    linking the memory to the session it was derived from — so the memory's
+    provenance ("this came from session X") is traceable (#33).
 
     Raises:
         ValueError: if ``kind`` is unknown, ``title``/``body`` are empty, or
@@ -173,6 +178,13 @@ def add_memory(
         raise
     finally:
         conn.close()
+
+    # Link the memory to its source session, if one was given (#33). This
+    # records provenance — done after the memory commits, best-effort.
+    if source_session:
+        link_memory_to_session(
+            output_dir, memory_id, source_session, note="recorded from this session"
+        )
 
     # Embed the memory for semantic recall — best-effort, in its own
     # connection. A missing embedding backend or an embedding failure must
@@ -484,6 +496,31 @@ def link_memory_to_session(
             """,
             (memory_id, session_id, message_id, note),
         )
+    finally:
+        conn.close()
+
+
+def list_memory_sources(output_dir: Path, memory_id: int) -> List[Dict[str, Any]]:
+    """Return the source-session links recorded for a memory (#33).
+
+    Each entry is ``{"session_id", "message_id", "note"}`` — the sessions
+    a memory was derived from. Empty list when nothing is linked.
+    """
+    conn = _connect(output_dir)
+    try:
+        rows = conn.execute(
+            "SELECT session_id, message_id, note FROM memory_sources "
+            "WHERE memory_id = ? ORDER BY session_id",
+            (memory_id,),
+        ).fetchall()
+        return [
+            {
+                "session_id": r["session_id"],
+                "message_id": r["message_id"],
+                "note": r["note"],
+            }
+            for r in rows
+        ]
     finally:
         conn.close()
 

@@ -1505,6 +1505,7 @@ def memory_page():
         MEMORY_KINDS,
         embeddings_available,
         list_memory,
+        list_memory_sources,
         recall_memory,
     )
 
@@ -1525,10 +1526,17 @@ def memory_page():
     else:
         entries = list_memory(output_dir, kind=kind, limit=100)
 
+    # Attach source-session provenance to each memory (#33).
+    memories = []
+    for entry in entries:
+        record = entry.to_dict()
+        record["sources"] = list_memory_sources(output_dir, entry.id)
+        memories.append(record)
+
     return render(
         "memory",
         active="memory",
-        memories=[e.to_dict() for e in entries],
+        memories=memories,
         total=len(entries),
         query=query,
         kind=kind,

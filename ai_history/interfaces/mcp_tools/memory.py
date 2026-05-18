@@ -7,7 +7,11 @@ SQLite store's memory tables.
 
 from __future__ import annotations
 
-from ...utils.security import validate_search_param, validate_tool_name
+from ...utils.security import (
+    validate_search_param,
+    validate_session_id,
+    validate_tool_name,
+)
 from ...utils.tooling import normalize_tool_name
 from .deps import MCPToolDeps
 
@@ -37,6 +41,10 @@ def register(server, deps: MCPToolDeps) -> None:
         if tags is not None and not isinstance(tags, list):
             return "'tags' must be a list of strings."
 
+        source_session = args.get("source_session") or None
+        if source_session and not validate_session_id(str(source_session)):
+            return "Invalid source_session parameter."
+
         try:
             memory_id = add_memory(
                 deps.server.output_dir,
@@ -47,6 +55,7 @@ def register(server, deps: MCPToolDeps) -> None:
                 scope_project=scope_project,
                 scope_tool=scope_tool,
                 tags=[str(t) for t in tags] if tags else None,
+                source_session=str(source_session) if source_session else None,
             )
         except ValueError as exc:
             return f"Could not write memory: {exc}"
@@ -69,6 +78,11 @@ def register(server, deps: MCPToolDeps) -> None:
                 "tool": {"type": "string", "description": "optional tool scope"},
                 "tags": {"type": "array", "items": {"type": "string"}},
                 "author": {"type": "string"},
+                "source_session": {
+                    "type": "string",
+                    "description": "optional id of the session this memory "
+                    "came from — records the memory's provenance",
+                },
             },
             "required": ["title", "body"],
         },

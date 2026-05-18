@@ -122,3 +122,29 @@ def test_memory_html_in_title_is_escaped(client):
     body = c.get("/memory").get_data(as_text=True)
     assert "<b>bold</b> injection title" not in body
     assert "&lt;b&gt;bold&lt;/b&gt;" in body
+
+
+# ---------------------------------------------------------------------------
+# #33 — source-session provenance shown on the memory page
+# ---------------------------------------------------------------------------
+
+
+def test_memory_page_shows_source_session(client):
+    c, tmp_path = client
+    add_memory(
+        tmp_path, "decision", "Linked memory", "body",
+        source_session="sess-provenance-xyz",
+    )
+    body = c.get("/memory").get_data(as_text=True)
+    assert "From:" in body
+    assert "sess-provenance-xyz"[:16] in body
+    assert "/session/sess-provenance-xyz" in body
+
+
+def test_memory_page_no_source_section_when_unlinked(client):
+    c, tmp_path = client
+    add_memory(tmp_path, "fact", "Unlinked memory", "body")
+    body = c.get("/memory").get_data(as_text=True)
+    assert "Unlinked memory" in body
+    # No "From:" provenance line for a memory with no sources.
+    assert "From:" not in body

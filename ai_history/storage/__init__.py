@@ -26,6 +26,7 @@ from .memory import (
     get_memory,
     link_memory_to_session,
     list_memory,
+    list_memory_sources,
     recall_memory,
     supersede_memory,
 )
@@ -47,6 +48,7 @@ __all__ = [
     "initialise",
     "link_memory_to_session",
     "list_memory",
+    "list_memory_sources",
     "load_index_v2",
     "open_connection",
     "recall_memory",

@@ -228,3 +228,52 @@ def test_add_memory_truncates_long_author(tmp_path):
     entry = get_memory(tmp_path, mid)
     assert entry is not None
     assert len(entry.author or "") <= 64
+
+
+# ---------------------------------------------------------------------------
+# #33 — memory_sources provenance linking
+# ---------------------------------------------------------------------------
+
+
+def test_add_memory_links_source_session(tmp_path):
+    from ai_history.storage import list_memory_sources
+
+    mid = add_memory(
+        tmp_path, "decision", "Provenance test", "body",
+        source_session="sess-origin-1",
+    )
+    sources = list_memory_sources(tmp_path, mid)
+    assert len(sources) == 1
+    assert sources[0]["session_id"] == "sess-origin-1"
+
+
+def test_add_memory_without_source_has_no_links(tmp_path):
+    from ai_history.storage import list_memory_sources
+
+    mid = add_memory(tmp_path, "fact", "No provenance", "body")
+    assert list_memory_sources(tmp_path, mid) == []
+
+
+def test_link_memory_to_session_after_creation(tmp_path):
+    from ai_history.storage import list_memory_sources
+
+    mid = add_memory(tmp_path, "note", "Late-linked memory", "body")
+    link_memory_to_session(tmp_path, mid, "sess-later", note="linked afterwards")
+    sources = list_memory_sources(tmp_path, mid)
+    assert sources[0]["session_id"] == "sess-later"
+    assert sources[0]["note"] == "linked afterwards"
+
+
+def test_memory_sources_cascade_on_delete(tmp_path):
+    """Deleting a memory removes its memory_sources rows (FK cascade)."""
+    import sqlite3
+
+    from ai_history.storage import v2_db_path
+
+    mid = add_memory(tmp_path, "fact", "Soon deleted", "body", source_session="s1")
+    delete_memory(tmp_path, mid)
+    conn = sqlite3.connect(v2_db_path(tmp_path))
+    remaining = conn.execute(
+        "SELECT COUNT(*) FROM memory_sources WHERE memory_id = ?", (mid,)
+    ).fetchone()[0]
+    assert remaining == 0
