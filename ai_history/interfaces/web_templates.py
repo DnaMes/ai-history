@@ -1634,65 +1634,76 @@ SESSION_TEMPLATE = """
             <div class="toc-card-foot">{{ session.prompt_count }} prompts</div>
         </div>
     </aside>
-        <div class="lg:flex-grow-0 lg:flex-shrink-1 lg:basis-[850px] lg:min-w-[500px] lg:px-8 space-y-6">
-        {% for pair in session.pairs %}
-        <div class="message-cluster">
-            {% if pair.user %}
-            <div id="msg-{{ pair.user.index }}" class="turn-row user group">
-                <div class="turn-gutter">
-                    <span class="turn-index user">{{ loop.index }}</span>
-                </div>
-                <div class="turn-content user-content">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="role-badge">
-                            <span class="prompt-icon" title="You">You</span>
-                            <span>Prompt</span>
-                        </div>
-                        <div class="text-[10px] text-slate-500 font-mono opacity-60">{{ pair.user.timestamp.strftime('%H:%M') }}</div>
-                    </div>
-                    <div class="message-card user-card p-4">
-                        <div class="prose max-w-none antialiased">
-                            {% if pair.user.formatted_reasoning %} {{ pair.user.formatted_reasoning | safe }} {% endif %}
-                            {{ pair.user.formatted_content | safe }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            <div class="assistant-stream">
-            {% for resp in pair.responses %}
-            <div class="assistant-entry turn-row assistant group">
-                <div class="turn-gutter">
-                    <span class="turn-index assistant">A</span>
-                </div>
-                <div class="turn-content assistant-content">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="role-badge">
-                            <span class="response-icon" title="{{ style.name }}">AI</span>
-                            <span>{{ style.name }}</span>
-                        </div>
-                        <div class="message-time">{{ resp.timestamp.strftime('%H:%M') }}</div>
-                    </div>
-                    <div class="message-card assistant-card p-4">
-                        <div class="prose max-w-none antialiased">
-                            {% if resp.formatted_reasoning %} {{ resp.formatted_reasoning | safe }} {% endif %}
-                            {{ resp.formatted_content | safe }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-            </div>
-        </div>
-        {% endfor %}
+        {% set _messages_per_page = messages_per_page | default(40, true) %}
+        {% set _visible_pairs = visible_pairs if (visible_pairs is defined and visible_pairs is not none) else session.pairs %}
+        {% set _total_pairs = total_pairs | default(_visible_pairs | length, true) %}
+        {% set _message_pages = message_pages | default(1, true) %}
+        <div class="lg:flex-grow-0 lg:flex-shrink-1 lg:basis-[850px] lg:min-w-[500px] lg:px-8 space-y-6"
+             id="messageStream"
+             data-session-id="{{ session.session_id }}"
+             data-per-page="{{ _messages_per_page }}"
+             data-total-pairs="{{ _total_pairs }}"
+             data-pages="{{ _message_pages }}">
+        {% with pairs=_visible_pairs, pair_offset=0 %}{% include "session_pairs" %}{% endwith %}
         {% if session.visible_count == 0 %}
         <div class="text-sm text-slate-500 border border-slate-200 bg-white rounded-2xl p-4">
             No messages were parsed for this session. Try `lore export --all` to rebuild the index.
         </div>
         {% endif %}
+        {% if _message_pages > 1 %}
+        <div class="flex justify-center mt-2">
+            <button type="button" id="loadMoreMessages" data-next-page="2"
+                    class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-5 py-2.5 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">
+                Load more messages
+            </button>
+        </div>
+        {% endif %}
     </div>
     </div>
 </section>
+
+<script nonce="{{ nonce }}">
+(function () {
+    const btn = document.getElementById('loadMoreMessages');
+    const stream = document.getElementById('messageStream');
+    if (!btn || !stream) return;
+    const totalPages = parseInt(stream.dataset.pages || '1', 10);
+    const perPage = parseInt(stream.dataset.perPage || '40', 10);
+    const sessionId = stream.dataset.sessionId || '';
+    btn.addEventListener('click', async function () {
+        const page = parseInt(btn.dataset.nextPage || '2', 10);
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        const params = new URLSearchParams({ page: String(page) });
+        const live = new URLSearchParams(window.location.search).get('live');
+        if (live) params.set('live', live);
+        try {
+            const resp = await fetch(
+                '/session/' + encodeURIComponent(sessionId) + '/messages?' + params.toString(),
+                { credentials: 'same-origin' }
+            );
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const html = await resp.text();
+            btn.insertAdjacentHTML('beforebegin', html);
+            if (typeof hljs !== 'undefined') {
+                stream.querySelectorAll('pre code:not(.hljs)').forEach(function (el) {
+                    hljs.highlightElement(el);
+                });
+            }
+            if (page + 1 > totalPages) {
+                btn.remove();
+            } else {
+                btn.dataset.nextPage = String(page + 1);
+                btn.disabled = false;
+                btn.textContent = 'Load more messages';
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = 'Load more messages (retry)';
+        }
+    });
+})();
+</script>
 
 <!-- Resume session modal -->
 <div id="resume-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm hidden" aria-modal="true" role="dialog" aria-labelledby="resume-modal-title">
@@ -1857,6 +1868,62 @@ DASHBOARD_TEMPLATE = """
     </div>
 </section>
 {% endblock %}
+"""
+
+# Just the message-cluster loop, shared by the full session page and the
+# lazy-load "Load more messages" fragment. ``pair_offset`` keeps the turn
+# index badges continuous across pages.
+SESSION_PAIRS_TEMPLATE = """
+{% for pair in pairs %}
+<div class="message-cluster">
+    {% if pair.user %}
+    <div id="msg-{{ pair.user.index }}" class="turn-row user group">
+        <div class="turn-gutter">
+            <span class="turn-index user">{{ loop.index + pair_offset }}</span>
+        </div>
+        <div class="turn-content user-content">
+            <div class="flex items-center justify-between mb-2">
+                <div class="role-badge">
+                    <span class="prompt-icon" title="You">You</span>
+                    <span>Prompt</span>
+                </div>
+                <div class="text-[10px] text-slate-500 font-mono opacity-60">{{ pair.user.timestamp.strftime('%H:%M') }}</div>
+            </div>
+            <div class="message-card user-card p-4">
+                <div class="prose max-w-none antialiased">
+                    {% if pair.user.formatted_reasoning %} {{ pair.user.formatted_reasoning | safe }} {% endif %}
+                    {{ pair.user.formatted_content | safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="assistant-stream">
+    {% for resp in pair.responses %}
+    <div class="assistant-entry turn-row assistant group">
+        <div class="turn-gutter">
+            <span class="turn-index assistant">A</span>
+        </div>
+        <div class="turn-content assistant-content">
+            <div class="flex items-center justify-between mb-2">
+                <div class="role-badge">
+                    <span class="response-icon" title="{{ style.name }}">AI</span>
+                    <span>{{ style.name }}</span>
+                </div>
+                <div class="message-time">{{ resp.timestamp.strftime('%H:%M') }}</div>
+            </div>
+            <div class="message-card assistant-card p-4">
+                <div class="prose max-w-none antialiased">
+                    {% if resp.formatted_reasoning %} {{ resp.formatted_reasoning | safe }} {% endif %}
+                    {{ resp.formatted_content | safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+</div>
+{% endfor %}
 """
 
 # Just the <a>...row markup, shared by the full page and the lazy-load fragment.

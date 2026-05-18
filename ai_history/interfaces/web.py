@@ -34,6 +34,7 @@ from .api_payloads import (
     serialize_thread_messages,
     serialize_thread_overview,
 )
+from ..services.cache import threadsafe_lru_cache
 from .web_data import (
     DELETED_SESSIONS_PATH,
     INDEX_PATH,
@@ -89,6 +90,7 @@ from .web_templates import (
     NOISE_RULES_TEMPLATE,
     PROJECTS_TEMPLATE,
     RULES_TEMPLATE,
+    SESSION_PAIRS_TEMPLATE,
     SESSION_ROWS_TEMPLATE,
     SESSION_TEMPLATE,
     SESSIONS_LIST_TEMPLATE,
@@ -494,6 +496,7 @@ def render(tpl_name, **kwargs):
         "base": BASE_TEMPLATE,
         "dashboard": DASHBOARD_TEMPLATE,
         "session": SESSION_TEMPLATE,
+        "session_pairs": SESSION_PAIRS_TEMPLATE,
         "sessions": SESSIONS_LIST_TEMPLATE,
         "session_rows": SESSION_ROWS_TEMPLATE,
         "projects": PROJECTS_TEMPLATE,
@@ -1168,6 +1171,176 @@ def _index_session_meta(session_id: str) -> Optional[dict[str, Any]]:
     )
 
 
+# Conversation pairs rendered into the initial session page; the rest are
+# fetched lazily via GET /session/<id>/messages?page=N.
+MESSAGES_PER_PAGE = 40
+
+
+@threadsafe_lru_cache(maxsize=16)
+def _enriched_session_cached(session_id: str, force_live: bool, _cache_key: str):
+    """Stat-keyed cache wrapper around the heavy session build.
+
+    ``_cache_key`` encodes the export file's mtime+size so the cache
+    invalidates when the underlying session file changes. maxsize is small
+    — these objects are large; we just want a hit when the same session is
+    paged through (page 1 → load-more fragments) within seconds.
+    """
+    return _enriched_session_for_detail_uncached(session_id, force_live=force_live)
+
+
+def _enriched_session_for_detail(session_id: str, *, force_live: bool):
+    """Load + enrich a session by id, cached on the export file's stat.
+
+    A session-detail view pages through one session (page render + several
+    "load more" fragment requests). Without caching, each request re-parses
+    the entire on-disk session file — for a large session that is multiple
+    seconds *per request*. This wraps the build in a stat-keyed cache so the
+    parse happens once; ``clear_index_cache()`` does not need to touch it
+    because the stat key invalidates it when the file changes.
+
+    Live sessions (no export file) are not cached — their data can change.
+    """
+    export_path = None
+    meta = _index_session_meta(session_id)
+    if meta:
+        export_path = resolve_export_path(meta.get("export_path"))
+    if export_path:
+        try:
+            st = export_path.stat()
+            cache_key = f"{st.st_mtime_ns}:{st.st_size}"
+        except OSError:
+            cache_key = ""
+        if cache_key:
+            return _enriched_session_cached(session_id, force_live, cache_key)
+    # No export file (live session) or unstat-able — build uncached.
+    return _enriched_session_for_detail_uncached(session_id, force_live=force_live)
+
+
+def _enriched_session_for_detail_uncached(session_id: str, *, force_live: bool):
+    """Load + enrich a session by id for the detail/fragment routes.
+
+    Runs the same multi-path loading logic as ``session_detail`` (export
+    markdown → OpenCode JSON → live extraction) and returns a tuple of
+    ``(session_obj, toc_items)`` where ``session_obj`` has ``.pairs`` set, or
+    ``None`` when no paginatable conversation could be built (the caller then
+    falls back to the markdown/summary render paths).
+    """
+    session_meta = _index_session_meta(session_id)
+    if not session_meta:
+        return None
+
+    tool_filter = normalize_tool_name(session_meta.get("tool") or "") or session_meta.get("tool")
+    export_path = resolve_export_path(session_meta.get("export_path"))
+    if not export_path and _export_fallback_scan_enabled():
+        export_path = load_export_lookup().get(session_id)
+    noise_rules = load_noise_rules()
+
+    def _enrich(session_obj):
+        toc = enrich_session_for_detail(
+            session_obj,
+            session_meta,
+            format_message_content,
+            format_tool_calls,
+            format_thinking,
+            noise_rules=noise_rules,
+        )
+        return session_obj, toc
+
+    def _load_preferred_live_session(allow_cross_tool_fallback: bool = False):
+        if tool_filter:
+            return load_session_by_id(
+                session_id,
+                preferred_tool=tool_filter,
+                allow_cross_tool_fallback=allow_cross_tool_fallback,
+            )
+        if allow_cross_tool_fallback:
+            return load_session_by_id(session_id, allow_cross_tool_fallback=True)
+        return None
+
+    if export_path and not force_live:
+        parsed_from_md = build_session_from_export_markdown(session_id, session_meta, export_path)
+        if parsed_from_md:
+            if parsed_from_md.assistant_message_count == 0:
+                live_candidate = _load_preferred_live_session(allow_cross_tool_fallback=False)
+                if (
+                    live_candidate
+                    and live_candidate.assistant_message_count
+                    > parsed_from_md.assistant_message_count
+                ):
+                    return _enrich(live_candidate)
+            return _enrich(parsed_from_md)
+
+        live_candidate = _load_preferred_live_session(allow_cross_tool_fallback=False)
+        if live_candidate:
+            return _enrich(live_candidate)
+        # No parsable session — caller falls back to raw markdown render.
+        return None
+
+    if tool_filter == "opencode":
+        try:
+            extractor = OpenCodeExtractor(force_full=True)
+            candidates = list(extractor.session_path.rglob(f"{session_id}.json"))
+            if candidates:
+                session_data = extractor._safe_load_json(candidates[0])
+                if session_data:
+                    parsed = extractor._parse_session(candidates[0], session_data)
+                    if parsed:
+                        return _enrich(parsed)
+        except Exception as exc:
+            logger.debug("OpenCode fallback parsing failed for session %s: %s", session_id, exc)
+
+    live_session = None
+    if tool_filter:
+        live_session = load_session_by_id(
+            session_id, preferred_tool=tool_filter, allow_cross_tool_fallback=False
+        )
+        if not live_session and force_live:
+            live_session = load_session_by_id(
+                session_id, preferred_tool=tool_filter, allow_cross_tool_fallback=True
+            )
+    elif force_live:
+        live_session = load_session_by_id(session_id, allow_cross_tool_fallback=True)
+
+    if live_session:
+        return _enrich(live_session)
+    return None
+
+
+@app.route("/session/<session_id>/messages")
+def session_messages_fragment(session_id):
+    """Return an HTML fragment of conversation pairs for one page (lazy load)."""
+    if not validate_session_id(session_id):
+        return "Invalid session ID", 400
+
+    try:
+        page = int(request.args.get("page", "1"))
+    except ValueError:
+        return "Invalid page parameter", 400
+    if page < 1:
+        return "Invalid page parameter", 400
+
+    if not _index_session_meta(session_id):
+        return "Not found", 404
+
+    force_live = (request.args.get("live") or "").strip() == "1"
+    resolved = _enriched_session_for_detail(session_id, force_live=force_live)
+    if not resolved:
+        return "Not found", 404
+
+    session_obj, _toc = resolved
+    pairs = getattr(session_obj, "pairs", []) or []
+    offset = (page - 1) * MESSAGES_PER_PAGE
+    page_pairs = pairs[offset : offset + MESSAGES_PER_PAGE]
+
+    html_fragment = render(
+        "session_pairs",
+        pairs=page_pairs,
+        pair_offset=offset,
+        style=get_style(session_obj.tool.value),
+    )
+    return Response(html_fragment, mimetype="text/html")
+
+
 @app.route("/session/<session_id>")
 def session_detail(session_id):
     if not validate_session_id(session_id):
@@ -1179,7 +1352,6 @@ def session_detail(session_id):
     if not session_meta:
         return "Not found", 404
 
-    tool_filter = normalize_tool_name(session_meta.get("tool") or "") or session_meta.get("tool")
     back_target = _sanitize_next_url(request.args.get("back", "")) or "/sessions"
     export_path = resolve_export_path(session_meta.get("export_path"))
     if not export_path and _export_fallback_scan_enabled():
@@ -1227,131 +1399,34 @@ def session_detail(session_id):
         )
 
     force_live = (request.args.get("live") or "").strip() == "1"
-    noise_rules = load_noise_rules()
 
-    def _render_live_session(session_obj):
-        toc_live = enrich_session_for_detail(
-            session_obj,
-            session_meta,
-            format_message_content,
-            format_tool_calls,
-            format_thinking,
-            noise_rules=noise_rules,
-        )
+    resolved = _enriched_session_for_detail(session_id, force_live=force_live)
+    if resolved:
+        session_obj, toc = resolved
+        pairs = getattr(session_obj, "pairs", []) or []
+        total_pairs = len(pairs)
+        message_pages = max(1, math.ceil(total_pairs / MESSAGES_PER_PAGE))
+        visible_pairs = pairs[:MESSAGES_PER_PAGE]
         return render(
             "session",
             active="sessions",
             session=session_obj,
+            visible_pairs=visible_pairs,
+            total_pairs=total_pairs,
+            message_pages=message_pages,
+            messages_per_page=MESSAGES_PER_PAGE,
             style=get_style(session_obj.tool.value),
             title=session_obj.title or "Session",
-            toc_items=toc_live,
+            toc_items=toc,
             back_target=back_target,
         )
 
-    def _load_preferred_live_session(allow_cross_tool_fallback: bool = False):
-        if tool_filter:
-            return load_session_by_id(
-                session_id,
-                preferred_tool=tool_filter,
-                allow_cross_tool_fallback=allow_cross_tool_fallback,
-            )
-        if allow_cross_tool_fallback:
-            return load_session_by_id(
-                session_id,
-                allow_cross_tool_fallback=True,
-            )
-        return None
-
+    # No paginatable conversation — fall back to raw markdown or a summary card.
     if export_path and not force_live:
-        parsed_from_md = build_session_from_export_markdown(session_id, session_meta, export_path)
-        if parsed_from_md:
-            if parsed_from_md.assistant_message_count == 0:
-                live_candidate = _load_preferred_live_session(allow_cross_tool_fallback=False)
-                if (
-                    live_candidate
-                    and live_candidate.assistant_message_count
-                    > parsed_from_md.assistant_message_count
-                ):
-                    return _render_live_session(live_candidate)
-
-            toc = enrich_session_for_detail(
-                parsed_from_md,
-                session_meta,
-                format_message_content,
-                format_tool_calls,
-                format_thinking,
-                noise_rules=noise_rules,
-            )
-            return render(
-                "session",
-                active="sessions",
-                session=parsed_from_md,
-                style=get_style(parsed_from_md.tool.value),
-                title=parsed_from_md.title or "Session",
-                toc_items=toc,
-                back_target=back_target,
-            )
-
-        live_candidate = _load_preferred_live_session(allow_cross_tool_fallback=False)
-        if live_candidate:
-            return _render_live_session(live_candidate)
-
         try:
             return _render_markdown(export_path)
         except OSError as exc:
             logger.debug("Failed to render export markdown for session %s: %s", session_id, exc)
-
-    if tool_filter == "opencode":
-        try:
-            extractor = OpenCodeExtractor(force_full=True)
-            candidates = list(extractor.session_path.rglob(f"{session_id}.json"))
-            if candidates:
-                session_file = candidates[0]
-                session_data = extractor._safe_load_json(session_file)
-                if session_data:
-                    parsed = extractor._parse_session(session_file, session_data)
-                    if parsed:
-                        toc = enrich_session_for_detail(
-                            parsed,
-                            session_meta,
-                            format_message_content,
-                            format_tool_calls,
-                            format_thinking,
-                            noise_rules=noise_rules,
-                        )
-                        return render(
-                            "session",
-                            active="sessions",
-                            session=parsed,
-                            style=get_style(parsed.tool.value),
-                            title=parsed.title or "Session",
-                            toc_items=toc,
-                            back_target=back_target,
-                        )
-        except Exception as exc:
-            logger.debug("OpenCode fallback parsing failed for session %s: %s", session_id, exc)
-
-    live_session = None
-    if tool_filter:
-        live_session = load_session_by_id(
-            session_id,
-            preferred_tool=tool_filter,
-            allow_cross_tool_fallback=False,
-        )
-        if not live_session and force_live:
-            live_session = load_session_by_id(
-                session_id,
-                preferred_tool=tool_filter,
-                allow_cross_tool_fallback=True,
-            )
-    elif force_live:
-        live_session = load_session_by_id(
-            session_id,
-            allow_cross_tool_fallback=True,
-        )
-
-    if live_session:
-        return _render_live_session(live_session)
 
     return _render_summary()
 
@@ -1541,9 +1616,7 @@ def memory_page():
 
     output_dir = INDEX_PATH.parent
     if query:
-        entries = recall_memory(
-            output_dir, query, kind=kind, limit=100, semantic=semantic
-        )
+        entries = recall_memory(output_dir, query, kind=kind, limit=100, semantic=semantic)
     else:
         entries = list_memory(output_dir, kind=kind, limit=100)
 
