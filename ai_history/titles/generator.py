@@ -30,6 +30,8 @@ except ImportError:
 # Check if Gemini CLI is available
 import shutil
 
+from ..utils.paths import lore_home
+
 GEMINI_CLI_AVAILABLE = shutil.which("gemini") is not None
 
 
@@ -48,7 +50,7 @@ class TitleGenerator:
         ollama_model: str = "phi3:mini",
     ):
         self.strategy = strategy
-        self.cache_dir = cache_dir or Path.home() / ".ai-history" / "title_cache"
+        self.cache_dir = cache_dir or lore_home() / "title_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_file = self.cache_dir / "titles.json"
         self.ollama_model = ollama_model

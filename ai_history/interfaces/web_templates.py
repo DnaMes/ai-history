@@ -667,8 +667,8 @@ BASE_TEMPLATE = """
         <div id="sidebarBackdrop" aria-hidden="true"></div>
         <aside id="appSidebar" class="w-72 border-r border-slate-200/70 app-panel backdrop-blur-xl flex flex-col min-h-0">
             <a href="/" class="p-6 font-semibold text-lg flex items-center gap-3 tracking-tight">
-                <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">H</div>
-                <span class="text-slate-900 title-font">History</span>
+                <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">L</div>
+                <span class="text-slate-900 title-font">Lore</span>
             </a>
             <div class="flex-1 px-3 min-h-0 overflow-y-auto space-y-1 pb-4">
                 <a href="/" class="sidebar-link {{ 'active' if active=='dashboard' else '' }}">Dashboard</a>
@@ -692,7 +692,7 @@ BASE_TEMPLATE = """
                 </div>
             </div>
             <div class="mt-auto px-5 py-3 border-t border-slate-200/70 text-[10px] text-slate-500 flex items-center justify-between">
-                <span class="font-mono">ai-history v{{ app_version }}</span>
+                <span class="font-mono">lore v{{ app_version }}</span>
                 <a href="/api/build-info" class="hover:text-slate-700" aria-label="Build info">build</a>
             </div>
         </aside>
@@ -1648,7 +1648,7 @@ SESSION_TEMPLATE = """
         {% endfor %}
         {% if session.visible_count == 0 %}
         <div class="text-sm text-slate-500 border border-slate-200 bg-white rounded-2xl p-4">
-            No messages were parsed for this session. Try `ai-history export --all` to rebuild the index.
+            No messages were parsed for this session. Try `lore export --all` to rebuild the index.
         </div>
         {% endif %}
     </div>
@@ -1796,7 +1796,7 @@ DASHBOARD_TEMPLATE = """
                     <div class="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-full">{{ s.prompts or s.messages }} prompts</div>
                 </a>
                 {% else %}
-                <div class="compact-row text-sm text-slate-500">No sessions yet. Run <code>ai-history sync --all</code> and refresh to import your AI conversations.</div>
+                <div class="compact-row text-sm text-slate-500">No sessions yet. Run <code>lore sync --all</code> and refresh to import your AI conversations.</div>
                 {% endfor %}
             </div>
         </div>
@@ -1937,7 +1937,7 @@ RULES_TEMPLATE = """
         {% if rules %}
         <div class="prose max-w-none antialiased">{{ rules | safe }}</div>
         {% else %}
-        <div class="text-sm text-slate-500">No rules yet. Run `ai-history rules --rebuild` to generate.</div>
+        <div class="text-sm text-slate-500">No rules yet. Run `lore rules --rebuild` to generate.</div>
         {% endif %}
     </div>
 </div>
@@ -2030,7 +2030,7 @@ MEMORY_TEMPLATE = """
         <div class="surface-card p-8 text-center">
             <p class="text-sm text-slate-600">No memory entries{{ ' match your search' if query else ' yet' }}.</p>
             <p class="text-xs text-slate-500 mt-2">
-                Record one with <span class="font-mono">ai-history memory add</span>, or let an
+                Record one with <span class="font-mono">lore memory add</span>, or let an
                 AI agent write to it via the <span class="font-mono">memory_write</span> MCP tool.
             </p>
         </div>
@@ -2286,7 +2286,7 @@ THREADS_LIST_TEMPLATE = """
         </a>
         {% endfor %}
         {% if threads|length == 0 %}
-        <div class="compact-row text-sm text-slate-500">No thread groups found yet. Run <code>ai-history sync --all</code> and refresh to build cross-session thread continuity.</div>
+        <div class="compact-row text-sm text-slate-500">No thread groups found yet. Run <code>lore sync --all</code> and refresh to build cross-session thread continuity.</div>
         {% endif %}
     </div>
 </section>
@@ -2356,7 +2356,7 @@ PROJECTS_TEMPLATE = """
             </div>
         </div>
         {% else %}
-        <div class="compact-row text-sm text-slate-500 lg:col-span-2">No projects found. Run <code>ai-history sync --all</code> and refresh to group your sessions by project.</div>
+        <div class="compact-row text-sm text-slate-500 lg:col-span-2">No projects found. Run <code>lore sync --all</code> and refresh to group your sessions by project.</div>
         {% endfor %}
     </div>
 </section>

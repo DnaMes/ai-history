@@ -15,7 +15,6 @@ are the historical ``monkeypatch.setattr(mcp, ...)`` targets and must remain so.
 """
 
 import logging
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,7 @@ from ..services import (
 from ..services import (
     search_index as _service_search_index,
 )
+from ..utils.paths import lore_home
 from .mcp_tools import build_deps, register_memory, register_search, register_sessions
 from .server import MCPServer
 
@@ -46,7 +46,7 @@ __all__ = [
 
 # Default output directory for the MCP server. Kept as a module global so
 # tests can monkeypatch ``mcp.INDEX_PATH`` (the historical patch target).
-OUTPUT_DIR = Path.home() / ".ai-history"
+OUTPUT_DIR = lore_home()
 INDEX_PATH = OUTPUT_DIR / "index.json"
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ai-history - Local AI Chat History Exporter
+Lore — local-first archive + shared agent memory for AI coding sessions
 
 A local alternative to SpecStory that collects, unifies and exports chat histories
 from multiple AI coding assistants without any cloud connectivity.
@@ -14,17 +14,17 @@ Supported tools:
 - Codex CLI
 
 Usage:
-    ai-history list [--tool TOOL] [--since DURATION] [--format FORMAT]
-    ai-history export [--all] [--tool TOOL] [--project PATH]
-    ai-history search QUERY [--tool TOOL] [--context N]
-    ai-history stats
-    ai-history digest [--since 7d] [--format text|markdown]
-    ai-history memory add|list|search ...
-    ai-history watch [--interval SECS] [--git]
-    ai-history check
-    ai-history sync TOOL [--session-id ID] [--project PATH]
-    ai-history run TOOL [-- ARGS...]
-    ai-history threads
+    lore list [--tool TOOL] [--since DURATION] [--format FORMAT]
+    lore export [--all] [--tool TOOL] [--project PATH]
+    lore search QUERY [--tool TOOL] [--context N]
+    lore stats
+    lore digest [--since 7d] [--format text|markdown]
+    lore memory add|list|search ...
+    lore watch [--interval SECS] [--git]
+    lore check
+    lore sync TOOL [--session-id ID] [--project PATH]
+    lore run TOOL [-- ARGS...]
+    lore threads
 """
 
 import argparse
@@ -382,7 +382,7 @@ def cmd_prune(args):
     output_dir = Path(args.output_dir).expanduser()
     index_path = output_dir / "index.json"
     if not index_path.exists():
-        print(f"No index found at {index_path}. Run `ai-history export --all` first.")
+        print(f"No index found at {index_path}. Run `lore export --all` first.")
         return
 
     with open(index_path, "r", encoding="utf-8") as f:
@@ -524,7 +524,7 @@ def cmd_analyze(args):
     index_file = output_dir / "index.json"
 
     if not index_file.exists():
-        print("Error: No index found. Run 'ai-history reindex' first.", file=sys.stderr)
+        print("Error: No index found. Run 'lore reindex' first.", file=sys.stderr)
         return 1
 
     with open(index_file, "r") as f:
@@ -583,7 +583,7 @@ def cmd_knowledge(args):
     index_file = output_dir / "index.json"
 
     if not index_file.exists():
-        print("Error: No index found. Run 'ai-history reindex' first.", file=sys.stderr)
+        print("Error: No index found. Run 'lore reindex' first.", file=sys.stderr)
         return 1
 
     with open(index_file, "r") as f:
@@ -646,7 +646,7 @@ def cmd_format(args):
     index_file = output_dir / "index.json"
 
     if not index_file.exists():
-        print("Error: No index found. Run 'ai-history reindex' first.", file=sys.stderr)
+        print("Error: No index found. Run 'lore reindex' first.", file=sys.stderr)
         return 1
 
     with open(index_file, "r") as f:
@@ -894,7 +894,7 @@ def cmd_stats(args):
     index_path = output_dir / "index.json"
 
     if not index_path.exists():
-        print("No index found. Run 'ai-history export --all' first.")
+        print("No index found. Run 'lore export --all' first.")
         return
 
     with open(index_path, "r", encoding="utf-8") as f:
@@ -927,7 +927,7 @@ def cmd_digest(args):
     index_path = output_dir / "index.json"
 
     if not index_path.exists():
-        print("No index found. Run 'ai-history export --all' first.")
+        print("No index found. Run 'lore export --all' first.")
         sys.exit(1)
 
     try:
@@ -1014,7 +1014,7 @@ def cmd_threads(args):
     index_path = output_dir / "index.json"
 
     if not index_path.exists():
-        print("No index found. Run 'ai-history export --all' first.")
+        print("No index found. Run 'lore export --all' first.")
         return
 
     with open(index_path, "r", encoding="utf-8") as f:
@@ -1260,16 +1260,17 @@ def cmd_check(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ai-history - Local AI Chat History Exporter",
+        prog="lore",
+        description="Lore — local-first archive and shared agent memory for your AI coding sessions",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  ai-history list                      List all sessions
-  ai-history list --tool claude-code   List Claude Code sessions only
-  ai-history export --all              Export all sessions to ~/.ai-history
-  ai-history search "docker"           Search for "docker" in all sessions
-  ai-history watch --git               Watch for new sessions and auto-commit
-  ai-history check                     Check availability of AI tools
+  lore list                      List all sessions
+  lore list --tool claude-code   List Claude Code sessions only
+  lore export --all              Export all sessions to ~/.ai-history
+  lore search "docker"           Search for "docker" in all sessions
+  lore watch --git               Watch for new sessions and auto-commit
+  lore check                     Check availability of AI tools
         """,
     )
 
@@ -1279,8 +1280,8 @@ Examples:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"ai-history {__version__}",
-        help="Show the ai-history version and exit",
+        version=f"lore {__version__}",
+        help="Show the lore version and exit",
     )
     parser.add_argument(
         "--output-dir",

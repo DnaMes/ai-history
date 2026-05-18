@@ -3,10 +3,10 @@
 AI Session Manager - Seamless switching between AI tools with full context
 
 Usage:
-    ai-session list                          # Show all sessions
-    ai-session switch gemini                 # Switch to Gemini with current context
-    ai-session switch codex                  # Switch to Codex with current context
-    ai-session continue                      # Auto-select best tool based on rate limits
+    lore-session list                          # Show all sessions
+    lore-session switch gemini                 # Switch to Gemini with current context
+    lore-session switch codex                  # Switch to Codex with current context
+    lore-session continue                      # Auto-select best tool based on rate limits
 """
 
 import argparse
@@ -195,7 +195,7 @@ def list_sessions_cmd():
 
     if not sessions:
         print("No sessions found for this project.")
-        print("\nTip: Run 'ai-history export --all' to rebuild index")
+        print("\nTip: Run 'lore export --all' to rebuild index")
         return
 
     # Group by tool

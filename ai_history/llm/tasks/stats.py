@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 if TYPE_CHECKING:
     from ...core.models import UnifiedSession
 
+from ...utils.paths import lore_home
 from ..base import LLMProvider
 
 
 class StatsGenerator:
     def __init__(self, provider: Optional[LLMProvider] = None, output_dir: Optional[Path] = None):
         self.provider = provider
-        self.output_dir = output_dir or Path.home() / ".ai-history" / "stats"
+        self.output_dir = output_dir or lore_home() / "stats"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_session_stats(

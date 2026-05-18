@@ -1,13 +1,21 @@
 # GEMINI.md - Project Instructional Context
 
 ## Project Overview
-**ai-history** is a local-first, privacy-focused AI chat history manager and session switcher. It consolidates chat histories from various AI coding assistants into a unified local database/index and provides a modern web interface for browsing and searching conversations.
+**Lore** is a local-first, privacy-focused tool that is both an **archive** of
+AI coding sessions and a **shared agent memory**. It consolidates chat histories
+from various AI coding assistants into a unified local database/index, provides
+a modern web interface for browsing and searching conversations, and exposes a
+cross-tool knowledge store that agents write to and recall from.
+
+> Product/CLI = **Lore** (`lore`, `lore-session`, `lore-web`, `lore-mcp`).
+> The Python import package is `ai_history` — deliberately not renamed.
 
 ### Key Features
 - **Unified Extraction**: Supports Claude Code, Cursor, Gemini CLI, Codex, VSCode Copilot, Warp, and GitHub Copilot CLI.
+- **Shared Agent Memory**: A cross-tool knowledge store (facts, decisions, lessons) with keyword + semantic search and provenance.
 - **Seamless Context Switching**: Transition sessions between tools (e.g., Claude -> Gemini) with pre-loaded context.
 - **Modern Web Dashboard**: A SpecStory-inspired UI with dark mode, collapsible tool outputs, and syntax highlighting.
-- **MCP Integration**: Exposes history management as tools for AI assistants like Claude.
+- **MCP Integration**: Exposes history and shared memory as tools for AI assistants like Claude.
 - **Local-First Architecture**: No cloud connectivity required; data stays on the machine.
 
 ### Architecture & Tech Stack
@@ -29,19 +37,22 @@
 ### Installation
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd ai-history
+git clone https://github.com/DnaMes/lore.git
+cd lore
 
 # Install in editable mode
 pip install -e .
 ```
 
 ### Key Commands
-- **Check Environment**: `python3 ai_history_cli.py check` (Verifies available AI tool configurations).
-- **List Sessions**: `python3 ai_history_cli.py list --since 7d` (Shows recent activity).
-- **Start Web UI (Local)**: `python3 ai_history_web_new.py` (Runs Flask dev server).
+- **Check Environment**: `lore check` (Verifies available AI tool configurations).
+- **List Sessions**: `lore list --since 7d` (Shows recent activity).
+- **Start Web UI (Local)**: `lore-web` (Runs Flask dev server).
 - **Start Full Stack (Docker)**: `./start_stack.sh` (Launches App + Postgres + Redis).
-- **Switch Tools**: `python3 ai_session_cli.py switch gemini` (Transfers context to Gemini CLI).
+- **Switch Tools**: `lore-session switch gemini` (Transfers context to Gemini CLI).
+
+(The underlying script files are `ai_history_cli.py`, `ai_history_web_new.py`,
+and `ai_session_cli.py`; the installed CLI binaries are the `lore*` commands.)
 
 ---
 

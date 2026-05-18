@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..utils.paths import lore_home
 from .base import LLMConfig, LLMProvider, LLMResponse
 
 
@@ -10,7 +11,7 @@ class OllamaProvider(LLMProvider):
     def __init__(self, config: LLMConfig):
         super().__init__(config)
         self._client = None
-        self._cache_dir = Path(config.cache_dir or Path.home() / ".ai-history" / "llm_cache")
+        self._cache_dir = Path(config.cache_dir or lore_home() / "llm_cache")
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_client(self):

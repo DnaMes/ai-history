@@ -223,7 +223,7 @@ def test_version_shown_in_sidebar():
 
     with web.app.test_client() as client:
         page = client.get("/").get_data(as_text=True)
-    assert f"ai-history v{__version__}" in page
+    assert f"lore v{__version__}" in page
 
 
 @pytest.mark.parametrize(

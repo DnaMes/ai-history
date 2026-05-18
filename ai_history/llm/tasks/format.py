@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, List, Optional
 if TYPE_CHECKING:
     from ...core.models import UnifiedSession
 
+from ...utils.paths import lore_home
 from ..base import LLMProvider
 
 
@@ -20,7 +21,7 @@ class FormattedSession:
 class SessionFormatter:
     def __init__(self, provider: LLMProvider, output_dir: Optional[Path] = None):
         self.provider = provider
-        self.output_dir = output_dir or Path.home() / ".ai-history" / "formatted"
+        self.output_dir = output_dir or lore_home() / "formatted"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def format_session(

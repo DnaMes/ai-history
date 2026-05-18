@@ -12,7 +12,6 @@ import logging
 import os
 import time
 import uuid
-from pathlib import Path
 from threading import Lock
 from typing import Optional
 
@@ -23,6 +22,8 @@ from flask import request
 # exception type. Re-exported here for backwards compatibility — callers
 # and tests historically import it from ``web_utils``.
 from ai_history.services import ActionJobCancelledError  # noqa: F401
+
+from ..utils.paths import lore_home
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ METRICS: dict[str, int] = {}
 METRICS_LOCK = Lock()
 
 # Paths
-OUTPUT_DIR = Path.home() / ".ai-history"
+OUTPUT_DIR = lore_home()
 NOISE_RULES_PATH = OUTPUT_DIR / "noise_rules.json"
 
 

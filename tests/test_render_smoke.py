@@ -105,4 +105,4 @@ def test_dashboard_renders_styled(live_server):
     output = _render(live_server + "/")
     # The dashboard's known content must be present in the rendered DOM.
     assert "Overview" in output
-    assert "ai-history v" in output  # version footer rendered
+    assert "lore v" in output  # version footer rendered

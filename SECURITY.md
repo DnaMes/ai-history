@@ -11,7 +11,7 @@
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report security issues by opening a [GitHub Security Advisory](https://github.com/YOUR-ORG/ai-history/security/advisories/new) (preferred), or by emailing the maintainers directly.
+Report security issues by opening a [GitHub Security Advisory](https://github.com/DnaMes/lore/security/advisories/new) (preferred), or by emailing the maintainers directly.
 
 Include:
 - Description of the vulnerability

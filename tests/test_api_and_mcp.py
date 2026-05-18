@@ -194,7 +194,6 @@ def test_api_v1_sessions_legacy_limit_still_works(monkeypatch):
 
 
 def test_api_v1_index_summary_returns_metadata(monkeypatch):
-    from ai_history.interfaces import web_data
 
     def _fake_load_index_summary():
         return {
@@ -219,6 +218,7 @@ def test_api_v1_index_summary_returns_metadata(monkeypatch):
 
 def test_load_index_summary_derives_counts_from_cached_index(monkeypatch, tmp_path):
     import json
+
     from ai_history.interfaces import web_data
 
     # Write a minimal index.json into a temp dir

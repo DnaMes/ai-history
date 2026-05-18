@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Naming
+
+The **product** and its **CLI binaries** are called **Lore** (`lore`,
+`lore-session`, `lore-web`, `lore-mcp`). The **Python import package** is still
+`ai_history` — the import name was deliberately **not** renamed, and the
+`ai_history/` directory must not be renamed. So: product/CLI = Lore, code
+package = `ai_history`. The persistent data directory is `~/.lore`.
+
 ## Commands
 
 ```bash
@@ -23,7 +31,7 @@ mypy ai_history/ --ignore-missing-imports
 # Docker (production stack: app + postgres + redis)
 docker compose build app && docker compose up -d app
 docker compose logs -f app
-docker exec -it ai-history-app bash
+docker exec -it ai-history-app bash   # container name from docker-compose.yml
 ```
 
 ## Architecture
@@ -31,11 +39,11 @@ docker exec -it ai-history-app bash
 ### Data Flow
 
 ```
-Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.ai-history/index.json
-                                                                  →  ~/.ai-history/projects/<id>/session.md
+Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.lore/index.json
+                                                                  →  ~/.lore/projects/<id>/session.md
 ```
 
-`~/.ai-history/` is the persistent output dir (`OUTPUT_DIR` in `web_data.py`). The index is a flat JSON file; SQLite FTS (`search/engine.py`) sits beside it as `index.sqlite`.
+`~/.lore/` is the persistent output dir (`OUTPUT_DIR` in `web_data.py`). The index is a flat JSON file; SQLite FTS (`search/engine.py`) sits beside it as `index.sqlite`.
 
 ### Package Layout
 
@@ -52,9 +60,10 @@ Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.
 
 | Command | File | Notes |
 |---|---|---|
-| `ai-history` | `ai_history_cli.py` | Full CLI (list, search, export, check…) |
-| `ai-session` | `ai_session_cli.py` | Session switching between tools |
-| `ai-history-web` | `ai_history_web_new.py` | Thin wrapper → `ai_history.interfaces.web:app` |
+| `lore` | `ai_history_cli.py` | Full CLI (list, search, export, check…) |
+| `lore-session` | `ai_session_cli.py` | Session switching between tools |
+| `lore-web` | `ai_history_web_new.py` | Thin wrapper → `ai_history.interfaces.web:app` |
+| `lore-mcp` | MCP server entry point | MCP server for Claude Code / OpenCode |
 | Docker | `Dockerfile` | `gunicorn --workers 1 --threads 8` — must stay at 1 worker; `RELOAD_JOBS` is in-memory |
 
 ### Web UI — Reload/Async Jobs

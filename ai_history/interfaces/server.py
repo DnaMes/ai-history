@@ -11,8 +11,9 @@ import asyncio
 import json
 import logging
 import sys
-from pathlib import Path
 from typing import Optional
+
+from ..utils.paths import lore_home
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class MCPServer:
 
     def __init__(self):
         self.tools = {}
-        self.output_dir = Path.home() / ".ai-history"
+        self.output_dir = lore_home()
 
     def register_tool(self, name: str, description: str, input_schema: dict, handler):
         """Register a tool with the server."""

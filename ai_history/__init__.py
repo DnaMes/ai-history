@@ -4,8 +4,9 @@ The single source of truth for the package version. ``pyproject.toml``
 reads ``__version__`` from here via ``[tool.setuptools.dynamic]``, so the
 version is set in exactly one place.
 
-2.2.0: scoped MCP search, standalone HTML session export, the services/
-layer refactor, a decomposed MCP server, and a full QA hardening pass.
+2.3.0: renamed the product to "Lore" (CLI `lore`, data dir ~/.lore with
+auto-migration); memory_sources provenance linking. The import package
+stays `ai_history`.
 """
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"

@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
-import pytest
 
 from ai_history.interfaces import web_data
 from ai_history.interfaces.web_data import (
@@ -15,7 +12,6 @@ from ai_history.interfaces.web_data import (
     load_deleted_session_ids,
     remember_deleted_session_id,
 )
-
 
 # ---------------------------------------------------------------------------
 # _sanitize_next_url

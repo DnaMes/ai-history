@@ -55,6 +55,7 @@ from ai_history.services.index import (
 from ai_history.services.index import (
     load_deleted_session_ids as _service_load_deleted_session_ids,
 )
+from ai_history.utils.paths import lore_home
 
 # Backwards-compatible re-export — same signature as the service helper.
 _annotate_display_titles = annotate_display_titles
@@ -70,7 +71,7 @@ def _apply_deleted_filter(payload: dict) -> dict:
 # Paths — kept as module globals so tests can monkeypatch them. The
 # service-layer functions take paths as explicit arguments; the wrappers
 # below pass these values, so patching them here stays effective.
-OUTPUT_DIR = Path.home() / ".ai-history"
+OUTPUT_DIR = lore_home()
 INDEX_PATH = OUTPUT_DIR / "index.json"
 DELETED_SESSIONS_PATH = OUTPUT_DIR / "deleted_sessions.json"
 

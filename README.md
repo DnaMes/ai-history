@@ -1,26 +1,31 @@
-# ai-history
+# Lore
 
-One place to search, browse, and export your AI coding sessions — Claude Code, Cursor, GitHub Copilot, Aider, OpenCode, and more.
+Local-first **archive** and **shared memory** for AI coding sessions — extract, search, and export your work across Claude Code, Cursor, GitHub Copilot, Aider, OpenCode, and more.
 
-[![PyPI](https://img.shields.io/pypi/v/ai-history)](https://pypi.org/project/ai-history/)
-[![Python](https://img.shields.io/pypi/pyversions/ai-history)](https://pypi.org/project/ai-history/)
+[![PyPI](https://img.shields.io/pypi/v/lore)](https://pypi.org/project/lore/)
+[![Python](https://img.shields.io/pypi/pyversions/lore)](https://pypi.org/project/lore/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://github.com/DnaMes/ai-history/actions/workflows/tests.yml/badge.svg)](https://github.com/DnaMes/ai-history/actions/workflows/tests.yml)
-[![Security](https://github.com/DnaMes/ai-history/actions/workflows/security.yml/badge.svg)](https://github.com/DnaMes/ai-history/actions/workflows/security.yml)
-[![GitHub Issues](https://img.shields.io/github/issues/DnaMes/ai-history)](https://github.com/DnaMes/ai-history/issues)
+[![Tests](https://github.com/DnaMes/lore/actions/workflows/tests.yml/badge.svg)](https://github.com/DnaMes/lore/actions/workflows/tests.yml)
+[![Security](https://github.com/DnaMes/lore/actions/workflows/security.yml/badge.svg)](https://github.com/DnaMes/lore/actions/workflows/security.yml)
+[![GitHub Issues](https://img.shields.io/github/issues/DnaMes/lore)](https://github.com/DnaMes/lore/issues)
 
-**The Local-First AI Chat History Manager.**
+**The Local-First Knowledge Layer for AI Coding.**
 
-A professional, privacy-focused alternative to SpecStory that collects, unifies, and exports chat histories from all your AI coding assistants without any cloud connectivity.
+Lore is two things in one tool:
+
+- **An archive** — it collects, unifies, and exports chat histories from all your AI coding assistants (~10 tools) into one searchable local store, with no cloud connectivity.
+- **A shared agent memory** — a cross-tool knowledge store that agents write to and recall from (keyword + semantic search, with provenance), so a decision made in one tool is available to the next.
+
+The name carries both halves: *lore* is accumulated knowledge **and** history/backstory.
 
 ---
 
 ## Quickstart
 
 ```bash
-pip install ai-history
-ai-history export --all   # index all sessions
-ai-history-web            # open browser at http://localhost:5000
+pip install lore
+lore export --all   # index all sessions
+lore-web            # open browser at http://localhost:5000
 ```
 
 Or with Docker:
@@ -35,7 +40,7 @@ docker compose up -d
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  ai-history  Sessions  Stats  Threads  Projects  Rules  │
+│  Lore  Sessions  Stats  Threads  Projects  Memory  Rules │
 ├─────────────────────────────────────────────────────────┤
 │ 🔍 Search sessions...                     [Sync ▾]     │
 ├──────────────┬──────────────────────────────────────────┤
@@ -46,7 +51,7 @@ docker compose up -d
 └──────────────┴──────────────────────────────────────────┘
 ```
 
-> Full screenshots coming soon. Run `ai-history-web` to see the live dashboard.
+> Full screenshots coming soon. Run `lore-web` to see the live dashboard.
 
 ---
 
@@ -70,9 +75,10 @@ docker compose up -d
 ## 🎯 Features
 
 - **Unified History**: See all chats from Claude Code, Cursor, Gemini CLI, Codex, VSCode Copilot, Warp, and more in one place.
+- **Shared Agent Memory**: A cross-tool knowledge store agents write to and recall from — facts, decisions, and lessons with provenance, searchable by keyword or by meaning.
 - **Smart Context Switching**: Seamlessly move a session from one tool to another (e.g., Claude -> Gemini) when hitting rate limits.
 - **Modern Web Dashboard**: A polished, SpecStory-inspired UI with Markdown rendering, code highlighting, and full-text search.
-- **MCP Integration**: Control your history and tool-switching directly from within Claude Code.
+- **MCP Integration**: Query history and shared memory directly from within Claude Code and other MCP clients.
 - **Privacy First**: Everything stays local on your machine. No cloud, no tracking.
 
 ---
@@ -83,11 +89,11 @@ docker compose up -d
 
 ```bash
 # From PyPI (recommended)
-pip install ai-history
+pip install lore
 
 # Or from source
-git clone https://github.com/DnaMes/ai-history.git
-cd ai-history
+git clone https://github.com/DnaMes/lore.git
+cd lore
 pip install -e .
 ```
 
@@ -95,89 +101,89 @@ pip install -e .
 
 ```bash
 # Check available AI tools on your system
-ai-history check
+lore check
 
 # List recent sessions
-ai-history list --since 7d
+lore list --since 7d
 
 # Weekly activity digest (sessions by day, tool, top projects)
-ai-history digest --since 7d
-ai-history digest --since 2w --format markdown
+lore digest --since 7d
+lore digest --since 2w --format markdown
 
 # Shared cross-tool memory — record a fact/decision any AI tool can recall
-ai-history memory add --kind decision --title "Use Postgres 16" \
+lore memory add --kind decision --title "Use Postgres 16" \
     --body "Standardise the stack on PG16" --tag db --tag infra
-ai-history memory search postgres
-ai-history memory search "database performance" --semantic   # ranks by meaning
-ai-history memory list
+lore memory search postgres
+lore memory search "database performance" --semantic   # ranks by meaning
+lore memory list
 
 # Semantic memory search needs the optional embedding model:
 #   pip install -e ".[semantic]"
 # Without it, --semantic transparently falls back to keyword search.
 
 # Search across all sessions
-ai-history search "database migration"
+lore search "database migration"
 
 # Start the Web UI
-ai-history-web
+lore-web
 
 # Run a tool and sync its session after exit
-ai-history run codex
+lore run codex
 
 # Sync existing sessions for a tool
-ai-history sync gemini
+lore sync gemini
 
 # List threads for cross-tool continuation
-ai-history threads
+lore threads
 
 # Generate derived rules (SpecStory-style)
-ai-history rules --limit 30
+lore rules --limit 30
 ```
 
 ---
 
 ## 🔄 Session Management (The Switcher)
 
-The `ai-session` tool allows you to jump between tools with full context.
+The `lore-session` tool allows you to jump between tools with full context.
 
 ### Scenario: Claude Code Rate Limit Reached
 
 1. You are in Claude and see "Usage Limit Reached".
-2. Run: `ai-session switch gemini`
+2. Run: `lore-session switch gemini`
 3. Gemini CLI starts with the last 15 messages from your Claude session pre-loaded as context.
 
 ```bash
 # Manual switch
-ai-session switch <tool> [--messages N]
+lore-session switch <tool> [--messages N]
 
 # Continue a specific thread
-ai-session switch <tool> --thread-id <thread-id>
+lore-session switch <tool> --thread-id <thread-id>
 
 # Auto-select best tool
-ai-session continue
+lore-session continue
 ```
 
 ## 🧰 SpecStory-Style Workflow
 
-`ai-history` supports a SpecStory-like flow:
+Lore supports a SpecStory-like flow:
 
 ```bash
 # Wrap a tool session, then sync after it ends
-ai-history run claude
+lore run claude
 
 # Backfill/sync existing sessions for a tool
-ai-history sync codex
+lore sync codex
 ```
 
-`ai-history run` writes a PTY log to `~/.ai-history/runs/` for audit/debugging.
+`lore run` writes a PTY log to `~/.lore/runs/` for audit/debugging.
 
 ---
 
 ## MCP Integration
 
-`ai-history` ships a [Model Context Protocol](https://modelcontextprotocol.io/) server so Claude Code (and other MCP-capable clients) can search your own session history mid-conversation — without leaving the editor.
+Lore ships a [Model Context Protocol](https://modelcontextprotocol.io/) server so Claude Code (and other MCP-capable clients) can search your own session history and shared memory mid-conversation — without leaving the editor.
 
-**Use case:** Ask Claude Code `"Search my history for sqlite locking fixes"` and it will query your local indexed sessions in real time.
+**Use case:** Ask Claude Code `"Search my history for sqlite locking fixes"` and it will query your local indexed sessions in real time. Agents can also write decisions and lessons to shared memory and recall them later from any tool.
 
 ### Claude Code setup
 
@@ -186,8 +192,8 @@ Add this block to `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
-    "ai-history": {
-      "command": "ai-history-mcp",
+    "lore": {
+      "command": "lore-mcp",
       "args": []
     }
   }
@@ -202,15 +208,15 @@ Add this block to `opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "ai-history": {
+    "lore": {
       "type": "local",
-      "command": ["ai-history-mcp"]
+      "command": ["lore-mcp"]
     }
   }
 }
 ```
 
-Available MCP tools: `search_history`, `list_sessions`, `get_session`, `get_session_messages`, `get_thread`, `list_projects`, `switch_to_tool`.
+Available MCP tools: `search_history`, `list_sessions`, `get_session`, `get_session_messages`, `get_thread`, `list_projects`, `switch_to_tool`, `memory_write`, `memory_recall`.
 
 See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for full inputs, outputs, and HTTP endpoint reference.
 
@@ -224,7 +230,9 @@ See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for full inputs, outputs, a
 - `get_session_messages`: Load the transcript for one session.
 - `get_thread`: Load cross-session thread context.
 - `list_projects`: Enumerate projects in the history index.
-- `switch_to_tool`: Hand off to `ai-session switch`.
+- `switch_to_tool`: Hand off to `lore-session switch`.
+- `memory_write`: Record a fact, decision, or lesson into shared agent memory.
+- `memory_recall`: Recall from shared memory by keyword or meaning, with provenance.
 
 ### API reference
 
@@ -244,6 +252,7 @@ Browse your history at `http://localhost:5000`.
 - **Search**: `Cmd+K` global search with SQLite FTS.
 - **Chat View**: SpecStory-style session layout with left TOC.
 - **Threads**: Cross-tool continuity view of a project thread.
+- **Memory**: Browse, search (keyword or semantic), and manage shared agent memory.
 - **Rules**: Derived rules extracted from assistant responses.
 - **Export**: Save any session as a clean Markdown file.
 
@@ -253,18 +262,18 @@ Run deterministic route/API hardening probes against a local or deployed web URL
 
 ```bash
 # Local
-ai-history-web-probe --base-url http://127.0.0.1:5000
+lore-web-probe --base-url http://127.0.0.1:5000
 
 # Deployed target protected by Basic auth
 export AI_HISTORY_WEB_PROBE_PASSWORD='your-password'
-ai-history-web-probe \
+lore-web-probe \
   --base-url https://your-deployed-host.example.com \
   --user admin \
   --password-env AI_HISTORY_WEB_PROBE_PASSWORD
 
 
 # Increase timeout/retries when remote index fallback is slow
-ai-history-web-probe --base-url https://your-deployed-host.example.com --user admin \
+lore-web-probe --base-url https://your-deployed-host.example.com --user admin \
   --password-env AI_HISTORY_WEB_PROBE_PASSWORD --timeout-seconds 30 --timeout-retries 2
 ```
 
@@ -295,6 +304,9 @@ Exit codes:
 
 ## 🏗️ Architecture
 
+The product is **Lore**, but the Python import package is `ai_history` (the
+import name was deliberately not renamed).
+
 - `ai_history/core`: Data models and unified session logic.
 - `ai_history/extractors`: Tool-specific logic for parsing histories.
 - `ai_history/exporters`: Markdown and Context formatting.
@@ -318,7 +330,7 @@ If Gemini CLI projects don't map back to a path on your machine, set:
 export GEMINI_PROJECT_ROOTS="$HOME/projects:$HOME/work:$HOME/code"
 ```
 
-This helps `ai-history` resolve Gemini's project hash to real folders.
+This helps Lore resolve Gemini's project hash to real folders.
 
 ---
 

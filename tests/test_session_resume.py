@@ -1,6 +1,5 @@
 """Tests for POST /api/sessions/<session_id>/resume endpoint."""
 
-import json
 
 from ai_history.interfaces import web
 

@@ -1,10 +1,14 @@
-# Contributing to ai-history
+# Contributing to Lore
+
+> The product/CLI is **Lore** (`lore`), but the Python import package is
+> `ai_history` — the import name was deliberately not renamed. Paths like
+> `ai_history/...` below refer to the code package, not the product name.
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/YOUR-ORG/ai-history.git
-cd ai-history
+git clone https://github.com/DnaMes/lore.git
+cd lore
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 pre-commit install
@@ -74,11 +78,11 @@ release:
 2. Move the `[Unreleased]` entries in `CHANGELOG.md` into a new dated
    `[X.Y.Z]` section.
 3. Commit: `docs: changelog for X.Y.Z` together with the version bump.
-4. Tag the commit: `git tag -a vX.Y.Z -m "ai-history X.Y.Z — <summary>"`.
+4. Tag the commit: `git tag -a vX.Y.Z -m "Lore X.Y.Z — <summary>"`.
 5. Push the branch and the tag: `git push <remote> master vX.Y.Z`.
 6. Optionally build + publish the wheel: `python -m build`.
 
-The web UI (sidebar footer), `ai-history --version`, and
+The web UI (sidebar footer), `lore --version`, and
 `/api/build-info` all surface the version automatically.
 
 ## Architecture
