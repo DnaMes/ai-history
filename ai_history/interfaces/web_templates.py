@@ -1550,29 +1550,73 @@ BASE_TEMPLATE = """
             // After "Load more" appends a page, the new anchors must be observed.
             window.addEventListener('lore:messages-appended', observeAnchors);
 
-            // Click handling: a native #msg-N jump scrolls the page body, not
-            // the inner conversation scroll container — so it never lands on
-            // the message. Handle it explicitly, and load more pages first if
-            // the target message has not been rendered yet (pagination).
+            // Click handling: a native #msg-N jump (and even scrollIntoView)
+            // is unreliable here — the conversation lives in a specific inner
+            // overflow-y-auto container, not the page body. Find that
+            // container explicitly and set its scrollTop deterministically.
+            function scrollableAncestor(el) {
+                let node = el.parentElement;
+                while (node && node !== document.body) {
+                    const oy = getComputedStyle(node).overflowY;
+                    if ((oy === 'auto' || oy === 'scroll') &&
+                        node.scrollHeight > node.clientHeight + 4) {
+                        return node;
+                    }
+                    node = node.parentElement;
+                }
+                return document.scrollingElement || document.documentElement;
+            }
             function scrollToMessage(id) {
                 const el = document.getElementById(id);
                 if (!el) return false;
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const container = scrollableAncestor(el);
+                // Set scrollTop directly (instant). A smooth scroll over a long
+                // distance gets disrupted by layout shifts (lazy images, code
+                // highlighting) and frequently stalls partway. After the jump,
+                // re-measure twice on later frames and correct any drift so we
+                // reliably land on the message.
+                function go() {
+                    const offset = el.getBoundingClientRect().top
+                                   - container.getBoundingClientRect().top
+                                   + container.scrollTop - 16;
+                    container.scrollTop = offset;
+                }
+                go();
+                requestAnimationFrame(go);
+                setTimeout(go, 120);
+                setTimeout(go, 350);
                 el.classList.add('toc-flash');
-                setTimeout(() => el.classList.remove('toc-flash'), 1600);
+                setTimeout(() => el.classList.remove('toc-flash'), 1700);
                 return true;
+            }
+            // Resolve once the next message page has actually been appended
+            // (or timed out) — driven by the lore:messages-appended event the
+            // load-more script fires, so we never click a still-busy button.
+            function waitForAppend(timeoutMs) {
+                return new Promise((resolve) => {
+                    let done = false;
+                    const finish = () => {
+                        if (done) return;
+                        done = true;
+                        window.removeEventListener('lore:messages-appended', finish);
+                        resolve();
+                    };
+                    window.addEventListener('lore:messages-appended', finish);
+                    setTimeout(finish, timeoutMs);
+                });
             }
             async function jumpTo(id) {
                 if (scrollToMessage(id)) return;
-                // Not loaded yet — click "Load more" until the anchor appears.
-                const more = document.getElementById('loadMoreMessages');
-                if (!more) return;
+                // Not loaded yet — load more pages until the anchor appears.
                 for (let guard = 0; guard < 200; guard++) {
-                    const current = document.getElementById('loadMoreMessages');
-                    if (!current) break;            // all pages loaded
-                    current.click();
-                    // Wait for the fetch+append to settle.
-                    await new Promise(r => setTimeout(r, 250));
+                    const more = document.getElementById('loadMoreMessages');
+                    if (!more) break;               // all pages loaded
+                    if (more.disabled) {            // a fetch is already running
+                        await waitForAppend(8000);
+                    } else {
+                        more.click();
+                        await waitForAppend(8000);
+                    }
                     if (scrollToMessage(id)) return;
                 }
                 scrollToMessage(id);
