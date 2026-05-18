@@ -60,6 +60,9 @@ class IndexBuilder:
         # Titles computed below are reused for the v2 dual-write so v2 and the
         # JSON index agree on every session title.
         inferred_titles: Dict[str, str] = {}
+        # prompt_outline / export_path per session, denormalised onto the v2
+        # sessions row so the v2 reader needs no joins.
+        v2_extras: Dict[str, Dict] = {}
 
         if reused_entries:
             for entry in reused_entries:
@@ -73,6 +76,10 @@ class IndexBuilder:
             prompt_outline = self._extract_prompt_outline(session)
             inferred_title = self._infer_title(session, prompt_outline)
             inferred_titles[session.session_id] = inferred_title
+            v2_extras[session.session_id] = {
+                "prompt_outline": prompt_outline,
+                "export_path": str(export_path) if export_path else None,
+            }
 
             # Extract keywords from content
             keywords = self._extract_keywords(session)
@@ -131,6 +138,7 @@ class IndexBuilder:
             sessions,
             titles=inferred_titles,
             reused_entries=reused_entries,
+            extras=v2_extras,
         )
 
     def _compute_stats_from_entries(self, entries: List[Dict]) -> Dict:

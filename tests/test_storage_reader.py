@@ -1,0 +1,189 @@
+"""Tests for the v2 SQLite reader (issue #44, PR 3).
+
+`load_index_v2` reads the v2 store back into the legacy index dict shape;
+`load_index()` prefers it over index.json behind the AI_HISTORY_USE_V2 flag,
+falling back to JSON transparently. These tests cover both.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+import pytest
+
+from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from ai_history.exporters.index import IndexBuilder
+from ai_history.storage import load_index_v2, v2_is_available
+
+
+def _session(
+    sid: str,
+    tool: Tool = Tool.CLAUDE_CODE,
+    title: str = "T",
+    project: str = "/p",
+    n_messages: int = 2,
+) -> UnifiedSession:
+    return UnifiedSession(
+        tool=tool,
+        session_id=sid,
+        created_at=datetime(2026, 1, 1),
+        last_updated=datetime(2026, 1, 2),
+        project_path=project,
+        title=title,
+        messages=[
+            UnifiedMessage(
+                role=Role.USER if i % 2 == 0 else Role.ASSISTANT,
+                content=f"body {i}",
+                timestamp=datetime(2026, 1, 1),
+            )
+            for i in range(n_messages)
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# v2_is_available
+# ---------------------------------------------------------------------------
+
+
+def test_v2_unavailable_when_no_db(tmp_path):
+    assert v2_is_available(tmp_path) is False
+
+
+def test_v2_available_after_index_build(tmp_path):
+    IndexBuilder(tmp_path).build_index([_session("a")], {})
+    assert v2_is_available(tmp_path) is True
+
+
+# ---------------------------------------------------------------------------
+# load_index_v2
+# ---------------------------------------------------------------------------
+
+
+def test_load_index_v2_raises_when_missing(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_index_v2(tmp_path)
+
+
+def test_load_index_v2_shape(tmp_path):
+    IndexBuilder(tmp_path).build_index([_session("a", title="Hello")], {})
+    idx = load_index_v2(tmp_path)
+    assert set(idx.keys()) >= {"version", "stats", "sessions"}
+    assert idx["version"] == "2"
+    assert len(idx["sessions"]) == 1
+
+
+def test_load_index_v2_session_fields(tmp_path):
+    IndexBuilder(tmp_path).build_index([_session("a", n_messages=4)], {})
+    session = load_index_v2(tmp_path)["sessions"][0]
+    assert session["id"] == "a"
+    assert session["tool"] == "claude-code"
+    assert session["messages"] == 4
+    # 4 messages alternate user/assistant -> 2 user prompts
+    assert session["prompts"] == 2
+
+
+def test_load_index_v2_stats(tmp_path):
+    IndexBuilder(tmp_path).build_index(
+        [_session("a", tool=Tool.CLAUDE_CODE), _session("b", tool=Tool.CODEX)], {}
+    )
+    stats = load_index_v2(tmp_path)["stats"]
+    assert stats["total_sessions"] == 2
+    assert stats["by_tool"] == {"claude-code": 1, "codex": 1}
+
+
+def test_load_index_v2_sorted_newest_first(tmp_path):
+    older = _session("old")
+    older.last_updated = datetime(2026, 1, 1)
+    newer = _session("new")
+    newer.last_updated = datetime(2026, 6, 1)
+    IndexBuilder(tmp_path).build_index([older, newer], {})
+    ids = [s["id"] for s in load_index_v2(tmp_path)["sessions"]]
+    assert ids == ["new", "old"]
+
+
+def test_load_index_v2_carries_prompt_outline(tmp_path):
+    s = _session("a", n_messages=0)
+    s.messages = [
+        UnifiedMessage(
+            role=Role.USER, content="please fix the bug", timestamp=datetime(2026, 1, 1)
+        ),
+    ]
+    IndexBuilder(tmp_path).build_index([s], {})
+    session = load_index_v2(tmp_path)["sessions"][0]
+    assert "fix the bug" in (session["prompt_outline"] or "")
+
+
+# ---------------------------------------------------------------------------
+# load_index() integration — v2 preferred, JSON fallback
+# ---------------------------------------------------------------------------
+
+
+def test_load_index_uses_v2_when_available(tmp_path, monkeypatch):
+    from ai_history.interfaces import web_data
+
+    monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    web_data.clear_index_cache()
+
+    IndexBuilder(tmp_path).build_index([_session("v2only", title="From V2")], {})
+    payload = web_data.load_index()
+    assert payload.get("version") == "2"
+    assert payload["sessions"][0]["id"] == "v2only"
+
+
+def test_load_index_falls_back_to_json_when_flag_off(tmp_path, monkeypatch):
+    from ai_history.interfaces import web_data
+
+    monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    web_data.clear_index_cache()
+
+    IndexBuilder(tmp_path).build_index([_session("j", title="From JSON")], {})
+    payload = web_data.load_index()
+    # JSON index has no "version": "2" marker.
+    assert payload.get("version") != "2"
+    assert payload["sessions"][0]["id"] == "j"
+
+
+def test_load_index_falls_back_when_v2_missing(tmp_path, monkeypatch):
+    """v2 enabled but no DB yet — must transparently use index.json."""
+    from ai_history.interfaces import web_data
+
+    monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    web_data.clear_index_cache()
+
+    # Write only a JSON index — no v2 db.
+    (tmp_path / "index.json").write_text(
+        '{"version":"1.0.0","stats":{},"sessions":'
+        '[{"id":"jsononly","tool":"warp","title":"t",'
+        '"created":"2026-01-01","updated":"2026-01-01","messages":1}]}',
+        encoding="utf-8",
+    )
+    payload = web_data.load_index()
+    assert payload["sessions"][0]["id"] == "jsononly"
+
+
+def test_v2_and_json_agree_on_session_ids(tmp_path, monkeypatch):
+    """The v2 reader and the JSON reader must surface the same sessions."""
+    from ai_history.interfaces import web_data
+
+    monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
+
+    sessions = [_session("a"), _session("b"), _session("c")]
+    IndexBuilder(tmp_path).build_index(sessions, {})
+
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    web_data.clear_index_cache()
+    v2_ids = sorted(s["id"] for s in web_data.load_index()["sessions"])
+
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    web_data.clear_index_cache()
+    json_ids = sorted(s["id"] for s in web_data.load_index()["sessions"])
+
+    assert v2_ids == json_ids == ["a", "b", "c"]

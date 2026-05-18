@@ -56,6 +56,18 @@ def _source_mtime_ns(source_path: Optional[str]) -> Optional[int]:
         return None
 
 
+# The full column list for an INSERT into sessions, used by both the
+# UnifiedSession path and the reused-dict path.
+_SESSION_INSERT = """
+    INSERT INTO sessions (
+        id, tool, project, thread_id, title, created, updated,
+        source_path, source_mtime_ns, git_branch, git_commit,
+        cli_version, metadata_json,
+        messages_count, prompt_count, prompt_outline, export_path
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+
 def _write_reused_entry(conn: sqlite3.Connection, entry: Dict) -> None:
     """Write a metadata-only row from a pre-built index dict.
 
@@ -70,13 +82,7 @@ def _write_reused_entry(conn: sqlite3.Connection, entry: Dict) -> None:
         return
     title = entry.get("title") or ""
     conn.execute(
-        """
-        INSERT INTO sessions (
-            id, tool, project, thread_id, title, created, updated,
-            source_path, source_mtime_ns, git_branch, git_commit,
-            cli_version, metadata_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        _SESSION_INSERT,
         (
             session_id,
             entry.get("tool"),
@@ -91,6 +97,10 @@ def _write_reused_entry(conn: sqlite3.Connection, entry: Dict) -> None:
             entry.get("git_commit"),
             None,
             None,
+            int(entry.get("messages") or 0),
+            int(entry.get("prompts") or 0),
+            entry.get("prompt_outline"),
+            entry.get("export_path"),
         ),
     )
     conn.execute(
@@ -114,6 +124,7 @@ def write_sessions(
     sessions: Iterable[UnifiedSession],
     titles: Optional[Dict[str, str]] = None,
     reused_entries: Optional[Iterable[Dict]] = None,
+    extras: Optional[Dict[str, Dict]] = None,
 ) -> int:
     """Replace the v2 store's contents with ``sessions`` (+ reused entries).
 
@@ -126,11 +137,15 @@ def write_sessions(
         reused_entries: pre-built index dicts (from incremental sync) for
             unchanged sessions. Written as metadata-only rows so the v2 store
             stays complete; they carry no message rows.
+        extras: optional ``{session_id: {prompt_outline, export_path}}`` — the
+            IndexBuilder already computes these for the JSON index, so we
+            denormalise them onto the v2 sessions row instead of recomputing.
 
     Returns:
         The total number of session rows written (full + reused).
     """
     titles = titles or {}
+    extras = extras or {}
     conn = initialise(db_path)
     try:
         conn.execute("BEGIN")
@@ -147,14 +162,9 @@ def write_sessions(
         for session in sessions:
             count += 1
             title = titles.get(session.session_id) or session.title or ""
+            session_extras = extras.get(session.session_id, {})
             conn.execute(
-                """
-                INSERT INTO sessions (
-                    id, tool, project, thread_id, title, created, updated,
-                    source_path, source_mtime_ns, git_branch, git_commit,
-                    cli_version, metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                _SESSION_INSERT,
                 (
                     session.session_id,
                     session.tool.value,
@@ -169,6 +179,10 @@ def write_sessions(
                     session.git_commit,
                     session.cli_version,
                     _session_metadata_json(session),
+                    session.message_count,
+                    session.user_prompt_count,
+                    session_extras.get("prompt_outline"),
+                    session_extras.get("export_path"),
                 ),
             )
 
@@ -227,6 +241,7 @@ def write_sessions_safe(
     sessions: Iterable[UnifiedSession],
     titles: Optional[Dict[str, str]] = None,
     reused_entries: Optional[Iterable[Dict]] = None,
+    extras: Optional[Dict[str, Dict]] = None,
 ) -> int:
     """Best-effort wrapper used by IndexBuilder's dual-write.
 
@@ -240,6 +255,7 @@ def write_sessions_safe(
             sessions,
             titles=titles,
             reused_entries=reused_entries,
+            extras=extras,
         )
     except Exception as exc:  # noqa: BLE001 - intentional: v2 write is best-effort
         logger.warning("v2 dual-write skipped (non-fatal): %s", exc)

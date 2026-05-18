@@ -106,6 +106,16 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         );
         """,
     ),
+    (
+        6,
+        "denormalised display columns on sessions (avoids count joins on read)",
+        """
+        ALTER TABLE sessions ADD COLUMN messages_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE sessions ADD COLUMN prompt_count   INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE sessions ADD COLUMN prompt_outline TEXT;
+        ALTER TABLE sessions ADD COLUMN export_path    TEXT;
+        """,
+    ),
 ]
 
 

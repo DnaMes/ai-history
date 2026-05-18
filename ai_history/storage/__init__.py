@@ -17,6 +17,7 @@ Public surface:
 
 from __future__ import annotations
 
+from .reader import load_index_v2, v2_is_available
 from .schema import apply_migrations, current_version, initialise, open_connection
 from .writer import v2_db_path, write_sessions, write_sessions_safe
 
@@ -24,8 +25,10 @@ __all__ = [
     "apply_migrations",
     "current_version",
     "initialise",
+    "load_index_v2",
     "open_connection",
     "v2_db_path",
+    "v2_is_available",
     "write_sessions",
     "write_sessions_safe",
 ]

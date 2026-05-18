@@ -156,6 +156,7 @@ def _apply_deleted_filter(payload: dict) -> dict:
 
 def clear_index_cache():
     _load_index_cached.cache_clear()
+    _load_index_v2_cached.cache_clear()
     _load_deleted_session_ids_cached.cache_clear()
     load_export_lookup.cache_clear()
 
@@ -294,13 +295,65 @@ def load_sessions_for_tool(tool: Optional[str] = None):
     return sessions
 
 
+def _v2_enabled() -> bool:
+    """Whether to read sessions from the v2 SQLite store (issue #44).
+
+    Default is on. Set ``AI_HISTORY_USE_V2=0`` (or false/no) to force the
+    legacy index.json reader — kept as an escape hatch during the migration.
+    """
+    raw = os.environ.get("AI_HISTORY_USE_V2", "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def _load_index_from_v2():
+    """Load and post-process the index from the v2 store, or None to fall back.
+
+    Returns the same dict shape as the JSON path (deleted-filtered, display
+    titles annotated) or ``None`` when v2 is unavailable/unreadable so the
+    caller can fall back to index.json.
+    """
+    if not _v2_enabled():
+        return None
+    try:
+        from ai_history.storage import v2_is_available
+
+        if not v2_is_available(OUTPUT_DIR):
+            return None
+        v2_db = OUTPUT_DIR / "index_v2.sqlite"
+        stat = v2_db.stat()
+        payload = _load_index_v2_cached(str(v2_db), stat.st_mtime_ns, stat.st_size)
+    except Exception as exc:
+        logger.warning("v2 index read failed, falling back to JSON: %s", exc)
+        return None
+    payload = _apply_deleted_filter(payload)
+    payload["sessions"] = _annotate_display_titles(payload.get("sessions", []))
+    return payload
+
+
+@threadsafe_lru_cache(maxsize=1)
+def _load_index_v2_cached(db_path: str, _mtime_ns: int, _size: int):
+    """File-stat-keyed cache of the v2 store read (mirrors _load_index_cached)."""
+    from ai_history.storage import load_index_v2
+
+    return load_index_v2(Path(db_path).parent)
+
+
 def load_index():
+    # Prefer the v2 SQLite store; fall back to index.json transparently.
+    v2_payload = _load_index_from_v2()
+    if v2_payload is not None:
+        return v2_payload
+
     if not INDEX_PATH.exists():
         try:
             _build_index_from_extractors()
         except Exception as exc:
             logger.warning("Failed to build index from extractors: %s", exc)
             return {"stats": {}, "sessions": []}
+        # A rebuild also produces the v2 store — retry the v2 path once.
+        v2_payload = _load_index_from_v2()
+        if v2_payload is not None:
+            return v2_payload
     if not INDEX_PATH.exists():
         return {"stats": {}, "sessions": []}
     stat = INDEX_PATH.stat()
@@ -320,6 +373,20 @@ def load_index_summary() -> dict:
     still parses the whole file, so this is only a minor win for cold starts;
     the real benefit is not shipping all session records to the caller.
     """
+    # When v2 is the source, derive the summary from the (deleted-filtered,
+    # already-cached) full index — no extra I/O, and counts stay consistent.
+    v2_payload = _load_index_from_v2()
+    if v2_payload is not None:
+        sessions = v2_payload.get("sessions", [])
+        stats = v2_payload.get("stats", {})
+        v2_db = OUTPUT_DIR / "index_v2.sqlite"
+        return {
+            "total_sessions": int(stats.get("total_sessions") or len(sessions)),
+            "by_tool": dict(stats.get("by_tool") or {}),
+            "last_updated": v2_payload.get("generated_at"),
+            "index_size_bytes": v2_db.stat().st_size if v2_db.exists() else 0,
+        }
+
     if not INDEX_PATH.exists():
         return {
             "total_sessions": 0,
