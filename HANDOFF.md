@@ -4,77 +4,60 @@
 
 ## Current Task
 
-The **shared agent-memory vision** (#33) is the active direction. Its
-foundation — issue #44, "single SQLite source of truth" — is **done** across
-4 PRs. ai-history is now both a session viewer *and* a cross-tool memory store.
+A four-agent QA review (architecture, security, accessibility, test
+coverage) plus a hands-on UI inspection produced 16 issues (#34–#49).
+**All 16 are now fixed and closed.** The project is in materially better
+shape than the "787 tests green" claim implied.
 
-## Forgejo remotes
+## What the review found and how it was fixed
 
-- `forgejo` — `ssh://git@100.119.46.15:2222/...` (Tailscale, only when the
-  self-hosted box is online).
-- `forgejo-https` — `https://git.erdlabs.com/erdna/ai-history.git` (reachable
-  via Cloudflare; needs a Forgejo access token — `git-credential-libsecret`
-  caches it after the first `! git push forgejo-https master`).
-- **GitHub is the synced remote**; Forgejo is behind — push when convenient.
+| Issue | Severity | Fix (commit) |
+|---|---|---|
+| #34 search read legacy DB while load_index read v2 | P0 | search routed through v2 search_index (660f520) |
+| #35 v2 messages incomplete after incremental sync | P0 | reused_sessions written full + messages_synced flag (2b90f5c) |
+| #36 no v2 staleness check; generated_at unset | P0 | store_meta + staleness compare (9163215) |
+| #37 coverage omit list hid 4 extractors | P1 | omit trimmed, 61 fixture tests (commit w/ #39) |
+| #38 mobile layout broken | P1 | off-canvas drawer (4bdaa96) |
+| #39 WCAG AA failures | P1 | contrast/modals/markup (commit w/ #37) |
+| #40 no concurrency test, no busy_timeout | P1 | busy_timeout + 10 tests (e554dc8) |
+| #41/#42/#45 security hardening | P2 | file perms, memory caps, CSRF guards (4d08c5f) |
+| #44/#46/#49 dead code + migrations + polish | P2 | (e554dc8, 4bdaa96) |
+| #50 CSP nonce left the UI unstyled | P0-class | style-src unsafe-inline only (4bdaa96) |
 
-## The vision (#33) — read this first
-
-ai-history → tool-übergreifendes **geteiltes Gedächtnis** für KI-Agenten:
-EINE lokale DB, aus der jeder Agent/Tool/MCP/Skill liest UND schreibt.
-CEO-Mandat des Users: bei Bedarf neues Repo/Namen, Research-Agenten,
-Spektrum auf alle Tools mit Sessions erweitern. Details in Issue #33 +
-memory `vision_shared_memory.md`.
-
-## #44 — done this session (4 PRs)
-
-| PR | Commit | What |
-|----|--------|------|
-| 1 | 4b1d781 | v2 SQLite schema + migration runner (`ai_history/storage/`) |
-| 2 | b2f3c5f | dual-write: IndexBuilder mirrors sessions+messages into `index_v2.sqlite` |
-| 3 | 11adf4b | `load_index()` reads v2 (JSON fallback via `AI_HISTORY_USE_V2=0`) |
-| 4 | 5fa9fc2 | memory tables + `memory_write`/`memory_recall` (MCP + CLI) |
-
-`ai_history/storage/` modules: `schema.py` (7 migrations), `writer.py`
-(dual-write), `reader.py` (v2→legacy dict), `memory.py` (memory CRUD).
-
-## Earlier this session
-
-- **#51 Aider extractor**, **#43 digest command** (`ai-history digest`).
-- **#17 /sessions pagination**, **#19 vendored Tailwind/highlight.js**.
+The #50 CSP bug was the scariest find: a nonce in `style-src` made CSP3
+ignore `'unsafe-inline'`, blocking every Tailwind-injected style — the
+whole UI rendered unstyled. Caught only by a hands-on headless screenshot,
+not by the suite. Fixed; consider a render-smoke-test as follow-up.
 
 ## Current State
 
-- **Tests**: 787 passing, ~81% coverage
-- **GitHub** `master` at `5fa9fc2`
-- **GitHub issues**: 5 open (all P2/P3) — #44 closed; vision tracked in #33
+- **Tests**: 887 passing, ~82% coverage (real — the 4 dark extractors
+  are now counted, not omitted)
+- **GitHub** `master` at `4bdaa96`; issues #34–#50 all closed
+- **`AI_HISTORY_USE_V2` is back to default-on** — the v2 store is now
+  consistency-checked and concurrency-hardened
+- Open issues: #33 (vision tracking), #24/#28/#29/#30/#31 (P2 enhancements)
 
-## Open Issues (5 P2/P3 + the open-ended #33)
+## Storage layer (issue #44) — now solid
 
-| # | Label | Issue |
-|---|-------|-------|
-| 33 | p1 | **Vision: shared agent memory** — tracking issue, ongoing |
-| 31 | p2 | Decompose mcp.create_server() — now >700 LOC |
-| 30 | p2 | Move HTML from web_templates.py to Jinja2 template files |
-| 29 | p2 | MCP-over-HTTP transport (streamable-http) |
-| 28 | p2 | Shareable static HTML export per session |
-| 24 | p2 | Scoped MCP search (user_only / assistant_only / tool_results) |
+`ai_history/storage/`: schema (9 migrations, idempotent ALTERs),
+writer (dual-write, messages_synced), reader (staleness check), search
+(v2 FTS), memory (agent memory + input caps). WAL + busy_timeout.
 
-## Next Steps (vision-first, per #33)
+## Next Steps
 
-1. **Semantic memory search** — embeddings + vector search (`sqlite-vec`)
-   so agents recall thematically, not just by keyword.
-2. **Populate memory_sources** — auto-link memory to the sessions/messages
-   it was derived from.
-3. **Web UI for memory** — browse/search memory entries in the interface.
-4. **Broaden extractor coverage** — more AI tools with sessions.
-5. Re-evaluate the repo-split decision now that memory exists (#33).
+1. **#33 vision** — semantic memory search (embeddings / sqlite-vec),
+   memory_sources auto-linking, a web UI for memory.
+2. Remaining P2 enhancements (#24 scoped MCP search, #28 static HTML
+   export, #30 Jinja file migration, #31 mcp decomposition).
+3. Optional: headless render-smoke-test so a CSP/asset regression like
+   #50 is caught automatically.
 
-## Gotchas discovered
+## Gotchas
 
-- v2 DB is located via `INDEX_PATH.parent`, not `OUTPUT_DIR` — so tests that
-  patch `INDEX_PATH` stay isolated. Patch both if a test needs v2.
-- Docker builds were failing: host runs systemd-resolved (`127.0.0.53`),
-  unreachable from containers. Fixed by adding `"dns": ["1.1.1.1","8.8.8.8"]`
-  to `/etc/docker/daemon.json` + `firewalld --reload` then `restart docker`
-  (order matters). The ai-history-app container image is still old (Apr 13);
-  rebuild with `docker compose build app` when the Debian mirror is responsive.
+- The Docker container on port 5000 runs an old (Apr-13) image — local
+  dev must use a different port. Rebuild needs the Debian mirror
+  reachable; `daemon.json` DNS fix is in place.
+- v2 DB is located via `INDEX_PATH.parent`; tests patching `INDEX_PATH`
+  stay isolated. Patch `web_data.INDEX_PATH` (not just `web.INDEX_PATH`)
+  for anything that calls `load_index()`.

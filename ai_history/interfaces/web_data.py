@@ -314,12 +314,13 @@ def load_sessions_for_tool(tool: Optional[str] = None):
 def _v2_enabled() -> bool:
     """Whether to read sessions from the v2 SQLite store (issue #44).
 
-    Default is **off** while the v2 migration is hardened (issues #34/#35/#36).
-    Set ``AI_HISTORY_USE_V2=1`` (or true/yes/on) to opt in. The default flips
-    back to on once the v2 store is proven consistent and crash-safe.
+    Default is **on**: the v2 store is now consistency-checked (#34 search,
+    #35 message completeness, #36 staleness) and concurrency-hardened (#40).
+    Set ``AI_HISTORY_USE_V2=0`` (or false/no/off) to force the legacy
+    index.json reader as an escape hatch.
     """
-    raw = os.environ.get("AI_HISTORY_USE_V2", "0").strip().lower()
-    return raw in ("1", "true", "yes", "on")
+    raw = os.environ.get("AI_HISTORY_USE_V2", "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
 
 
 def _load_index_from_v2():
