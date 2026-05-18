@@ -830,6 +830,8 @@ def api_audit_status(job_id):
 
 @app.route("/api/action-cancel/<job_id>", methods=["POST"])
 def api_action_cancel(job_id):
+    if (err := _check_local_origin()) is not None:
+        return err
     state = _get_reload_job(job_id)
     if not state:
         return jsonify({"error": "Job not found"}), 404
@@ -1538,6 +1540,8 @@ def api_noise_rules():
 
 @app.route("/api/noise-rules/preview", methods=["POST"])
 def api_noise_rules_preview():
+    if (err := _check_local_origin()) is not None:
+        return err
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify({"error": "Invalid payload"}), 400

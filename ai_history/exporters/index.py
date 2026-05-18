@@ -122,7 +122,9 @@ class IndexBuilder:
         index["search_index"] = keyword_index
 
         # Atomic write: write to temp file then os.replace to avoid partial reads on SIGINT
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        from ..utils.paths import restrict_file, secure_dir
+
+        secure_dir(self.output_dir)  # 0700 — holds session transcripts (#41)
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -133,6 +135,7 @@ class IndexBuilder:
             json.dump(index, tmp, indent=2)
             tmp_path = tmp.name
         os.replace(tmp_path, self.index_path)
+        restrict_file(self.index_path)  # 0600 — index.json holds session content
 
         self._build_sqlite_index(sessions, export_paths, reused_entries=reused_entries)
 

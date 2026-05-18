@@ -1,4 +1,5 @@
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -7,6 +8,34 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional
+
+
+def secure_dir(path: Path) -> Path:
+    """Create ``path`` (and parents) and restrict it to the owner (0700).
+
+    The output directory holds full session transcripts and the v2 SQLite
+    store — sensitive on a multi-user host. Best-effort: a chmod failure
+    (e.g. on a filesystem without POSIX modes) is ignored (#41).
+    """
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        path.chmod(0o700)
+    except OSError:
+        pass
+    return path
+
+
+def restrict_file(path: Path) -> None:
+    """Restrict a file to owner read/write (0600). Best-effort (#41).
+
+    Used for data files that contain session content — index.json, the
+    deleted-sessions list, the v2 SQLite database.
+    """
+    try:
+        if path.exists():
+            os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 
 def get_current_project(cwd: Optional[Path] = None) -> str:

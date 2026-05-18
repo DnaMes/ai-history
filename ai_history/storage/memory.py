@@ -31,6 +31,14 @@ from .writer import v2_db_path
 # but the API validates against this set.
 MEMORY_KINDS = ("fact", "decision", "todo", "snippet", "link", "lesson", "note")
 
+# Input size caps for add_memory — the memory store is agent-writable, so a
+# prompt-injected agent could otherwise bloat the shared DB (#42).
+MAX_TITLE_LEN = 512
+MAX_BODY_LEN = 64_000
+MAX_TAGS = 32
+MAX_TAG_LEN = 64
+MAX_AUTHOR_LEN = 64
+
 
 @dataclass
 class MemoryEntry:
@@ -90,7 +98,8 @@ def add_memory(
     """Record a new memory and index it for search. Returns the new memory id.
 
     Raises:
-        ValueError: if ``kind`` is unknown or ``title``/``body`` are empty.
+        ValueError: if ``kind`` is unknown, ``title``/``body`` are empty, or
+            an input exceeds its size cap (#42).
     """
     if kind not in MEMORY_KINDS:
         raise ValueError(f"unknown memory kind {kind!r}; expected one of {MEMORY_KINDS}")
@@ -100,6 +109,19 @@ def add_memory(
         raise ValueError("memory title must not be empty")
     if not body:
         raise ValueError("memory body must not be empty")
+    # Size caps — the store is agent-writable; reject oversized input (#42).
+    if len(title) > MAX_TITLE_LEN:
+        raise ValueError(f"memory title exceeds {MAX_TITLE_LEN} chars")
+    if len(body) > MAX_BODY_LEN:
+        raise ValueError(f"memory body exceeds {MAX_BODY_LEN} chars")
+    author = (author or "human").strip()[:MAX_AUTHOR_LEN]
+    if tags:
+        clean_tags = [t.strip() for t in tags if t and t.strip()]
+        if len(clean_tags) > MAX_TAGS:
+            raise ValueError(f"too many tags (max {MAX_TAGS})")
+        if any(len(t) > MAX_TAG_LEN for t in clean_tags):
+            raise ValueError(f"a tag exceeds {MAX_TAG_LEN} chars")
+        tags = clean_tags
 
     now = _now()
     conn = _connect(output_dir)

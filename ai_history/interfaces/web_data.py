@@ -88,9 +88,12 @@ def load_deleted_session_ids() -> set[str]:
 
 
 def _save_deleted_session_ids(session_ids: set[str]) -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    from ai_history.utils.paths import restrict_file, secure_dir
+
+    secure_dir(OUTPUT_DIR)
     with open(DELETED_SESSIONS_PATH, "w", encoding="utf-8") as handle:
         json.dump({"session_ids": sorted(session_ids)}, handle, indent=2)
+    restrict_file(DELETED_SESSIONS_PATH)  # session ids — owner-only (#41)
     _load_deleted_session_ids_cached.cache_clear()
 
 

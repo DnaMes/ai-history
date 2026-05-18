@@ -196,3 +196,35 @@ def test_delete_memory_removes_from_search(tmp_path):
 
 def test_delete_missing_memory_returns_false(tmp_path):
     assert delete_memory(tmp_path, 12345) is False
+
+
+# ---------------------------------------------------------------------------
+# #42 — input size limits
+# ---------------------------------------------------------------------------
+
+
+def test_add_memory_rejects_oversized_title(tmp_path):
+    with pytest.raises(ValueError):
+        add_memory(tmp_path, "note", "x" * 600, "body")
+
+
+def test_add_memory_rejects_oversized_body(tmp_path):
+    with pytest.raises(ValueError):
+        add_memory(tmp_path, "note", "title", "x" * 70_000)
+
+
+def test_add_memory_rejects_too_many_tags(tmp_path):
+    with pytest.raises(ValueError):
+        add_memory(tmp_path, "note", "title", "body", tags=[f"t{i}" for i in range(40)])
+
+
+def test_add_memory_rejects_oversized_tag(tmp_path):
+    with pytest.raises(ValueError):
+        add_memory(tmp_path, "note", "title", "body", tags=["x" * 100])
+
+
+def test_add_memory_truncates_long_author(tmp_path):
+    mid = add_memory(tmp_path, "note", "realistic title", "body", author="a" * 200)
+    entry = get_memory(tmp_path, mid)
+    assert entry is not None
+    assert len(entry.author or "") <= 64
