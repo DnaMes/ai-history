@@ -104,7 +104,8 @@ BASE_TEMPLATE = """
         .pill { padding: 2px 10px; border-radius: 999px; font-size: 10px; letter-spacing: 0.16em; font-weight: 600; text-transform: uppercase; }
         .toc-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 1px 2px rgba(2, 8, 23, 0.04); }
         .toc-card-head { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 12px; font-weight: 700; color: #334155; letter-spacing: 0.01em; }
-        .toc-list { padding: 8px; overflow-y: auto; scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        .toc-list { padding: 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        html { scroll-padding-top: 96px; }
         .toc-list::-webkit-scrollbar { width: 4px; }
         .toc-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .toc-list::-webkit-scrollbar-track { background: transparent; }
@@ -1525,12 +1526,19 @@ BASE_TEMPLATE = """
             if (!items.length) return;
             const tocList = document.querySelector('.toc-list');
 
+            // While a TOC jump is running we suspend the scroll-spy: otherwise
+            // its own scrollIntoView on the active TOC item competes with the
+            // jump and the user sees the TOC list scroll instead of the
+            // conversation (the bug this whole block exists to prevent).
+            let jumpLockUntil = 0;
+
             // Re-bind the IntersectionObserver — called again after lazy-loaded
             // message pages add new #msg-N anchors to the DOM.
             let observer = null;
             function observeAnchors() {
                 if (observer) observer.disconnect();
                 observer = new IntersectionObserver((entries) => {
+                    if (Date.now() < jumpLockUntil) return;  // jump in progress
                     const visible = entries.filter(e => e.isIntersecting)
                         .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
                     if (!visible) return;
@@ -1538,7 +1546,9 @@ BASE_TEMPLATE = """
                     const active = items.find(i => i.dataset.toc === visible.target.id);
                     if (active) {
                         active.classList.add('active');
-                        if (tocList) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        // Keep the active item visible inside the TOC list only —
+                        // block:'nearest' guarantees no ancestor (the page) scrolls.
+                        if (tocList) active.scrollIntoView({ block: 'nearest' });
                     }
                 }, { rootMargin: '0px 0px -70% 0px', threshold: [0.1, 0.25, 0.5] });
                 items.forEach(item => {
@@ -1550,41 +1560,26 @@ BASE_TEMPLATE = """
             // After "Load more" appends a page, the new anchors must be observed.
             window.addEventListener('lore:messages-appended', observeAnchors);
 
-            // Click handling: a native #msg-N jump (and even scrollIntoView)
-            // is unreliable here — the conversation lives in a specific inner
-            // overflow-y-auto container, not the page body. Find that
-            // container explicitly and set its scrollTop deterministically.
-            function scrollableAncestor(el) {
-                let node = el.parentElement;
-                while (node && node !== document.body) {
-                    const oy = getComputedStyle(node).overflowY;
-                    if ((oy === 'auto' || oy === 'scroll') &&
-                        node.scrollHeight > node.clientHeight + 4) {
-                        return node;
-                    }
-                    node = node.parentElement;
-                }
-                return document.scrollingElement || document.documentElement;
-            }
+            // Scroll the conversation so the target message is at the top.
+            // scrollIntoView resolves the correct scroll container itself and
+            // scroll-padding-top (set in CSS) keeps the message clear of the
+            // sticky header. We run it once instantly, then re-correct once
+            // after layout settles (lazy images / code highlighting shift
+            // heights). The observer is locked for the duration so it can't
+            // hijack the scroll.
             function scrollToMessage(id) {
                 const el = document.getElementById(id);
                 if (!el) return false;
-                const container = scrollableAncestor(el);
-                // Set scrollTop directly (instant). A smooth scroll over a long
-                // distance gets disrupted by layout shifts (lazy images, code
-                // highlighting) and frequently stalls partway. After the jump,
-                // re-measure twice on later frames and correct any drift so we
-                // reliably land on the message.
-                function go() {
-                    const offset = el.getBoundingClientRect().top
-                                   - container.getBoundingClientRect().top
-                                   + container.scrollTop - 16;
-                    container.scrollTop = offset;
-                }
-                go();
-                requestAnimationFrame(go);
-                setTimeout(go, 120);
-                setTimeout(go, 350);
+                jumpLockUntil = Date.now() + 700;
+                items.forEach(i => i.classList.remove('active'));
+                const tocItem = items.find(i => i.dataset.toc === id);
+                if (tocItem) tocItem.classList.add('active');
+                el.scrollIntoView({ block: 'start' });
+                requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }));
+                setTimeout(() => {
+                    el.scrollIntoView({ block: 'start' });
+                    jumpLockUntil = Date.now() + 100;
+                }, 320);
                 el.classList.add('toc-flash');
                 setTimeout(() => el.classList.remove('toc-flash'), 1700);
                 return true;
