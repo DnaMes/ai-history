@@ -17,16 +17,36 @@ Public surface:
 
 from __future__ import annotations
 
+from .memory import (
+    MEMORY_KINDS,
+    MemoryEntry,
+    add_memory,
+    delete_memory,
+    get_memory,
+    link_memory_to_session,
+    list_memory,
+    recall_memory,
+    supersede_memory,
+)
 from .reader import load_index_v2, v2_is_available
 from .schema import apply_migrations, current_version, initialise, open_connection
 from .writer import v2_db_path, write_sessions, write_sessions_safe
 
 __all__ = [
+    "MEMORY_KINDS",
+    "MemoryEntry",
+    "add_memory",
     "apply_migrations",
     "current_version",
+    "delete_memory",
+    "get_memory",
     "initialise",
+    "link_memory_to_session",
+    "list_memory",
     "load_index_v2",
     "open_connection",
+    "recall_memory",
+    "supersede_memory",
     "v2_db_path",
     "v2_is_available",
     "write_sessions",

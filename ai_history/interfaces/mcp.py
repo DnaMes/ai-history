@@ -632,4 +632,123 @@ def create_server() -> MCPServer:
         switch_to_tool,
     )
 
+    # --- Shared agent memory (issue #44 / #33) -----------------------------
+    # memory_write / memory_recall turn ai-history into a cross-tool memory:
+    # an agent in one tool records a fact, an agent in any other tool recalls
+    # it later. Backed by the v2 SQLite store's memory tables.
+
+    async def memory_write(args: dict) -> str:
+        from ..storage import MEMORY_KINDS, add_memory
+
+        kind = str(args.get("kind") or "note").strip().lower()
+        if kind not in MEMORY_KINDS:
+            return f"Invalid kind. Expected one of: {', '.join(MEMORY_KINDS)}."
+        title = str(args.get("title") or "").strip()
+        body = str(args.get("body") or "").strip()
+        if not title or not body:
+            return "Both 'title' and 'body' are required and must be non-empty."
+
+        scope_project = args.get("project") or None
+        if scope_project and not validate_search_param(str(scope_project)):
+            return "Invalid project parameter."
+        scope_tool = normalize_tool_name(args.get("tool") or "") or None
+        if scope_tool and not validate_tool_name(scope_tool):
+            return "Invalid tool parameter."
+
+        tags = args.get("tags")
+        if tags is not None and not isinstance(tags, list):
+            return "'tags' must be a list of strings."
+
+        try:
+            memory_id = add_memory(
+                server.output_dir,
+                kind=kind,
+                title=title,
+                body=body,
+                author=str(args.get("author") or "agent"),
+                scope_project=scope_project,
+                scope_tool=scope_tool,
+                tags=[str(t) for t in tags] if tags else None,
+            )
+        except ValueError as exc:
+            return f"Could not write memory: {exc}"
+        return _json_text({"status": "stored", "memory_id": memory_id, "kind": kind})
+
+    server.register_tool(
+        "memory_write",
+        "Record a durable memory (fact, decision, lesson, snippet, …) into the "
+        "shared cross-tool knowledge store. Any AI tool can recall it later.",
+        {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "description": "fact|decision|todo|snippet|link|lesson|note",
+                },
+                "title": {"type": "string"},
+                "body": {"type": "string"},
+                "project": {"type": "string", "description": "optional project scope"},
+                "tool": {"type": "string", "description": "optional tool scope"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "author": {"type": "string"},
+            },
+            "required": ["title", "body"],
+        },
+        memory_write,
+    )
+
+    async def memory_recall(args: dict) -> str:
+        from ..storage import MEMORY_KINDS, recall_memory
+
+        query = str(args.get("query") or "").strip()
+        if query and not validate_search_param(query):
+            return "Invalid search query."
+
+        kind = args.get("kind")
+        if kind is not None:
+            kind = str(kind).strip().lower()
+            if kind not in MEMORY_KINDS:
+                return f"Invalid kind. Expected one of: {', '.join(MEMORY_KINDS)}."
+
+        scope_project = args.get("project") or None
+        if scope_project and not validate_search_param(str(scope_project)):
+            return "Invalid project parameter."
+
+        try:
+            limit = _normalize_limit(args.get("limit"), default=10)
+        except ValueError as exc:
+            return str(exc)
+
+        entries = recall_memory(
+            server.output_dir,
+            query,
+            kind=kind,
+            scope_project=scope_project,
+            include_superseded=bool(args.get("include_superseded")),
+            limit=limit,
+        )
+        return _json_text(
+            {
+                "count": len(entries),
+                "memories": [e.to_dict() for e in entries],
+            }
+        )
+
+    server.register_tool(
+        "memory_recall",
+        "Search the shared cross-tool memory store for facts/decisions/lessons "
+        "recorded earlier — by you or by an agent in another tool.",
+        {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "full-text query"},
+                "kind": {"type": "string"},
+                "project": {"type": "string"},
+                "include_superseded": {"type": "boolean"},
+                "limit": {"type": "integer"},
+            },
+        },
+        memory_recall,
+    )
+
     return server

@@ -108,6 +108,9 @@ def test_expected_tables_exist(tmp_path):
         "messages",
         "search_index",
         "deleted_sessions",
+        "memory",
+        "memory_tags",
+        "memory_sources",
     }
 
 

@@ -19,6 +19,7 @@ Usage:
     ai-history search QUERY [--tool TOOL] [--context N]
     ai-history stats
     ai-history digest [--since 7d] [--format text|markdown]
+    ai-history memory add|list|search ...
     ai-history watch [--interval SECS] [--git]
     ai-history check
     ai-history sync TOOL [--session-id ID] [--project PATH]
@@ -864,6 +865,66 @@ def cmd_digest(args):
     print(format_digest(digest, fmt=fmt))
 
 
+def cmd_memory(args):
+    """Manage the shared cross-tool memory store (issue #44 / #33)."""
+    from ai_history.storage import MEMORY_KINDS, add_memory, list_memory, recall_memory
+
+    output_dir = Path(args.output_dir).expanduser()
+    action = args.memory_action
+
+    if action == "add":
+        if args.kind not in MEMORY_KINDS:
+            print(f"Invalid kind. Expected one of: {', '.join(MEMORY_KINDS)}", file=sys.stderr)
+            sys.exit(1)
+        try:
+            memory_id = add_memory(
+                output_dir,
+                kind=args.kind,
+                title=args.title,
+                body=args.body,
+                author=args.author or "human",
+                scope_project=args.project,
+                tags=args.tag or None,
+            )
+        except ValueError as exc:
+            print(f"Could not add memory: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Stored memory #{memory_id} ({args.kind}).")
+        return
+
+    if action == "list":
+        entries = list_memory(
+            output_dir,
+            kind=args.kind,
+            scope_project=args.project,
+            include_superseded=args.all,
+            limit=args.limit,
+        )
+    elif action == "search":
+        entries = recall_memory(
+            output_dir,
+            args.query,
+            kind=args.kind,
+            scope_project=args.project,
+            limit=args.limit,
+        )
+    else:  # pragma: no cover - argparse guards this
+        print("Unknown memory action.", file=sys.stderr)
+        sys.exit(1)
+
+    if not entries:
+        print("No memories found.")
+        return
+
+    for entry in entries:
+        tag_str = f"  [{', '.join(entry.tags)}]" if entry.tags else ""
+        scope = f" · {entry.scope_project}" if entry.scope_project else ""
+        print(f"#{entry.id} ({entry.kind}) {entry.title}{tag_str}")
+        print(f"   {entry.body}")
+        print(f"   — {entry.author or 'unknown'} · {entry.created[:10]}{scope}")
+        print()
+
+
 def cmd_threads(args):
     """List threads across sessions."""
     output_dir = Path(args.output_dir).expanduser()
@@ -1178,6 +1239,36 @@ Examples:
         help="Output format (default: text)",
     )
 
+    # memory command — shared cross-tool knowledge store (#44 / #33)
+    memory_parser = subparsers.add_parser(
+        "memory", help="Manage the shared cross-tool memory store"
+    )
+    memory_sub = memory_parser.add_subparsers(dest="memory_action", required=True)
+
+    mem_add = memory_sub.add_parser("add", help="Record a new memory")
+    mem_add.add_argument(
+        "--kind",
+        default="note",
+        help="fact|decision|todo|snippet|link|lesson|note (default: note)",
+    )
+    mem_add.add_argument("--title", required=True, help="short memory title")
+    mem_add.add_argument("--body", required=True, help="the memory content")
+    mem_add.add_argument("--project", help="optional project scope")
+    mem_add.add_argument("--author", help="who recorded it (default: human)")
+    mem_add.add_argument("--tag", action="append", help="tag (repeatable: --tag db --tag infra)")
+
+    mem_list = memory_sub.add_parser("list", help="List recorded memories")
+    mem_list.add_argument("--kind", help="filter by kind")
+    mem_list.add_argument("--project", help="filter by project scope")
+    mem_list.add_argument("--all", action="store_true", help="include superseded memories")
+    mem_list.add_argument("--limit", type=int, default=50, help="max results")
+
+    mem_search = memory_sub.add_parser("search", help="Full-text search memories")
+    mem_search.add_argument("query", help="search query")
+    mem_search.add_argument("--kind", help="filter by kind")
+    mem_search.add_argument("--project", help="filter by project scope")
+    mem_search.add_argument("--limit", type=int, default=10, help="max results")
+
     # watch command
     watch_parser = subparsers.add_parser("watch", help="Watch for new sessions")
     watch_parser.add_argument(
@@ -1319,6 +1410,8 @@ Examples:
         cmd_stats(args)
     elif args.command == "digest":
         cmd_digest(args)
+    elif args.command == "memory":
+        cmd_memory(args)
     elif args.command == "watch":
         cmd_watch(args)
     elif args.command == "check":

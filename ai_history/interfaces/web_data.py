@@ -311,15 +311,20 @@ def _load_index_from_v2():
     Returns the same dict shape as the JSON path (deleted-filtered, display
     titles annotated) or ``None`` when v2 is unavailable/unreadable so the
     caller can fall back to index.json.
+
+    The v2 DB is located relative to ``INDEX_PATH`` (not OUTPUT_DIR) so it
+    follows the same directory the JSON reader uses — keeping the two paths
+    consistent and letting tests that patch INDEX_PATH stay isolated.
     """
     if not _v2_enabled():
         return None
     try:
         from ai_history.storage import v2_is_available
 
-        if not v2_is_available(OUTPUT_DIR):
+        index_dir = INDEX_PATH.parent
+        if not v2_is_available(index_dir):
             return None
-        v2_db = OUTPUT_DIR / "index_v2.sqlite"
+        v2_db = index_dir / "index_v2.sqlite"
         stat = v2_db.stat()
         payload = _load_index_v2_cached(str(v2_db), stat.st_mtime_ns, stat.st_size)
     except Exception as exc:
@@ -379,7 +384,7 @@ def load_index_summary() -> dict:
     if v2_payload is not None:
         sessions = v2_payload.get("sessions", [])
         stats = v2_payload.get("stats", {})
-        v2_db = OUTPUT_DIR / "index_v2.sqlite"
+        v2_db = INDEX_PATH.parent / "index_v2.sqlite"
         return {
             "total_sessions": int(stats.get("total_sessions") or len(sessions)),
             "by_tool": dict(stats.get("by_tool") or {}),

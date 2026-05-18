@@ -116,6 +116,47 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         ALTER TABLE sessions ADD COLUMN export_path    TEXT;
         """,
     ),
+    (
+        7,
+        "tier 2/3: agent memory — facts/decisions written by humans or agents",
+        """
+        CREATE TABLE IF NOT EXISTS memory (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind          TEXT    NOT NULL,   -- fact|decision|todo|snippet|link|lesson
+            title         TEXT    NOT NULL,
+            body          TEXT    NOT NULL,
+            scope_project TEXT,               -- NULL = global
+            scope_tool    TEXT,               -- NULL = any tool
+            author        TEXT,               -- 'human' | tool name
+            created       TEXT    NOT NULL,
+            updated       TEXT    NOT NULL,
+            superseded_by INTEGER REFERENCES memory(id) ON DELETE SET NULL,
+            metadata_json TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_kind    ON memory(kind);
+        CREATE INDEX IF NOT EXISTS idx_memory_project ON memory(scope_project);
+        CREATE INDEX IF NOT EXISTS idx_memory_active  ON memory(superseded_by);
+
+        CREATE TABLE IF NOT EXISTS memory_tags (
+            memory_id INTEGER NOT NULL REFERENCES memory(id) ON DELETE CASCADE,
+            tag       TEXT    NOT NULL,
+            PRIMARY KEY (memory_id, tag)
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_tags_tag ON memory_tags(tag);
+
+        -- session_id / message_id are loose references, NOT foreign keys:
+        -- a memory may be linked to a session before that session is synced
+        -- into the v2 store (or to one extracted on a different machine).
+        -- Enforcing an FK at insert time would reject those valid links.
+        CREATE TABLE IF NOT EXISTS memory_sources (
+            memory_id  INTEGER NOT NULL REFERENCES memory(id) ON DELETE CASCADE,
+            session_id TEXT,
+            message_id INTEGER,
+            note       TEXT,
+            PRIMARY KEY (memory_id, session_id, message_id)
+        );
+        """,
+    ),
 ]
 
 

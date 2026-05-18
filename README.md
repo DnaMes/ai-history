@@ -104,6 +104,12 @@ ai-history list --since 7d
 ai-history digest --since 7d
 ai-history digest --since 2w --format markdown
 
+# Shared cross-tool memory — record a fact/decision any AI tool can recall
+ai-history memory add --kind decision --title "Use Postgres 16" \
+    --body "Standardise the stack on PG16" --tag db --tag infra
+ai-history memory search postgres
+ai-history memory list
+
 # Search across all sessions
 ai-history search "database migration"
 
