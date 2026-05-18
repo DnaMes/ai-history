@@ -118,6 +118,12 @@ BASE_TEMPLATE = """
         .toc-badge { width: 22px; height: 22px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; border: 1px solid #e2e8f0; color: #64748b; background: #ffffff; font-weight: 600; }
         html.dark .toc-badge { background: #0f172a; border-color: #334155; color: #cbd5e1; }
         .toc-item.active .toc-badge { background: #3b82f6; color: #ffffff; border-color: #3b82f6; }
+        /* Brief highlight on the message a TOC click jumped to. */
+        .toc-flash { animation: tocFlash 1.6s ease-out; }
+        @keyframes tocFlash {
+            0%, 30% { box-shadow: 0 0 0 2px var(--primary, #3b82f6); border-radius: 12px; }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }
         .toc-stepper { position: relative; }
         .toc-stepper::before { content: ""; position: absolute; left: 21px; top: 12px; bottom: 12px; width: 1px; background: #e2e8f0; }
         html.dark .toc-stepper::before { background: #334155; }
@@ -1518,19 +1524,64 @@ BASE_TEMPLATE = """
             const items = Array.from(document.querySelectorAll('[data-toc]'));
             if (!items.length) return;
             const tocList = document.querySelector('.toc-list');
-            const observer = new IntersectionObserver((entries) => {
-                const visible = entries.filter(e => e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
-                if (!visible) return;
-                items.forEach(i => i.classList.remove('active'));
-                const target = items.find(i => i.dataset.toc === visible.target.id);
-                if (target) {
-                    target.classList.add('active');
-                    if (tocList) target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            // Re-bind the IntersectionObserver — called again after lazy-loaded
+            // message pages add new #msg-N anchors to the DOM.
+            let observer = null;
+            function observeAnchors() {
+                if (observer) observer.disconnect();
+                observer = new IntersectionObserver((entries) => {
+                    const visible = entries.filter(e => e.isIntersecting)
+                        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+                    if (!visible) return;
+                    items.forEach(i => i.classList.remove('active'));
+                    const active = items.find(i => i.dataset.toc === visible.target.id);
+                    if (active) {
+                        active.classList.add('active');
+                        if (tocList) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                }, { rootMargin: '0px 0px -70% 0px', threshold: [0.1, 0.25, 0.5] });
+                items.forEach(item => {
+                    const target = document.getElementById(item.dataset.toc);
+                    if (target) observer.observe(target);
+                });
+            }
+            observeAnchors();
+            // After "Load more" appends a page, the new anchors must be observed.
+            window.addEventListener('lore:messages-appended', observeAnchors);
+
+            // Click handling: a native #msg-N jump scrolls the page body, not
+            // the inner conversation scroll container — so it never lands on
+            // the message. Handle it explicitly, and load more pages first if
+            // the target message has not been rendered yet (pagination).
+            function scrollToMessage(id) {
+                const el = document.getElementById(id);
+                if (!el) return false;
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('toc-flash');
+                setTimeout(() => el.classList.remove('toc-flash'), 1600);
+                return true;
+            }
+            async function jumpTo(id) {
+                if (scrollToMessage(id)) return;
+                // Not loaded yet — click "Load more" until the anchor appears.
+                const more = document.getElementById('loadMoreMessages');
+                if (!more) return;
+                for (let guard = 0; guard < 200; guard++) {
+                    const current = document.getElementById('loadMoreMessages');
+                    if (!current) break;            // all pages loaded
+                    current.click();
+                    // Wait for the fetch+append to settle.
+                    await new Promise(r => setTimeout(r, 250));
+                    if (scrollToMessage(id)) return;
                 }
-            }, { rootMargin: '0px 0px -70% 0px', threshold: [0.1, 0.25, 0.5] });
+                scrollToMessage(id);
+            }
             items.forEach(item => {
-                const target = document.getElementById(item.dataset.toc);
-                if (target) observer.observe(target);
+                item.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    jumpTo(item.dataset.toc);
+                });
             });
         }
         document.addEventListener('DOMContentLoaded', initTocSpy);
@@ -1690,6 +1741,8 @@ SESSION_TEMPLATE = """
                     hljs.highlightElement(el);
                 });
             }
+            // Tell the TOC spy to observe the freshly added #msg-N anchors.
+            window.dispatchEvent(new CustomEvent('lore:messages-appended'));
             if (page + 1 > totalPages) {
                 btn.remove();
             } else {
