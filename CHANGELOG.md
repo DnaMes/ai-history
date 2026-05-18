@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 The version is the single source of truth in `ai_history/__init__.py`.
 
 ## [Unreleased]
+
+## [2.3.0] - 2026-05-18
 ### Changed
 - **Renamed the product from `ai-history` to `Lore`.** Lore is positioned as
   both a local-first archive of AI coding sessions and a shared cross-tool
@@ -11,9 +13,15 @@ The version is the single source of truth in `ai_history/__init__.py`.
 - CLI binaries renamed: `ai-history` → `lore`, `ai-session` → `lore-session`,
   `ai-history-web` → `lore-web`, `ai-history-mcp` → `lore-mcp`.
 - Repository moved to `github.com/DnaMes/lore`.
-- Default data directory is now `~/.lore` (was `~/.ai-history`).
+- Default data directory is now `~/.lore` (was `~/.ai-history`) — an existing
+  `~/.ai-history` is auto-migrated in place on first run.
 - The Python import package remains `ai_history` — the import name was
   deliberately not renamed.
+
+### Added
+- `memory_sources` provenance linking: a memory can be tied to the session
+  it was derived from (`memory add --from-session`, MCP `source_session`,
+  shown on the `/memory` page).
 
 ## [2.2.0] - 2026-05-18
 ### Added
