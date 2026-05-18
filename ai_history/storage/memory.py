@@ -18,6 +18,7 @@ Design notes:
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +27,8 @@ from typing import Any, Dict, List, Optional
 
 from .schema import initialise
 from .writer import v2_db_path
+
+logger = logging.getLogger(__name__)
 
 # Recognised memory kinds. Not enforced as a CHECK constraint (forward-compat)
 # but the API validates against this set.
@@ -162,13 +165,44 @@ def add_memory(
             (str(memory_id), scope_tool or "", scope_project or "", title, body),
         )
         conn.execute("COMMIT")
-        return memory_id
     except sqlite3.Error:
         try:
             conn.execute("ROLLBACK")
         except sqlite3.OperationalError:
             pass
         raise
+    finally:
+        conn.close()
+
+    # Embed the memory for semantic recall — best-effort, in its own
+    # connection. A missing embedding backend or an embedding failure must
+    # never lose the memory, which is already committed above.
+    _store_embedding(output_dir, memory_id, f"{title}\n{body}")
+    return memory_id
+
+
+def _store_embedding(output_dir: Path, memory_id: int, text: str) -> None:
+    """Compute and store an embedding for a memory. Silent no-op if the
+    optional embedding backend is unavailable (#33)."""
+    from .embeddings import DEFAULT_MODEL, embed_text, pack_vector
+
+    vector = embed_text(text)
+    if vector is None:
+        return
+    conn = _connect(output_dir)
+    try:
+        conn.execute(
+            """
+            INSERT INTO memory_embeddings (memory_id, model, dim, vector, created)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(memory_id) DO UPDATE SET
+                model = excluded.model, dim = excluded.dim,
+                vector = excluded.vector, created = excluded.created
+            """,
+            (memory_id, DEFAULT_MODEL, len(vector), pack_vector(vector), _now()),
+        )
+    except sqlite3.Error as exc:
+        logger.warning("Could not store embedding for memory %s: %s", memory_id, exc)
     finally:
         conn.close()
 
@@ -240,6 +274,57 @@ def list_memory(
         conn.close()
 
 
+def _semantic_recall(
+    output_dir: Path,
+    query: str,
+    *,
+    kind: Optional[str],
+    scope_project: Optional[str],
+    include_superseded: bool,
+    limit: int,
+) -> Optional[List[MemoryEntry]]:
+    """Rank memories by embedding cosine similarity to the query.
+
+    Returns None when semantic search is unavailable (no embedding backend,
+    or no embeddings stored yet) so the caller falls back to FTS.
+    """
+    from .embeddings import cosine_similarity, embed_text, unpack_vector
+
+    query_vec = embed_text(query)
+    if query_vec is None:
+        return None
+
+    conn = _connect(output_dir)
+    try:
+        rows = conn.execute(
+            """
+            SELECT m.*, e.vector AS _vec
+            FROM memory m
+            JOIN memory_embeddings e ON e.memory_id = m.id
+            """
+        ).fetchall()
+        if not rows:
+            return None  # nothing embedded yet — fall back to FTS
+
+        scored = []
+        for row in rows:
+            if kind and row["kind"] != kind:
+                continue
+            if scope_project and row["scope_project"] != scope_project:
+                continue
+            if not include_superseded and row["superseded_by"] is not None:
+                continue
+            score = cosine_similarity(query_vec, unpack_vector(row["_vec"]))
+            scored.append((score, row))
+
+        scored.sort(key=lambda pair: pair[0], reverse=True)
+        return [_row_to_entry(conn, row) for _score, row in scored[:limit]]
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+
+
 def recall_memory(
     output_dir: Path,
     query: str,
@@ -248,12 +333,15 @@ def recall_memory(
     scope_project: Optional[str] = None,
     include_superseded: bool = False,
     limit: int = 10,
+    semantic: bool = False,
 ) -> List[MemoryEntry]:
-    """Full-text search over recorded memory.
+    """Search recorded memory.
 
-    Uses the shared ``search_index`` FTS table (entity_type='memory'). An
-    empty/short query falls back to :func:`list_memory` so callers always
-    get the most relevant entries.
+    With ``semantic=True`` and the optional embedding backend installed,
+    memories are ranked by embedding similarity to the query — finding
+    thematically related entries, not just keyword matches. Otherwise (or
+    when no embeddings exist) this falls back to the shared ``search_index``
+    FTS table. An empty query always falls back to :func:`list_memory`.
     """
     terms = [t for t in (query or "").split() if t]
     if not terms:
@@ -264,6 +352,19 @@ def recall_memory(
             include_superseded=include_superseded,
             limit=limit,
         )
+
+    if semantic:
+        result = _semantic_recall(
+            output_dir,
+            query,
+            kind=kind,
+            scope_project=scope_project,
+            include_superseded=include_superseded,
+            limit=limit,
+        )
+        if result is not None:
+            return result
+        # else: fall through to FTS
     # Prefix-match each term ("oauth" should also find "OAuth2"): FTS5's
     # unicode61 tokenizer keeps digits in a token, so an exact match would
     # miss them. Double-quote to neutralise FTS operator characters.

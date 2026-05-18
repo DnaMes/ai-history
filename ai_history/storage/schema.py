@@ -181,6 +181,24 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         );
         """,
     ),
+    (
+        10,
+        "memory embeddings for semantic recall (optional 'semantic' extra)",
+        # One embedding vector per memory. Stored as a raw float32 BLOB —
+        # cosine similarity over a few hundred rows in Python is fast enough,
+        # so no native vector-search extension is required. `model` records
+        # which embedding model produced the vector so a model change can be
+        # detected and the vectors re-computed.
+        """
+        CREATE TABLE IF NOT EXISTS memory_embeddings (
+            memory_id INTEGER PRIMARY KEY REFERENCES memory(id) ON DELETE CASCADE,
+            model     TEXT    NOT NULL,
+            dim       INTEGER NOT NULL,
+            vector    BLOB    NOT NULL,
+            created   TEXT    NOT NULL
+        );
+        """,
+    ),
 ]
 
 

@@ -108,7 +108,12 @@ ai-history digest --since 2w --format markdown
 ai-history memory add --kind decision --title "Use Postgres 16" \
     --body "Standardise the stack on PG16" --tag db --tag infra
 ai-history memory search postgres
+ai-history memory search "database performance" --semantic   # ranks by meaning
 ai-history memory list
+
+# Semantic memory search needs the optional embedding model:
+#   pip install -e ".[semantic]"
+# Without it, --semantic transparently falls back to keyword search.
 
 # Search across all sessions
 ai-history search "database migration"

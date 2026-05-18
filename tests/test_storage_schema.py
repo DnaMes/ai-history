@@ -112,6 +112,7 @@ def test_expected_tables_exist(tmp_path):
         "memory_tags",
         "memory_sources",
         "store_meta",
+        "memory_embeddings",
     }
 
 

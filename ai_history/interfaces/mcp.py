@@ -726,6 +726,7 @@ def create_server() -> MCPServer:
             scope_project=scope_project,
             include_superseded=bool(args.get("include_superseded")),
             limit=limit,
+            semantic=bool(args.get("semantic")),
         )
         return _json_text(
             {
@@ -737,14 +738,20 @@ def create_server() -> MCPServer:
     server.register_tool(
         "memory_recall",
         "Search the shared cross-tool memory store for facts/decisions/lessons "
-        "recorded earlier — by you or by an agent in another tool.",
+        "recorded earlier — by you or by an agent in another tool. Set "
+        "semantic=true to rank by meaning rather than keywords.",
         {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "full-text query"},
+                "query": {"type": "string", "description": "search query"},
                 "kind": {"type": "string"},
                 "project": {"type": "string"},
                 "include_superseded": {"type": "boolean"},
+                "semantic": {
+                    "type": "boolean",
+                    "description": "rank by embedding similarity (needs the "
+                    "'semantic' extra installed); falls back to keyword search",
+                },
                 "limit": {"type": "integer"},
             },
         },

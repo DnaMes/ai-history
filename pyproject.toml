@@ -35,6 +35,8 @@ dependencies = [
 
 [project.optional-dependencies]
 watch = ["watchdog>=3.0"]
+# Local semantic memory search — a small CPU-only ONNX model, no torch.
+semantic = ["fastembed>=0.3"]
 
 [project.urls]
 Homepage = "https://github.com/DnaMes/ai-history"

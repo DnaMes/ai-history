@@ -907,6 +907,7 @@ def cmd_memory(args):
             kind=args.kind,
             scope_project=args.project,
             limit=args.limit,
+            semantic=getattr(args, "semantic", False),
         )
     else:  # pragma: no cover - argparse guards this
         print("Unknown memory action.", file=sys.stderr)
@@ -1263,11 +1264,16 @@ Examples:
     mem_list.add_argument("--all", action="store_true", help="include superseded memories")
     mem_list.add_argument("--limit", type=int, default=50, help="max results")
 
-    mem_search = memory_sub.add_parser("search", help="Full-text search memories")
+    mem_search = memory_sub.add_parser("search", help="Search memories")
     mem_search.add_argument("query", help="search query")
     mem_search.add_argument("--kind", help="filter by kind")
     mem_search.add_argument("--project", help="filter by project scope")
     mem_search.add_argument("--limit", type=int, default=10, help="max results")
+    mem_search.add_argument(
+        "--semantic",
+        action="store_true",
+        help="rank by meaning (needs the 'semantic' extra; falls back to keywords)",
+    )
 
     # watch command
     watch_parser = subparsers.add_parser("watch", help="Watch for new sessions")

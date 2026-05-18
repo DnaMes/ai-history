@@ -17,6 +17,7 @@ Public surface:
 
 from __future__ import annotations
 
+from .embeddings import embed_text, embeddings_available
 from .memory import (
     MEMORY_KINDS,
     MemoryEntry,
@@ -40,6 +41,8 @@ __all__ = [
     "apply_migrations",
     "current_version",
     "delete_memory",
+    "embed_text",
+    "embeddings_available",
     "get_memory",
     "initialise",
     "link_memory_to_session",
