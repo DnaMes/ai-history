@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .schema import current_version
+from .schema import current_version, open_connection
 from .writer import v2_db_path
 
 # A v2 DB is only usable once the denormalised display columns exist (v6).
@@ -51,7 +51,7 @@ def v2_is_available(output_dir: Path, compare_to: Optional[Path] = None) -> bool
     if not db.exists():
         return False
     try:
-        conn = sqlite3.connect(str(db))
+        conn = open_connection(db)
         try:
             version = current_version(conn)
             if version < _MIN_USABLE_VERSION:
@@ -146,8 +146,11 @@ def load_index_v2(output_dir: Path) -> Dict[str, Any]:
     if not db.exists():
         raise FileNotFoundError(f"no v2 store at {db}")
 
-    conn = sqlite3.connect(str(db))
-    conn.row_factory = sqlite3.Row
+    # A single SELECT is one consistent snapshot under WAL. A future reader
+    # that needs sessions AND messages in two queries must wrap them in one
+    # BEGIN — otherwise a concurrent full-replace write between the queries
+    # could show a session row whose messages were just deleted (#40).
+    conn = open_connection(db)
     try:
         rows = conn.execute(
             """

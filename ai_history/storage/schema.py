@@ -16,6 +16,7 @@ Tier 2/3 rows later without a schema change.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -199,6 +200,10 @@ def open_connection(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA foreign_keys = ON")
+    # busy_timeout makes a concurrent writer wait instead of failing
+    # immediately with SQLITE_BUSY — the web UI reads while a sync writes,
+    # and a memory write can overlap a sync (#40).
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
@@ -213,22 +218,59 @@ def current_version(conn: sqlite3.Connection) -> int:
     return int(result[0])
 
 
+# Matches "ALTER TABLE <tbl> ADD COLUMN <col> ..." (case-insensitive),
+# capturing the table and column names.
+_ALTER_ADD_COLUMN = re.compile(
+    r"\bALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)\b",
+    re.IGNORECASE,
+)
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> set:
+    """Return the set of column names on ``table`` (empty if it doesn't exist)."""
+    try:
+        return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    except sqlite3.Error:
+        return set()
+
+
+def _run_migration_sql(conn: sqlite3.Connection, sql: str) -> None:
+    """Execute migration DDL, skipping ALTER ADD COLUMN for existing columns.
+
+    ``CREATE TABLE IF NOT EXISTS`` is naturally idempotent, but
+    ``ALTER TABLE ADD COLUMN`` is not — re-running it raises 'duplicate
+    column name'. If a prior migration attempt half-applied (added the
+    column but never recorded the version), re-running would wedge the
+    runner. So each ADD COLUMN is checked against the live schema first.
+    """
+    # Split on ';' — migration SQL only ever contains simple statements.
+    statements = [s.strip() for s in sql.split(";") if s.strip()]
+    for statement in statements:
+        match = _ALTER_ADD_COLUMN.search(statement)
+        if match:
+            table, column = match.group(1), match.group(2)
+            if column in _table_columns(conn, table):
+                continue  # column already present — skip, idempotent
+        conn.execute(statement)
+
+
 def apply_migrations(conn: sqlite3.Connection) -> int:
     """Apply every pending migration in order. Returns the new current version.
 
     Each migration runs inside its own transaction; a failing migration rolls
     back and re-raises, leaving the DB at the last successfully applied
-    version. Idempotent — running it twice is a no-op.
+    version. Idempotent — running it twice is a no-op, and a half-applied
+    ALTER TABLE migration can be safely re-run.
     """
     applied = current_version(conn)
     for version, description, sql in MIGRATIONS:
         if version <= applied:
             continue
-        # executescript() implicitly issues COMMIT before running, which would
-        # close any BEGIN we started here. So: run the DDL first (autocommit),
-        # then record the bookkeeping insert in its own short transaction.
+        # Run the DDL first (autocommit, ALTER-idempotent), then record the
+        # bookkeeping insert in its own short transaction. executescript's
+        # implicit COMMIT would otherwise close a BEGIN started here.
         try:
-            conn.executescript(sql)
+            _run_migration_sql(conn, sql)
             conn.execute("BEGIN")
             conn.execute(
                 "INSERT INTO schema_version(version, description, applied_at) " "VALUES (?, ?, ?)",
