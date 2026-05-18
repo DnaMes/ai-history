@@ -95,3 +95,30 @@ def test_memory_delete_rejects_cross_origin(client):
     assert resp.status_code == 403
     # The entry survives the rejected cross-origin delete.
     assert "Protected memory" in c.get("/memory").get_data(as_text=True)
+
+
+# ---------------------------------------------------------------------------
+# #43 — render safety: memory is agent-writable, must be HTML-escaped
+# ---------------------------------------------------------------------------
+
+
+def test_memory_html_in_body_is_escaped(client):
+    c, tmp_path = client
+    add_memory(
+        tmp_path,
+        "note",
+        "XSS attempt title",
+        "<script>alert('xss')</script> and <img src=x onerror=alert(1)>",
+    )
+    body = c.get("/memory").get_data(as_text=True)
+    # The raw script/img tags must NOT appear executable — they're escaped.
+    assert "<script>alert('xss')</script>" not in body
+    assert "&lt;script&gt;" in body
+
+
+def test_memory_html_in_title_is_escaped(client):
+    c, tmp_path = client
+    add_memory(tmp_path, "note", "<b>bold</b> injection title", "body")
+    body = c.get("/memory").get_data(as_text=True)
+    assert "<b>bold</b> injection title" not in body
+    assert "&lt;b&gt;bold&lt;/b&gt;" in body

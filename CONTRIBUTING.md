@@ -64,6 +64,23 @@ See existing extractors (e.g. `claude.py`, `gemini.py`) for patterns. Use `safe_
 - Do not add cloud dependencies — this project is local-first by design
 - Do not hardcode absolute paths; use `Path.home()` / `Path.expanduser()`
 
+## Releasing
+
+The version is defined in exactly one place: `__version__` in
+`ai_history/__init__.py` (`pyproject.toml` reads it dynamically). To cut a
+release:
+
+1. Bump `__version__` in `ai_history/__init__.py` (semantic versioning).
+2. Move the `[Unreleased]` entries in `CHANGELOG.md` into a new dated
+   `[X.Y.Z]` section.
+3. Commit: `docs: changelog for X.Y.Z` together with the version bump.
+4. Tag the commit: `git tag -a vX.Y.Z -m "ai-history X.Y.Z — <summary>"`.
+5. Push the branch and the tag: `git push <remote> master vX.Y.Z`.
+6. Optionally build + publish the wheel: `python -m build`.
+
+The web UI (sidebar footer), `ai-history --version`, and
+`/api/build-info` all surface the version automatically.
+
 ## Architecture
 
 See [CLAUDE.md](CLAUDE.md) for a detailed architecture overview.

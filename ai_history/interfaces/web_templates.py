@@ -1995,6 +1995,9 @@ MEMORY_TEMPLATE = """
                         {% if m.scope_project %}<span class="tag-chip">{{ project_label(m.scope_project) }}</span>{% endif %}
                         {% if m.scope_tool %}<span class="tag-chip">{{ m.scope_tool }}</span>{% endif %}
                     </div>
+                    {# SECURITY (#43): memory is agent-writable — title/body
+                       MUST stay {{ }}-escaped. Never switch these to | safe
+                       without routing through nh3 sanitisation first. #}
                     <h2 class="text-sm font-semibold text-slate-900">{{ m.title }}</h2>
                     <p class="text-sm text-slate-600 mt-1.5 whitespace-pre-wrap">{{ m.body }}</p>
                     <div class="flex flex-wrap gap-1.5 mt-3">
