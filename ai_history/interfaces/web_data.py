@@ -298,11 +298,12 @@ def load_sessions_for_tool(tool: Optional[str] = None):
 def _v2_enabled() -> bool:
     """Whether to read sessions from the v2 SQLite store (issue #44).
 
-    Default is on. Set ``AI_HISTORY_USE_V2=0`` (or false/no) to force the
-    legacy index.json reader — kept as an escape hatch during the migration.
+    Default is **off** while the v2 migration is hardened (issues #34/#35/#36).
+    Set ``AI_HISTORY_USE_V2=1`` (or true/yes/on) to opt in. The default flips
+    back to on once the v2 store is proven consistent and crash-safe.
     """
-    raw = os.environ.get("AI_HISTORY_USE_V2", "1").strip().lower()
-    return raw not in ("0", "false", "no", "off")
+    raw = os.environ.get("AI_HISTORY_USE_V2", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
 
 
 def _load_index_from_v2():
@@ -341,6 +342,42 @@ def _load_index_v2_cached(db_path: str, _mtime_ns: int, _size: int):
     from ai_history.storage import load_index_v2
 
     return load_index_v2(Path(db_path).parent)
+
+
+def search_index(query, tool=None, project=None, limit=50):
+    """Search sessions, reading from whichever store load_index() uses (#34).
+
+    When the v2 store is the active source, search v2's FTS5 index so search
+    results and the session list stay consistent. Otherwise fall back to the
+    legacy SearchEngine over index.sqlite.
+
+    Returns ``[{"session": <dict>, "score": <float>}]``.
+    """
+    index_dir = INDEX_PATH.parent
+    if _v2_enabled():
+        try:
+            from ai_history.storage import search_sessions, v2_is_available
+
+            if v2_is_available(index_dir):
+                results = search_sessions(
+                    index_dir, query, tool=tool, project=project, limit=limit
+                )
+                return _apply_deleted_filter_to_results(results)
+        except Exception as exc:
+            logger.warning("v2 search failed, falling back to legacy: %s", exc)
+
+    from ai_history.search.engine import SearchEngine
+
+    results = SearchEngine(INDEX_PATH).search(query, tool=tool, project=project)[:limit]
+    return _apply_deleted_filter_to_results(results)
+
+
+def _apply_deleted_filter_to_results(results):
+    """Drop search results whose session id is tombstoned."""
+    deleted = load_deleted_session_ids()
+    if not deleted:
+        return results
+    return [r for r in results if r.get("session", {}).get("id") not in deleted]
 
 
 def load_index():
@@ -625,6 +662,7 @@ __all__ = [
     "load_sessions_for_tool",
     "load_index",
     "load_index_summary",
+    "search_index",
     "_annotate_display_titles",
     "resolve_export_path",
     "load_export_lookup",

@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 from ..exporters.index import IndexBuilder
 from ..extractors.factory import get_all_extractors
-from ..search.engine import SearchEngine
 from ..utils.datetime import make_naive, parse_duration
 from ..utils.security import (
     validate_search_param,
@@ -26,7 +25,7 @@ from .api_payloads import (
     serialize_thread_messages,
     serialize_thread_overview,
 )
-from .web_data import INDEX_PATH, load_index, load_sessions_for_tool
+from .web_data import INDEX_PATH, load_index, load_sessions_for_tool, search_index
 from .web_services import (
     build_projects_payload,
     build_thread_detail_payload,
@@ -295,11 +294,12 @@ def create_server() -> MCPServer:
             return "Invalid project parameter."
 
         _ensure_index()
-        results = SearchEngine(INDEX_PATH).search(
+        results = search_index(
             query,
             tool=tool_filter,
             project=project_filter,
-        )[:limit]
+            limit=limit,
+        )
         payload = {
             "query": query,
             "tool": tool_filter,

@@ -19,7 +19,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from ai_history.extractors.factory import get_all_extractors
 from ai_history.extractors.opencode import OpenCodeExtractor
-from ai_history.search.engine import SearchEngine
 from ai_history.utils.security import (
     validate_search_param,
     validate_session_id,
@@ -49,6 +48,7 @@ from .web_data import (
     load_index_summary,
     load_sessions_for_tool,
     remember_deleted_session_id,
+    search_index,
     resolve_export_path,
 )
 from .web_formatting import (
@@ -1588,7 +1588,7 @@ def api_search():
     if project and not validate_search_param(project):
         return jsonify({"error": "Invalid project parameter"}), 400
 
-    res = SearchEngine(INDEX_PATH).search(q, tool=tool or None, project=project or None)[:10]
+    res = search_index(q, tool=tool or None, project=project or None, limit=10)
     return jsonify(
         [
             {
@@ -1625,11 +1625,7 @@ def api_v1_search():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    results = SearchEngine(INDEX_PATH).search(
-        q,
-        tool=tool or None,
-        project=project or None,
-    )[:limit]
+    results = search_index(q, tool=tool or None, project=project or None, limit=limit)
     return jsonify(
         {
             "query": q,
@@ -1723,11 +1719,9 @@ def api_v1_sessions():
         search_limit = (page * per_page) if use_pagination else (limit or 500)
         all_sessions = [
             result["session"]
-            for result in SearchEngine(INDEX_PATH).search(
-                q,
-                tool=tool or None,
-                project=project or None,
-            )[:search_limit]
+            for result in search_index(
+                q, tool=tool or None, project=project or None, limit=search_limit
+            )
         ]
     else:
         all_sessions = load_index().get("sessions", [])
