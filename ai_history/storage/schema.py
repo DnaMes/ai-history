@@ -157,6 +157,16 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         );
         """,
     ),
+    (
+        8,
+        "track whether a session's message rows are present in v2",
+        # Incremental sync writes metadata-only rows for unchanged sessions
+        # (no message rows). messages_synced = 0 marks such rows so readers
+        # and a future backfill can tell complete sessions from partial ones.
+        """
+        ALTER TABLE sessions ADD COLUMN messages_synced INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 

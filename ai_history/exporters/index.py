@@ -33,12 +33,19 @@ class IndexBuilder:
         sessions: List[UnifiedSession],
         export_paths: Dict[str, Path],
         reused_entries: Optional[List[Dict]] = None,
+        reused_sessions: Optional[List[UnifiedSession]] = None,
     ) -> None:
         """Build and save the search index.
 
         When ``reused_entries`` is provided, those pre-built session dicts are
-        included verbatim (no re-extraction of keywords/search_text). They must
-        be disjoint from ``sessions`` by ``session_id``.
+        included verbatim in the JSON index (no re-extraction of
+        keywords/search_text). They must be disjoint from ``sessions`` by id.
+
+        ``reused_sessions`` are the *full* UnifiedSession objects behind those
+        same reused entries. Incremental sync has already extracted them, so
+        the v2 store receives them as complete sessions (with message rows)
+        rather than metadata-only — this keeps the v2 ``messages`` table
+        complete after an incremental sync (#35).
         """
         ignored_ids = self._load_ignored()
         if ignored_ids:
@@ -131,15 +138,29 @@ class IndexBuilder:
 
         # Dual-write into the v2 SQLite store (issue #44). Best-effort: a v2
         # failure is logged and never breaks the legacy index above.
+        #
+        # When the caller supplies reused_sessions (full UnifiedSession objects
+        # from incremental sync), the v2 store gets every session as a complete
+        # row with message rows — keeping its messages table complete (#35).
+        # Otherwise it falls back to the metadata-only reused_entries dicts.
         from ..storage.writer import write_sessions_safe
 
-        write_sessions_safe(
-            self.output_dir,
-            sessions,
-            titles=inferred_titles,
-            reused_entries=reused_entries,
-            extras=v2_extras,
-        )
+        if reused_sessions:
+            all_v2_sessions = list(sessions) + list(reused_sessions)
+            write_sessions_safe(
+                self.output_dir,
+                all_v2_sessions,
+                titles=inferred_titles,
+                extras=v2_extras,
+            )
+        else:
+            write_sessions_safe(
+                self.output_dir,
+                sessions,
+                titles=inferred_titles,
+                reused_entries=reused_entries,
+                extras=v2_extras,
+            )
 
     def _compute_stats_from_entries(self, entries: List[Dict]) -> Dict:
         """Compute statistics from already-built session dict entries."""

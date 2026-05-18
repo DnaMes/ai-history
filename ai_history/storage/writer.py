@@ -57,14 +57,17 @@ def _source_mtime_ns(source_path: Optional[str]) -> Optional[int]:
 
 
 # The full column list for an INSERT into sessions, used by both the
-# UnifiedSession path and the reused-dict path.
+# UnifiedSession path and the reused-dict path. The trailing
+# messages_synced flag is 1 when the session's message rows were written,
+# 0 for a metadata-only reused row.
 _SESSION_INSERT = """
     INSERT INTO sessions (
         id, tool, project, thread_id, title, created, updated,
         source_path, source_mtime_ns, git_branch, git_commit,
         cli_version, metadata_json,
-        messages_count, prompt_count, prompt_outline, export_path
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        messages_count, prompt_count, prompt_outline, export_path,
+        messages_synced
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -73,9 +76,9 @@ def _write_reused_entry(conn: sqlite3.Connection, entry: Dict) -> None:
 
     Incremental sync hands the IndexBuilder pre-built dicts for unchanged
     sessions instead of re-extracting them — so we have no UnifiedMessage
-    objects for those. We still mirror their metadata + search_text into v2
-    so the store stays complete; messages for these sessions are simply
-    absent until the next full rebuild. (PR 3+ can backfill if needed.)
+    objects for those. The row is written with ``messages_synced = 0`` so
+    readers and the backfill (#35) can tell it apart from a fully-synced
+    session; its messages are filled in on the next full rebuild.
     """
     session_id = entry.get("id")
     if not session_id:
@@ -101,6 +104,7 @@ def _write_reused_entry(conn: sqlite3.Connection, entry: Dict) -> None:
             int(entry.get("prompts") or 0),
             entry.get("prompt_outline"),
             entry.get("export_path"),
+            0,  # messages_synced — metadata-only, no message rows
         ),
     )
     conn.execute(
@@ -183,6 +187,7 @@ def write_sessions(
                     session.user_prompt_count,
                     session_extras.get("prompt_outline"),
                     session_extras.get("export_path"),
+                    1,  # messages_synced — full session, message rows written
                 ),
             )
 

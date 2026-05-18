@@ -202,6 +202,10 @@ def _build_index_from_extractors(
 
     sessions = []
     reused_entries: list[dict] = []
+    # The full UnifiedSession objects behind reused_entries — incremental sync
+    # has already extracted them (messages included), so we hand them to the
+    # v2 store as complete sessions instead of metadata-only rows (#35).
+    reused_sessions = []
     reused_ids: set[str] = set()
     errors: list[dict] = []
     title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
@@ -230,6 +234,9 @@ def _build_index_from_extractors(
                             and session.session_id not in reused_ids
                         ):
                             reused_entries.append(prior)
+                            # Keep the fully-extracted session for the v2 store
+                            # so its message rows are written too (#35).
+                            reused_sessions.append(session)
                             reused_ids.add(session.session_id)
                             continue
 
@@ -253,8 +260,14 @@ def _build_index_from_extractors(
     deleted = load_deleted_session_ids()
     filtered = [session for session in sessions if session.session_id not in deleted]
     reused_filtered = [entry for entry in reused_entries if entry.get("id") not in deleted]
+    reused_sessions_filtered = [
+        s for s in reused_sessions if s.session_id not in deleted
+    ]
     IndexBuilder(OUTPUT_DIR).build_index(
-        filtered, {}, reused_entries=reused_filtered if reused_filtered else None
+        filtered,
+        {},
+        reused_entries=reused_filtered if reused_filtered else None,
+        reused_sessions=reused_sessions_filtered if reused_sessions_filtered else None,
     )
 
     if progress_callback:

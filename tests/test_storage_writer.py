@@ -185,3 +185,49 @@ def test_index_builder_v2_failure_is_non_fatal(tmp_path, monkeypatch):
     IndexBuilder(tmp_path).build_index([_session("e2e")], {})
     # Legacy index is intact.
     assert (tmp_path / "index.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# #35 — v2 messages complete after incremental sync
+# ---------------------------------------------------------------------------
+
+
+def test_full_session_marked_messages_synced(tmp_path):
+    IndexBuilder(tmp_path).build_index([_session("a", n_messages=3)], {})
+    conn = sqlite3.connect(v2_db_path(tmp_path))
+    assert conn.execute("SELECT messages_synced FROM sessions WHERE id='a'").fetchone()[0] == 1
+
+
+def test_reused_entry_marked_not_messages_synced(tmp_path):
+    """A metadata-only reused dict has no message rows -> messages_synced = 0."""
+    reused = [
+        {
+            "id": "old-1",
+            "tool": "warp",
+            "title": "Reused session realistic title",
+            "created": "2026-01-01",
+            "updated": "2026-01-01",
+            "search_text": "reused content",
+        }
+    ]
+    IndexBuilder(tmp_path).build_index([_session("new-1")], {}, reused_entries=reused)
+    conn = sqlite3.connect(v2_db_path(tmp_path))
+    rows = dict(conn.execute("SELECT id, messages_synced FROM sessions").fetchall())
+    assert rows["new-1"] == 1
+    assert rows["old-1"] == 0
+
+
+def test_reused_sessions_get_full_messages(tmp_path):
+    """#35: incremental sync passes full UnifiedSession objects for reused
+    sessions -> v2 writes their message rows and marks them synced."""
+    new = _session("new-1", n_messages=2)
+    reused = _session("reused-1", n_messages=5)
+    IndexBuilder(tmp_path).build_index([new], {}, reused_sessions=[reused])
+    conn = sqlite3.connect(v2_db_path(tmp_path))
+    # both sessions present, both fully synced
+    rows = dict(conn.execute("SELECT id, messages_synced FROM sessions").fetchall())
+    assert rows == {"new-1": 1, "reused-1": 1}
+    # the reused session's 5 message rows were written
+    assert (
+        conn.execute("SELECT COUNT(*) FROM messages WHERE session_id='reused-1'").fetchone()[0] == 5
+    )
