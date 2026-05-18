@@ -1084,17 +1084,38 @@ def api_stats_costs():
 
 @app.route("/stats")
 def stats_page():
-    payload = _build_costs_payload()
-    # Render by_tool as a sorted list of (name, tokens) tuples for the template
-    by_tool_list = sorted(payload["by_tool"].items(), key=lambda kv: kv[1], reverse=True)
+    """Activity statistics over the last 30 days.
+
+    The flat index carries no token/cost data, so this reports real
+    activity — sessions per day/tool/project, message and prompt counts —
+    using the same aggregation as the `lore digest` command.
+    """
+    from datetime import timedelta
+
+    from ai_history.digest import build_digest
+
+    sessions = load_index().get("sessions", [])
+    since = datetime.now() - timedelta(days=30)
+    digest = build_digest(sessions, since=since, top_n_projects=10)
+
+    # Continuous 30-day series (fill gaps with 0) for the bar chart.
+    by_day_series = []
+    for i in range(30):
+        day = (datetime.now() - timedelta(days=29 - i)).strftime("%Y-%m-%d")
+        by_day_series.append({"date": day, "count": digest.by_day.get(day, 0)})
+    peak_day = max((d["count"] for d in by_day_series), default=0)
+
     return render(
         "stats",
         active="stats",
-        total_tokens=payload["total_tokens"],
-        session_count=payload["session_count"],
-        by_tool=by_tool_list,
-        by_day=payload["by_day"],
-        by_project=payload["by_project"],
+        total_sessions=digest.total_sessions,
+        total_messages=digest.total_messages,
+        total_prompts=digest.total_prompts,
+        busiest_day=digest.busiest_day,
+        by_tool=list(digest.by_tool.items()),
+        by_day=by_day_series,
+        peak_day=peak_day,
+        top_projects=digest.top_projects,
         title="Stats",
     )
 
