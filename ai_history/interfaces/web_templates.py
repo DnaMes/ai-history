@@ -691,7 +691,10 @@ BASE_TEMPLATE = """
                     {% endfor %}
                 </div>
             </div>
-
+            <div class="mt-auto px-5 py-3 border-t border-slate-200/70 text-[10px] text-slate-500 flex items-center justify-between">
+                <span class="font-mono">ai-history v{{ app_version }}</span>
+                <a href="/api/build-info" class="hover:text-slate-700">build</a>
+            </div>
         </aside>
         <main id="main-content" class="flex-1 flex flex-col min-w-0 min-h-0 app-main">
             <div class="h-16 border-b border-slate-200/70 app-panel backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-20">

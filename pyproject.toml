@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-history"
-version = "2.0.0"
+dynamic = ["version"]
 description = "Local-first AI chat history manager and session switcher for Claude, Cursor, Gemini, Codex, Warp, and more"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -52,6 +52,10 @@ ai-history-web-probe = "ai_history.interfaces.live_probe:main"
 
 [tool.setuptools]
 py-modules = ["ai_history_cli", "ai_session_cli"]
+
+[tool.setuptools.dynamic]
+# Single source of truth — the version lives in ai_history/__init__.py.
+version = {attr = "ai_history.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -239,8 +239,11 @@ def _export_fallback_scan_enabled() -> bool:
 
 
 def _build_info_payload() -> dict:
+    from ai_history import __version__
+
     return {
         "module": __name__,
+        "version": __version__,
         "revision": _current_revision(),
         "python": sys.version.split()[0],
         "hardening": {
@@ -529,6 +532,8 @@ def render(tpl_name, **kwargs):
             ) or request.path.startswith("/thread/")
         else:
             kwargs["show_session_controls"] = tpl_name in ("session", "thread_detail")
+    from ai_history import __version__
+
     return env.get_template(tpl_name).render(
         get_style=get_style,
         project_label=project_label,
@@ -536,6 +541,7 @@ def render(tpl_name, **kwargs):
         provider_tools=list(TOOL_STYLES.keys()),
         request=request if has_request_context() else None,
         nonce=get_csp_nonce(),
+        app_version=__version__,
         **kwargs,
     )
 

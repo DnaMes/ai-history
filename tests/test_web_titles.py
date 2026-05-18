@@ -208,6 +208,24 @@ def test_api_build_info_exposes_revision_and_hardening(monkeypatch):
     assert payload["export_fallback_scan_enabled"] is False
 
 
+def test_build_info_reports_package_version():
+    """build-info exposes the single-source-of-truth package version."""
+    from ai_history import __version__
+
+    with web.app.test_client() as client:
+        response = client.get("/api/build-info")
+    assert response.get_json()["version"] == __version__
+
+
+def test_version_shown_in_sidebar():
+    """The dashboard sidebar footer displays the app version."""
+    from ai_history import __version__
+
+    with web.app.test_client() as client:
+        page = client.get("/").get_data(as_text=True)
+    assert f"ai-history v{__version__}" in page
+
+
 @pytest.mark.parametrize(
     ("path", "expected_status"),
     [

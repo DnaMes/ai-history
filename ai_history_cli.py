@@ -1192,6 +1192,14 @@ Examples:
     )
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    from ai_history import __version__
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"ai-history {__version__}",
+        help="Show the ai-history version and exit",
+    )
     parser.add_argument(
         "--output-dir",
         default="~/.ai-history",
