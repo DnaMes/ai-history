@@ -5,6 +5,31 @@ The version is the single source of truth in `ai_history/__init__.py`.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-05-18
+### Added
+- Scoped MCP search: `search_history` gains a `scope` parameter
+  (user_only / assistant_only / tool_results / all).
+- `ai-history export-html <session>` — standalone single-file HTML
+  session export (inlined CSS, no CDN, no JS, all content escaped).
+- Headless render smoke-test guarding against CSP/asset regressions.
+- Release checklist documented in CONTRIBUTING.
+
+### Changed
+- New `ai_history/services/` layer holds shared index/extractor logic;
+  the `mcp → web_data` layering inversion is removed.
+- `mcp.create_server()` decomposed from ~550 lines into focused
+  `mcp_tools/` modules.
+
+### Fixed
+- `supersede_memory` is now crash-safe (was non-atomic).
+- `unpack_vector` no longer crashes semantic recall on a malformed BLOB.
+- `export-html --output` no longer creates directories implicitly; the
+  export is written owner-only (0600).
+- Memory page search controls have accessible names (WCAG AA).
+
+### Security
+- HTML export hardening; memory render-safety guardrail (no stored XSS).
+
 ## [2.1.0] - 2026-05-18
 ### Added
 - **v2 SQLite store** as the single source of truth (issue #44): sessions,

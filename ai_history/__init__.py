@@ -4,8 +4,8 @@ The single source of truth for the package version. ``pyproject.toml``
 reads ``__version__`` from here via ``[tool.setuptools.dynamic]``, so the
 version is set in exactly one place.
 
-Bumped to 2.1.0: v2 SQLite store, cross-tool agent memory, semantic
-recall, and the /memory web page.
+2.2.0: scoped MCP search, standalone HTML session export, the services/
+layer refactor, a decomposed MCP server, and a full QA hardening pass.
 """
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
