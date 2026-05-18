@@ -85,6 +85,7 @@ from .web_jobs import (
 from .web_templates import (
     BASE_TEMPLATE,
     DASHBOARD_TEMPLATE,
+    MEMORY_TEMPLATE,
     NOISE_RULES_TEMPLATE,
     PROJECTS_TEMPLATE,
     RULES_TEMPLATE,
@@ -498,6 +499,7 @@ def render(tpl_name, **kwargs):
         "rules": RULES_TEMPLATE,
         "noise_rules": NOISE_RULES_TEMPLATE,
         "stats": STATS_TEMPLATE,
+        "memory": MEMORY_TEMPLATE,
     }
     from jinja2 import Environment, FunctionLoader, select_autoescape
 
@@ -1488,6 +1490,57 @@ def rules():
     elif rules_text:
         rules_text = html.escape(rules_text).replace("\n", "<br>")
     return render("rules", active="rules", rules=rules_text, title="Rules")
+
+
+@app.route("/memory")
+def memory_page():
+    """Browse and search the shared agent-memory store (#33)."""
+    from ai_history.storage import (
+        MEMORY_KINDS,
+        embeddings_available,
+        list_memory,
+        recall_memory,
+    )
+
+    query = request.args.get("q", "").strip()
+    kind = request.args.get("kind", "").strip() or None
+    semantic = request.args.get("semantic", "") in ("1", "true", "on")
+
+    if query and not validate_search_param(query):
+        return "Invalid search query", 400
+    if kind and kind not in MEMORY_KINDS:
+        return "Invalid kind", 400
+
+    output_dir = INDEX_PATH.parent
+    if query:
+        entries = recall_memory(
+            output_dir, query, kind=kind, limit=100, semantic=semantic
+        )
+    else:
+        entries = list_memory(output_dir, kind=kind, limit=100)
+
+    return render(
+        "memory",
+        active="memory",
+        memories=[e.to_dict() for e in entries],
+        total=len(entries),
+        query=query,
+        kind=kind,
+        kinds=list(MEMORY_KINDS),
+        semantic=semantic,
+        semantic_available=embeddings_available(),
+        title="Memory",
+    )
+
+
+@app.route("/memory/<int:memory_id>/delete", methods=["POST"])
+def memory_delete(memory_id):
+    if (err := _check_local_origin()) is not None:
+        return err
+    from ai_history.storage import delete_memory
+
+    delete_memory(INDEX_PATH.parent, memory_id)
+    return redirect("/memory")
 
 
 @app.route("/noise-rules")

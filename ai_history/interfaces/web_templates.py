@@ -675,6 +675,7 @@ BASE_TEMPLATE = """
                 <a href="/sessions" class="sidebar-link {{ 'active' if active=='sessions' else '' }}">Sessions</a>
                 <a href="/projects" class="sidebar-link {{ 'active' if active=='projects' else '' }}">Projects</a>
                 <a href="/threads" class="sidebar-link {{ 'active' if active=='threads' else '' }}">Threads</a>
+                <a href="/memory" class="sidebar-link {{ 'active' if active=='memory' else '' }}">Memory</a>
                 <a href="/stats" class="sidebar-link {{ 'active' if active=='stats' else '' }}">Stats</a>
                 <a href="/rules" class="sidebar-link {{ 'active' if active=='rules' else '' }}">Rules</a>
                 <a href="/noise-rules" class="sidebar-link {{ 'active' if active=='noise-rules' else '' }}">Noise Rules</a>
@@ -1937,6 +1938,90 @@ RULES_TEMPLATE = """
         {% endif %}
     </div>
 </div>
+{% endblock %}
+"""
+
+MEMORY_TEMPLATE = """
+{% extends "base" %}
+{% block content %}
+<section class="max-w-4xl mx-auto px-8 py-10">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Knowledge</div>
+            <h1 class="title-font page-headline text-slate-900 mt-2">Memory</h1>
+            <p class="text-sm text-slate-500 mt-2">
+                {{ total }} entr{{ 'y' if total == 1 else 'ies' }} — facts, decisions and lessons
+                any AI tool can record and recall.
+            </p>
+        </div>
+    </div>
+
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-8">
+        <input type="text" name="q" value="{{ query or '' }}"
+               placeholder="Search memory…"
+               class="flex-1 min-w-[12rem] bg-white border border-slate-200 text-sm text-slate-700 rounded-xl px-3 py-2 outline-none focus:border-slate-300">
+        <select name="kind"
+                class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300">
+            <option value="">All kinds</option>
+            {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if kind==k else '' }}>{{ k }}</option>{% endfor %}
+        </select>
+        <label class="flex items-center gap-2 text-[11px] text-slate-600 uppercase tracking-widest font-semibold">
+            <input type="checkbox" name="semantic" value="1" {{ 'checked' if semantic else '' }} class="w-4 h-4">
+            Semantic
+        </label>
+        <button type="submit"
+                class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-4 py-2 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">
+            Search
+        </button>
+    </form>
+
+    {% if semantic and not semantic_available %}
+    <div class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-6">
+        Semantic search needs the optional embedding model
+        (<span class="font-mono">pip install -e ".[semantic]"</span>) — showing keyword results instead.
+    </div>
+    {% endif %}
+
+    <div class="space-y-3">
+        {% for m in memories %}
+        <article class="surface-card p-5">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="tag-chip uppercase">{{ m.kind }}</span>
+                        {% if m.scope_project %}<span class="tag-chip">{{ project_label(m.scope_project) }}</span>{% endif %}
+                        {% if m.scope_tool %}<span class="tag-chip">{{ m.scope_tool }}</span>{% endif %}
+                    </div>
+                    <h2 class="text-sm font-semibold text-slate-900">{{ m.title }}</h2>
+                    <p class="text-sm text-slate-600 mt-1.5 whitespace-pre-wrap">{{ m.body }}</p>
+                    <div class="flex flex-wrap gap-1.5 mt-3">
+                        {% for tag in m.tags %}<span class="tag-chip text-[10px]">#{{ tag }}</span>{% endfor %}
+                    </div>
+                </div>
+                <form action="/memory/{{ m.id }}/delete" method="POST"
+                      onsubmit="return confirm('Delete this memory?');">
+                    <button type="submit" aria-label="Delete memory {{ m.title }}"
+                            class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg bg-white transition-all">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                    </button>
+                </form>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-3 uppercase tracking-tight">
+                {{ m.author or 'unknown' }} · {{ m.created[:10] }}
+            </div>
+        </article>
+        {% else %}
+        <div class="surface-card p-8 text-center">
+            <p class="text-sm text-slate-600">No memory entries{{ ' match your search' if query else ' yet' }}.</p>
+            <p class="text-xs text-slate-500 mt-2">
+                Record one with <span class="font-mono">ai-history memory add</span>, or let an
+                AI agent write to it via the <span class="font-mono">memory_write</span> MCP tool.
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}
 """
 
