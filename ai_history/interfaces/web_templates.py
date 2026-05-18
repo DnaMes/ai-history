@@ -54,6 +54,8 @@ BASE_TEMPLATE = """
             --main: rgba(5, 9, 20, 0.68);
         }
         body { background-color: var(--bg); color: var(--text); font-family: "Helvetica Neue", Inter, Arial, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; position: relative; }
+        .skip-link { position: absolute; left: 8px; top: -48px; z-index: 200; background: #0f172a; color: #ffffff; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: top 0.15s ease; }
+        .skip-link:focus { top: 8px; outline: 2px solid #3b82f6; outline-offset: 2px; }
         body.session-view { background: #f8fafc; }
         body::before { content:""; position: fixed; inset: 0; background:
             radial-gradient(circle at 18% 8%, rgba(147, 197, 253, 0.28), transparent 42%),
@@ -98,7 +100,7 @@ BASE_TEMPLATE = """
         .toc-list::-webkit-scrollbar-track { background: transparent; }
         .toc-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; border-radius: 8px; color: #0f172a; border: 1px solid transparent; transition: all 0.15s ease; text-decoration: none; }
         .toc-item-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; letter-spacing: -0.01em; color: #334155; }
-        .toc-item-meta { font-size: 11px; font-family: "SF Mono", Menlo, monospace; color: #94a3b8; }
+        .toc-item-meta { font-size: 11px; font-family: "SF Mono", Menlo, monospace; color: #5b6573; }
         .toc-item:hover { background: #f8fafc; color: #0f172a; border-color: #f1f5f9; }
         html.dark .toc-item:hover { background: #182133; color: #e2e8f0; }
         .toc-item.active { background: #eff6ff; color: #0f172a; border-color: #dbeafe; }
@@ -149,7 +151,7 @@ BASE_TEMPLATE = """
         .compact-title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
         .message-cluster { border: 1px solid #e5e7eb; background: #ffffff; border-radius: 14px; padding: 14px; }
         body.session-view .message-cluster { border-color: #e2e8f0; border-radius: 12px; padding: 12px; }
-        .message-time { font-size: 10px; color: #94a3b8; font-family: "SF Mono", Menlo, monospace; }
+        .message-time { font-size: 10px; color: #5b6573; font-family: "SF Mono", Menlo, monospace; }
         .turn-row { display: flex; gap: 14px; align-items: flex-start; }
         .turn-row.user { justify-content: flex-end; }
         .turn-row.assistant { justify-content: flex-start; }
@@ -514,12 +516,17 @@ BASE_TEMPLATE = """
             display: flex;
             align-items: center;
             gap: 10px;
+            width: 100%;
             padding: 10px 12px;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s ease;
             color: var(--text);
             font-size: 13px;
+            background: transparent;
+            border: none;
+            text-align: left;
+            font-family: inherit;
         }
         .theme-option:hover {
             background: var(--bg-alt);
@@ -617,6 +624,7 @@ BASE_TEMPLATE = """
     </script>
 </head>
 <body class="h-screen overflow-hidden">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="flex h-full">
         <aside class="w-72 border-r border-slate-200/70 app-panel backdrop-blur-xl flex flex-col min-h-0">
             <a href="/" class="p-6 font-semibold text-lg flex items-center gap-3 tracking-tight">
@@ -631,7 +639,7 @@ BASE_TEMPLATE = """
                 <a href="/stats" class="sidebar-link {{ 'active' if active=='stats' else '' }}">Stats</a>
                 <a href="/rules" class="sidebar-link {{ 'active' if active=='rules' else '' }}">Rules</a>
                 <a href="/noise-rules" class="sidebar-link {{ 'active' if active=='noise-rules' else '' }}">Noise Rules</a>
-                <div class="mt-8 mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Recent Activity</div>
+                <div class="mt-8 mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Recent Activity</div>
                 <div class="space-y-1">
                     {% for s in recent %}
     <a href="/session/{{ s.id|urlpath }}?back={{ nav_back|urlpath }}" class="sidebar-link text-xs" title="{{ s.display_title or s.title }}">
@@ -645,7 +653,7 @@ BASE_TEMPLATE = """
             </div>
 
         </aside>
-        <main class="flex-1 flex flex-col min-w-0 min-h-0 app-main">
+        <main id="main-content" class="flex-1 flex flex-col min-w-0 min-h-0 app-main">
             <div class="h-16 border-b border-slate-200/70 app-panel backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-20">
                 <div class="flex items-center gap-3 w-full max-w-3xl">
                     <div class="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 shadow-sm">
@@ -655,13 +663,13 @@ BASE_TEMPLATE = """
                 </div>
                 <div class="top-controls">
                     <div class="theme-dropdown" id="syncDropdown">
-                        <button id="syncBtn" type="button" class="density-toggle border rounded-lg px-3 py-1.5 text-xs flex items-center gap-1.5" title="Sync: reload & audit">
+                        <button id="syncBtn" type="button" aria-haspopup="menu" aria-expanded="false" class="density-toggle border rounded-lg px-3 py-1.5 text-xs flex items-center gap-1.5" title="Sync: reload & audit">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             Sync
                             <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
-                        <div class="theme-dropdown-menu !right-0 !left-auto min-w-[180px]">
-                            <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-700">Reload</div>
+                        <div class="theme-dropdown-menu !right-0 !left-auto min-w-[180px]" role="menu" aria-label="Sync options">
+                            <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-700">Reload</div>
                             <button onclick="runSync('reload', '')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-blue-400"></span>All providers
                             </button>
@@ -671,7 +679,7 @@ BASE_TEMPLATE = """
                             <button onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
                                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>Full rebuild (slow)
                             </button>
-                            <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">Audit</div>
+                            <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">Audit</div>
                             <button onclick="runSync('audit', '', 'index')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-green-400"></span>Quick (index)
                             </button>
@@ -694,20 +702,71 @@ BASE_TEMPLATE = """
                     </details>
                     {% endif %}
                     <div class="theme-dropdown" id="themeDropdown">
-                        <button id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false" class="theme-toggle w-9 h-9 rounded-full border text-slate-500 flex items-center justify-center" title="Select theme">
+                        <button id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false" aria-haspopup="menu" aria-expanded="false" class="theme-toggle w-9 h-9 rounded-full border text-slate-500 flex items-center justify-center" title="Select theme">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
                         </button>
-                        <div class="theme-dropdown-menu">
-                            <div class="theme-option active" data-theme="catppuccin" onclick="selectTheme('catppuccin')"><span class="theme-swatch" style="background:#1e1e2e"></span>Catppuccin</div>
-                            <div class="theme-option" data-theme="dracula" onclick="selectTheme('dracula')"><span class="theme-swatch" style="background:#282a36"></span>Dracula</div>
-                            <div class="theme-option" data-theme="nord" onclick="selectTheme('nord')"><span class="theme-swatch" style="background:#2e3440"></span>Nord</div>
-                            <div class="theme-option" data-theme="monokai" onclick="selectTheme('monokai')"><span class="theme-swatch" style="background:#272822"></span>Monokai</div>
-                            <div class="theme-option" data-theme="github" onclick="selectTheme('github')"><span class="theme-swatch" style="background:#0d1117"></span>GitHub Dark</div>
-                            <div class="theme-option" data-theme="tokyo" onclick="selectTheme('tokyo')"><span class="theme-swatch" style="background:#1a1b26"></span>Tokyo Night</div>
-                            <div class="theme-option" data-theme="light" onclick="selectTheme('light')"><span class="theme-swatch" style="background:#f6f7fb"></span>Light</div>
+                        <div class="theme-dropdown-menu" role="menu" aria-label="Theme options">
+                            <button type="button" role="menuitemradio" aria-checked="true" class="theme-option active" data-theme="catppuccin" onclick="selectTheme('catppuccin')"><span class="theme-swatch" style="background:#1e1e2e"></span>Catppuccin</button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="dracula" onclick="selectTheme('dracula')"><span class="theme-swatch" style="background:#282a36"></span>Dracula</button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="nord" onclick="selectTheme('nord')"><span class="theme-swatch" style="background:#2e3440"></span>Nord</button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="monokai" onclick="selectTheme('monokai')"><span class="theme-swatch" style="background:#272822"></span>Monokai</button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="github" onclick="selectTheme('github')"><span class="theme-swatch" style="background:#0d1117"></span>GitHub Dark</button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="tokyo" onclick="selectTheme('tokyo')"><span class="theme-swatch" style="background:#1a1b26"></span>Tokyo Night</button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="light" onclick="selectTheme('light')"><span class="theme-swatch" style="background:#f6f7fb"></span>Light</button>
                         </div>
                     </div>
-                    <script nonce="{{ nonce }}">function selectTheme(t){window.aiHistoryTheme.set(t);document.querySelectorAll('.theme-option').forEach(function(el){el.classList.toggle('active',el.dataset.theme===t)});document.getElementById('themeDropdown').classList.remove('open');}document.getElementById('themeToggle').onclick=function(e){e.stopPropagation();document.getElementById('themeDropdown').classList.toggle('open');};document.getElementById('syncBtn').onclick=function(e){e.stopPropagation();document.getElementById('syncDropdown').classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.theme-dropdown')){document.getElementById('themeDropdown').classList.remove('open');document.getElementById('syncDropdown').classList.remove('open');}});</script>
+                    <script nonce="{{ nonce }}">
+                    (function(){
+                      function syncExpanded(dropdownId, btnId){
+                        var dd=document.getElementById(dropdownId);
+                        var btn=document.getElementById(btnId);
+                        if(dd&&btn){btn.setAttribute('aria-expanded',dd.classList.contains('open')?'true':'false');}
+                      }
+                      window.selectTheme=function(t){
+                        window.aiHistoryTheme.set(t);
+                        document.querySelectorAll('.theme-option').forEach(function(el){
+                          var on=el.dataset.theme===t;
+                          el.classList.toggle('active',on);
+                          el.setAttribute('aria-checked',on?'true':'false');
+                        });
+                        document.getElementById('themeDropdown').classList.remove('open');
+                        syncExpanded('themeDropdown','themeToggle');
+                      };
+                      var themeToggle=document.getElementById('themeToggle');
+                      if(themeToggle){themeToggle.onclick=function(e){
+                        e.stopPropagation();
+                        document.getElementById('themeDropdown').classList.toggle('open');
+                        syncExpanded('themeDropdown','themeToggle');
+                      };}
+                      var syncBtn=document.getElementById('syncBtn');
+                      if(syncBtn){syncBtn.onclick=function(e){
+                        e.stopPropagation();
+                        document.getElementById('syncDropdown').classList.toggle('open');
+                        syncExpanded('syncDropdown','syncBtn');
+                      };}
+                      document.addEventListener('click',function(e){
+                        if(!e.target.closest('.theme-dropdown')){
+                          document.getElementById('themeDropdown').classList.remove('open');
+                          var sd=document.getElementById('syncDropdown');
+                          if(sd){sd.classList.remove('open');}
+                          syncExpanded('themeDropdown','themeToggle');
+                          syncExpanded('syncDropdown','syncBtn');
+                        }
+                      });
+                      document.addEventListener('keydown',function(e){
+                        if(e.key==='Escape'){
+                          var td=document.getElementById('themeDropdown');
+                          var sd=document.getElementById('syncDropdown');
+                          var open=(td&&td.classList.contains('open'))||(sd&&sd.classList.contains('open'));
+                          if(td){td.classList.remove('open');}
+                          if(sd){sd.classList.remove('open');}
+                          syncExpanded('themeDropdown','themeToggle');
+                          syncExpanded('syncDropdown','syncBtn');
+                          if(open){var btn=(td&&td.classList.contains('open'))?null:document.getElementById('themeToggle');}
+                        }
+                      });
+                    })();
+                    </script>
                 </div>
             </div>
             <div class="px-6 pt-2">
@@ -816,12 +875,82 @@ BASE_TEMPLATE = """
             });
         }
         document.addEventListener('DOMContentLoaded', initCodeBlocks);
+
+        /* Reusable focus-trap helper for modal dialogs */
+        window.FocusTrap = (function () {
+            const FOCUSABLE = [
+                'a[href]', 'button:not([disabled])', 'textarea:not([disabled])',
+                'input:not([disabled]):not([type="hidden"])', 'select:not([disabled])',
+                '[tabindex]:not([tabindex="-1"])'
+            ].join(',');
+            const PAGE_SELECTORS = ['.flex.h-full'];
+
+            function getFocusable(container) {
+                return Array.from(container.querySelectorAll(FOCUSABLE)).filter((el) => {
+                    return el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement;
+                });
+            }
+
+            function activate(dialog, opts) {
+                opts = opts || {};
+                const previouslyFocused = document.activeElement;
+                const pageRoots = PAGE_SELECTORS
+                    .map((sel) => document.querySelector(sel))
+                    .filter((el) => el && !el.contains(dialog));
+                pageRoots.forEach((el) => {
+                    el.setAttribute('inert', '');
+                    el.setAttribute('aria-hidden', 'true');
+                });
+
+                function onKeydown(e) {
+                    if (e.key !== 'Tab') return;
+                    const focusable = getFocusable(dialog);
+                    if (focusable.length === 0) {
+                        e.preventDefault();
+                        return;
+                    }
+                    const first = focusable[0];
+                    const last = focusable[focusable.length - 1];
+                    if (e.shiftKey && document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+                dialog.addEventListener('keydown', onKeydown);
+
+                const initial = opts.initialFocus || getFocusable(dialog)[0] || dialog;
+                requestAnimationFrame(() => {
+                    if (initial && typeof initial.focus === 'function') initial.focus();
+                });
+
+                return function release() {
+                    dialog.removeEventListener('keydown', onKeydown);
+                    pageRoots.forEach((el) => {
+                        el.removeAttribute('inert');
+                        el.removeAttribute('aria-hidden');
+                    });
+                    if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+                        previouslyFocused.focus();
+                    }
+                };
+            }
+
+            return { activate: activate };
+        })();
+
+        let searchTrapRelease = null;
         function openSearch() {
             const modal = document.getElementById('searchModal');
+            const panel = document.getElementById('searchPanel');
             const input = document.getElementById('searchInput');
             if (!modal || !input) return;
             modal.classList.add('open');
             modal.setAttribute('aria-hidden', 'false');
+            if (searchTrapRelease) { searchTrapRelease(); searchTrapRelease = null; }
+            searchTrapRelease = window.FocusTrap.activate(panel || modal, { initialFocus: input });
             requestAnimationFrame(() => {
                 input.focus();
                 input.select();
@@ -829,9 +958,10 @@ BASE_TEMPLATE = """
         }
         function closeSearch() {
             const modal = document.getElementById('searchModal');
-            if (!modal) return;
+            if (!modal || !modal.classList.contains('open')) return;
             modal.classList.remove('open');
             modal.setAttribute('aria-hidden', 'true');
+            if (searchTrapRelease) { searchTrapRelease(); searchTrapRelease = null; }
         }
         document.addEventListener('keydown', e => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -1370,14 +1500,16 @@ SESSION_TEMPLATE = """
             <nav aria-label="Table of contents">
             <ol class="toc-stepper toc-list space-y-0.5">
                 {% for item in toc_items %}
+                <li>
                 <a href="#msg-{{ item.index }}" class="toc-item" data-toc="msg-{{ item.index }}" title="{{ item.text }}">
                     <span class="toc-badge">{{ loop.index }}</span>
                     <span class="toc-item-text">{{ item.text }}</span>
                     <span class="toc-item-meta">{{ item.time }}</span>
                 </a>
+                </li>
                 {% endfor %}
                 {% if toc_items|length == 0 %}
-                <div class="text-[11px] text-slate-400 px-3 py-2">No prompts detected.</div>
+                <li class="text-[11px] text-slate-500 px-3 py-2">No prompts detected.</li>
                 {% endif %}
             </ol>
             </nav>
@@ -1398,7 +1530,7 @@ SESSION_TEMPLATE = """
                             <span class="prompt-icon" title="You">You</span>
                             <span>Prompt</span>
                         </div>
-                        <div class="text-[10px] text-slate-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">{{ pair.user.timestamp.strftime('%H:%M') }}</div>
+                        <div class="text-[10px] text-slate-500 font-mono opacity-60">{{ pair.user.timestamp.strftime('%H:%M') }}</div>
                     </div>
                     <div class="message-card user-card p-4">
                         <div class="prose max-w-none antialiased">
@@ -1449,18 +1581,24 @@ SESSION_TEMPLATE = """
     <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg mx-4 p-6">
         <div class="flex items-start justify-between mb-4">
             <h2 id="resume-modal-title" class="text-sm font-semibold text-slate-800 dark:text-slate-100">Resume Session</h2>
-            <button onclick="closeResumeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ml-4" aria-label="Close">&times;</button>
+            <button onclick="closeResumeModal()" class="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 ml-4" aria-label="Close">&times;</button>
         </div>
         <div id="resume-modal-body" class="text-sm text-slate-600 dark:text-slate-300"></div>
     </div>
 </div>
 
 <script nonce="{{ nonce }}">
+let resumeTrapRelease = null;
 function resumeSession(sessionId) {
     const modal = document.getElementById('resume-modal');
     const body = document.getElementById('resume-modal-body');
-    body.innerHTML = '<span class="text-slate-400">Loading&hellip;</span>';
+    body.innerHTML = '<span class="text-slate-500">Loading&hellip;</span>';
     modal.classList.remove('hidden');
+    const dialog = modal.firstElementChild || modal;
+    if (resumeTrapRelease) { resumeTrapRelease(); resumeTrapRelease = null; }
+    if (window.FocusTrap) {
+        resumeTrapRelease = window.FocusTrap.activate(dialog);
+    }
 
     fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/resume', {
         method: 'POST',
@@ -1475,14 +1613,14 @@ function resumeSession(sessionId) {
         if (!data.supported) {
             body.innerHTML =
                 '<p class="text-amber-600 mb-2">' + escHtml(data.reason || 'Resume not supported for this tool.') + '</p>' +
-                (data.tool ? '<p class="text-xs text-slate-400">Tool: ' + escHtml(data.tool) + '</p>' : '');
+                (data.tool ? '<p class="text-xs text-slate-500">Tool: ' + escHtml(data.tool) + '</p>' : '');
             return;
         }
         body.innerHTML =
             '<p class="text-slate-500 text-xs mb-2">Run this command in your terminal:</p>' +
             '<div class="relative group">' +
               '<pre class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs font-mono text-slate-800 dark:text-slate-100 overflow-x-auto whitespace-pre-wrap break-all" id="resume-cmd-text">' + escHtml(data.command) + '</pre>' +
-              '<button onclick="copyResumeCmd()" class="absolute top-2 right-2 text-[10px] text-slate-400 hover:text-slate-700 border border-slate-200 bg-white rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity" id="resume-copy-btn">Copy</button>' +
+              '<button onclick="copyResumeCmd()" class="absolute top-2 right-2 text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity" id="resume-copy-btn">Copy</button>' +
             '</div>';
     })
     .catch(function(err) {
@@ -1491,7 +1629,10 @@ function resumeSession(sessionId) {
 }
 
 function closeResumeModal() {
-    document.getElementById('resume-modal').classList.add('hidden');
+    const modal = document.getElementById('resume-modal');
+    if (!modal || modal.classList.contains('hidden')) return;
+    modal.classList.add('hidden');
+    if (resumeTrapRelease) { resumeTrapRelease(); resumeTrapRelease = null; }
 }
 
 function copyResumeCmd() {
@@ -1528,7 +1669,7 @@ DASHBOARD_TEMPLATE = """
 <section class="max-w-6xl mx-auto px-8 py-10">
     <div class="flex flex-wrap items-center justify-between gap-6 mb-10">
         <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Workspace</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</div>
             <h1 class="title-font page-headline text-slate-900 mt-2">Overview</h1>
             <p class="text-sm text-slate-500 mt-2">All sessions, tools, and projects in one place.</p>
         </div>
@@ -1540,19 +1681,19 @@ DASHBOARD_TEMPLATE = """
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Sessions</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Sessions</div>
             <div class="text-3xl font-semibold text-slate-900">{{ stats.total_sessions }}</div>
         </div>
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Messages</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Messages</div>
             <div class="text-3xl font-semibold text-slate-900">{{ stats.total_messages }}</div>
         </div>
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Tools</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Tools</div>
             <div class="text-3xl font-semibold text-slate-900">{{ stats.by_tool|length }}</div>
         </div>
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Projects</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Projects</div>
             <div class="text-3xl font-semibold text-slate-900">{{ stats.by_project|length }}</div>
         </div>
     </div>
@@ -1560,7 +1701,7 @@ DASHBOARD_TEMPLATE = """
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div class="lg:col-span-2">
             <div class="flex items-center justify-between mb-5">
-                <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Recent Activity</h2>
+                <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Recent Activity</h2>
                 <a href="/sessions" class="text-xs text-slate-500 hover:text-slate-900">View all</a>
             </div>
             <div class="compact-list">
@@ -1580,7 +1721,7 @@ DASHBOARD_TEMPLATE = """
             </div>
         </div>
         <div>
-            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Tools</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Tools</h2>
             <div class="space-y-2">
                 {% for tool in all_tools %}
                 {% set count = stats.by_tool.get(tool, 0) %}
@@ -1623,7 +1764,7 @@ SESSION_ROWS_TEMPLATE = """
     </a>
     <form action="/session/{{ s.id|urlpath }}/delete" method="POST" onsubmit="return confirm('Delete this session?');" class="ml-2">
         <input type="hidden" name="next" value="{{ back_to or '/sessions' }}">
-        <button type="submit" class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg transition-all bg-white">×</button>
+        <button type="submit" aria-label="Delete session {{ s.display_title or s.title or s.id }}" class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg transition-all bg-white">×</button>
     </form>
 </div>
 {% endfor %}
@@ -1635,7 +1776,7 @@ SESSIONS_LIST_TEMPLATE = """
 <section class="max-w-5xl mx-auto px-8 py-10">
     <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
         <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Archive</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Archive</div>
             <h1 class="title-font page-headline text-slate-900 mt-2">Sessions</h1>
             <p class="text-sm text-slate-500 mt-2">{{ total }} session{{ '' if total == 1 else 's' }}</p>
         </div>
@@ -1731,7 +1872,7 @@ NOISE_RULES_TEMPLATE = """
     <div class="surface-card p-6">
         <div class="flex items-center justify-between gap-4 mb-6">
             <div>
-                <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Readability</div>
+                <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Readability</div>
                 <h1 class="title-font page-headline text-slate-900 mt-2">Noise Rules</h1>
                 <p class="text-sm text-slate-500 mt-2">Configure provider-specific cleanup rules for session rendering.</p>
             </div>
@@ -1954,7 +2095,7 @@ THREADS_LIST_TEMPLATE = """
 <section class="max-w-5xl mx-auto px-8 py-10">
     <div class="flex justify-between items-center mb-8">
         <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Connections</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Connections</div>
             <h1 class="title-font page-headline text-slate-900 mt-2">Threads</h1>
         </div>
     </div>
@@ -1984,7 +2125,7 @@ PROJECTS_TEMPLATE = """
 <section class="max-w-6xl mx-auto px-8 py-10">
     <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
         <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Workspace</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</div>
             <h1 class="title-font page-headline text-slate-900 mt-2">Projects</h1>
         </div>
     </div>
@@ -2008,7 +2149,7 @@ PROJECTS_TEMPLATE = """
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <div class="text-xs font-semibold text-slate-900">{{ p.name }}</div>
-                    <div class="text-[10px] text-slate-400 mt-1">{{ p.path }}</div>
+                    <div class="text-[10px] text-slate-500 mt-1">{{ p.path }}</div>
                 </div>
                 <div class="text-[10px] text-slate-500 font-mono">{{ p.updated }}</div>
             </div>
@@ -2035,7 +2176,7 @@ PROJECTS_TEMPLATE = """
                     {% if s.prompt_outline %}
                     <div class="text-xs text-slate-500 mt-1">{{ s.prompt_outline }}</div>
                     {% endif %}
-                    <div class="text-[10px] text-slate-400 mt-2">via {{ get_style(s.tool).name }} • {{ s.prompts or s.messages }} prompts • {{ s.created[:10] }}</div>
+                    <div class="text-[10px] text-slate-500 mt-2">via {{ get_style(s.tool).name }} • {{ s.prompts or s.messages }} prompts • {{ s.created[:10] }}</div>
                 </a>
                 {% endfor %}
             </div>
@@ -2080,14 +2221,16 @@ THREAD_DETAIL_TEMPLATE = """
             <nav aria-label="Table of contents">
             <ol class="toc-stepper toc-list space-y-0.5">
                 {% for item in toc_items %}
+                <li>
                 <a href="#tmsg-{{ item.index }}" class="toc-item" data-toc="tmsg-{{ item.index }}" title="{{ item.text }}">
                     <span class="toc-badge">{{ loop.index }}</span>
                     <span class="toc-item-text">{{ item.text }}</span>
                     <span class="toc-item-meta">{{ item.time }}</span>
                 </a>
+                </li>
                 {% endfor %}
                 {% if toc_items|length == 0 %}
-                <div class="text-[11px] text-slate-400 px-3 py-2">No prompts detected.</div>
+                <li class="text-[11px] text-slate-500 px-3 py-2">No prompts detected.</li>
                 {% endif %}
             </ol>
             </nav>
@@ -2096,19 +2239,19 @@ THREAD_DETAIL_TEMPLATE = """
     </aside>
     <div class="lg:flex-grow-0 lg:flex-shrink-1 lg:basis-[850px] lg:min-w-[500px] lg:px-8 space-y-6">
         <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-3">Continuation Cluster</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3">Continuation Cluster</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {% for group in thread_groups %}
                 <div class="border border-slate-200 rounded-xl p-3">
                     <div class="flex items-center justify-between">
                         <div class="text-xs font-semibold text-slate-900">via {{ get_style(group.tool).name }}</div>
-                        <span class="text-[10px] text-slate-400 font-mono">{{ group.count }}</span>
+                        <span class="text-[10px] text-slate-500 font-mono">{{ group.count }}</span>
                     </div>
                     <div class="mt-3 space-y-2">
                         {% for s in group.sessions %}
                         <a href="/session/{{ s.id|urlpath }}" class="block text-xs text-slate-600 hover:text-slate-900">
                     <div class="font-semibold truncate">{{ s.display_title or s.title or s.id }}</div>
-                            <div class="text-[10px] text-slate-400">{{ s.prompts or s.messages }} prompts • {{ s.created[:10] }}</div>
+                            <div class="text-[10px] text-slate-500">{{ s.prompts or s.messages }} prompts • {{ s.created[:10] }}</div>
                         </a>
                         {% endfor %}
                     </div>
@@ -2117,14 +2260,14 @@ THREAD_DETAIL_TEMPLATE = """
             </div>
         </div>
         <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-3">Timeline</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3">Timeline</div>
             <div class="space-y-3">
                 {% for s in thread_timeline %}
                 <a href="/session/{{ s.id|urlpath }}" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
                     <div class="w-2 h-2 rounded-full" style="background: {{ get_style(s.tool).color }}"></div>
                     <div class="flex-1 min-w-0">
                     <div class="text-sm font-semibold text-slate-900 truncate">{{ s.display_title or s.title or s.id }}</div>
-                        <div class="text-[10px] text-slate-400">via {{ get_style(s.tool).name }} • {{ s.prompts or s.messages }} prompts</div>
+                        <div class="text-[10px] text-slate-500">via {{ get_style(s.tool).name }} • {{ s.prompts or s.messages }} prompts</div>
                     </div>
                     <div class="text-[10px] text-slate-500 font-mono">{{ s.created[:10] }}</div>
                 </a>
@@ -2132,7 +2275,7 @@ THREAD_DETAIL_TEMPLATE = """
             </div>
         </div>
         <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Thread Summary</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Thread Summary</div>
             <div class="flex flex-wrap gap-3 text-xs text-slate-600">
                 <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Sessions: {{ thread_meta.session_count }}</span>
                 <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Messages: {{ thread_meta.message_count }}</span>
@@ -2152,8 +2295,8 @@ THREAD_DETAIL_TEMPLATE = """
             </div>
             <div class="flex-1 min-w-0 max-w-3xl">
                 <div class="flex items-center justify-between mb-2">
-                    <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{{ msg.label }}</div>
-                    <div class="text-[10px] text-slate-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">{{ msg.timestamp.strftime('%H:%M') }}</div>
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{{ msg.label }}</div>
+                    <div class="text-[10px] text-slate-500 font-mono opacity-60">{{ msg.timestamp.strftime('%H:%M') }}</div>
                 </div>
         <div class="message-card p-4 {% if msg.role.value == 'user' %}user-card{% else %}assistant-card{% endif %}">
                     <div class="prose max-w-none antialiased">
@@ -2175,7 +2318,7 @@ STATS_TEMPLATE = """
 <section class="max-w-6xl mx-auto px-8 py-10">
     <div class="flex flex-wrap items-center justify-between gap-6 mb-10">
         <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Usage</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Usage</div>
             <h1 class="title-font page-headline text-slate-900 mt-2">Token Cost Dashboard</h1>
             <p class="text-sm text-slate-500 mt-2">Estimated token usage across all AI tools. Blended rate: $3 / 1M tokens.</p>
         </div>
@@ -2183,26 +2326,26 @@ STATS_TEMPLATE = """
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Total Tokens</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Total Tokens</div>
             <div class="text-3xl font-semibold text-slate-900">{{ "{:,}".format(total_tokens) }}</div>
         </div>
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Est. Cost (USD)</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Est. Cost (USD)</div>
             <div class="text-3xl font-semibold text-slate-900">${{ "%.2f"|format(total_tokens / 1_000_000 * 3) }}</div>
         </div>
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Sessions (with tokens)</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Sessions (with tokens)</div>
             <div class="text-3xl font-semibold text-slate-900">{{ "{:,}".format(session_count) }}</div>
         </div>
         <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">Avg Tokens / Session</div>
+            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Avg Tokens / Session</div>
             <div class="text-3xl font-semibold text-slate-900">{{ "{:,}".format((total_tokens // session_count) if session_count else 0) }}</div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12">
         <div>
-            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Tokens by Tool</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Tokens by Tool</h2>
             <div class="surface-card p-6 space-y-4">
                 {% set max_tool_tokens = by_tool[0][1] if by_tool else 1 %}
                 {% for tool_name, tokens in by_tool %}
@@ -2214,7 +2357,7 @@ STATS_TEMPLATE = """
                         </div>
                         <div class="text-right">
                             <span class="text-xs font-mono text-slate-500">{{ "{:,}".format(tokens) }}</span>
-                            <span class="text-[10px] text-slate-400 ml-2">${{ "%.2f"|format(tokens / 1_000_000 * 3) }}</span>
+                            <span class="text-[10px] text-slate-500 ml-2">${{ "%.2f"|format(tokens / 1_000_000 * 3) }}</span>
                         </div>
                     </div>
                     <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -2222,13 +2365,13 @@ STATS_TEMPLATE = """
                     </div>
                 </div>
                 {% else %}
-                <div class="text-sm text-slate-400">No token data available.</div>
+                <div class="text-sm text-slate-500">No token data available.</div>
                 {% endfor %}
             </div>
         </div>
 
         <div>
-            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Daily Usage — Last 30 Days</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Daily Usage — Last 30 Days</h2>
             <div class="surface-card p-6">
                 {% if by_day %}
                 {% set max_day = namespace(v=1) %}
@@ -2244,33 +2387,33 @@ STATS_TEMPLATE = """
                     </div>
                     {% endfor %}
                 </div>
-                <div class="flex justify-between text-[10px] text-slate-400 mt-2">
+                <div class="flex justify-between text-[10px] text-slate-500 mt-2">
                     <span>{{ by_day[0].date }}</span>
                     <span>{{ by_day[-1].date }}</span>
                 </div>
                 {% else %}
-                <div class="text-sm text-slate-400">No daily data available.</div>
+                <div class="text-sm text-slate-500">No daily data available.</div>
                 {% endif %}
             </div>
         </div>
     </div>
 
     <div>
-        <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Top 10 Projects by Token Usage</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Top 10 Projects by Token Usage</h2>
         <div class="surface-card overflow-hidden">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-slate-100">
-                        <th class="text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">#</th>
-                        <th class="text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">Project</th>
-                        <th class="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">Tokens</th>
-                        <th class="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 px-6 py-3">Est. Cost</th>
+                        <th class="text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 px-6 py-3">#</th>
+                        <th class="text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 px-6 py-3">Project</th>
+                        <th class="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 px-6 py-3">Tokens</th>
+                        <th class="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 px-6 py-3">Est. Cost</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for proj in by_project %}
                     <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                        <td class="px-6 py-3 text-[11px] font-mono text-slate-400">{{ loop.index }}</td>
+                        <td class="px-6 py-3 text-[11px] font-mono text-slate-500">{{ loop.index }}</td>
                         <td class="px-6 py-3">
                             <a href="/projects" class="text-slate-700 hover:text-slate-900 font-medium truncate block max-w-md" title="{{ proj.project }}">{{ proj.project | replace('/home/', '~/') | truncate(60) }}</a>
                         </td>
@@ -2279,7 +2422,7 @@ STATS_TEMPLATE = """
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="px-6 py-6 text-sm text-slate-400 text-center">No project token data available.</td>
+                        <td colspan="4" class="px-6 py-6 text-sm text-slate-500 text-center">No project token data available.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

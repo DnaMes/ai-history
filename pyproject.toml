@@ -92,10 +92,6 @@ omit = [
     "ai_history/llm/*",
     "ai_history/titles/*",
     "ai_history/watcher.py",
-    "ai_history/extractors/cursor.py",
-    "ai_history/extractors/vscode.py",
-    "ai_history/extractors/copilot.py",
-    "ai_history/extractors/antigravity.py",
     "ai_history/cli/mcp.py",
     "ai_history/cli/web.py",
 ]
