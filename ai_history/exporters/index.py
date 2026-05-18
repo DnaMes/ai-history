@@ -57,6 +57,9 @@ class IndexBuilder:
         }
 
         keyword_index: Dict[str, List[str]] = {}
+        # Titles computed below are reused for the v2 dual-write so v2 and the
+        # JSON index agree on every session title.
+        inferred_titles: Dict[str, str] = {}
 
         if reused_entries:
             for entry in reused_entries:
@@ -69,6 +72,7 @@ class IndexBuilder:
             prompt_count = self._count_prompts(session)
             prompt_outline = self._extract_prompt_outline(session)
             inferred_title = self._infer_title(session, prompt_outline)
+            inferred_titles[session.session_id] = inferred_title
 
             # Extract keywords from content
             keywords = self._extract_keywords(session)
@@ -117,6 +121,17 @@ class IndexBuilder:
         os.replace(tmp_path, self.index_path)
 
         self._build_sqlite_index(sessions, export_paths, reused_entries=reused_entries)
+
+        # Dual-write into the v2 SQLite store (issue #44). Best-effort: a v2
+        # failure is logged and never breaks the legacy index above.
+        from ..storage.writer import write_sessions_safe
+
+        write_sessions_safe(
+            self.output_dir,
+            sessions,
+            titles=inferred_titles,
+            reused_entries=reused_entries,
+        )
 
     def _compute_stats_from_entries(self, entries: List[Dict]) -> Dict:
         """Compute statistics from already-built session dict entries."""

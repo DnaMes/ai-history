@@ -18,5 +18,14 @@ Public surface:
 from __future__ import annotations
 
 from .schema import apply_migrations, current_version, initialise, open_connection
+from .writer import v2_db_path, write_sessions, write_sessions_safe
 
-__all__ = ["apply_migrations", "current_version", "initialise", "open_connection"]
+__all__ = [
+    "apply_migrations",
+    "current_version",
+    "initialise",
+    "open_connection",
+    "v2_db_path",
+    "write_sessions",
+    "write_sessions_safe",
+]
