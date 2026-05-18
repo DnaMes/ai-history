@@ -541,6 +541,44 @@ BASE_TEMPLATE = """
             border-radius: 4px;
             border: 1px solid var(--border);
         }
+
+        /* Mobile sidebar drawer.
+           Explicit CSS rather than Tailwind translate utilities: the
+           Tailwind play-CDN does not reliably emit negative-translate
+           utilities, so the off-canvas state is driven here directly. */
+        #sidebarBackdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 8, 23, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 39;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        body.sidebar-open #sidebarBackdrop {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* Below the lg breakpoint the sidebar is an off-canvas drawer. */
+        @media (max-width: 1023px) {
+            #appSidebar {
+                position: fixed;
+                inset-block: 0;
+                left: 0;
+                z-index: 40;
+                transform: translateX(-100%);
+                transition: transform 0.2s ease;
+            }
+            body.sidebar-open #appSidebar {
+                transform: translateX(0);
+            }
+        }
+        /* lg and up: normal static sidebar, no drawer. */
+        @media (min-width: 1024px) {
+            #sidebarBackdrop { display: none !important; }
+            #appSidebar { transform: none !important; position: static; }
+        }
     </style>
     <script nonce="{{ nonce }}">
         /* Theme Switcher */
@@ -626,7 +664,8 @@ BASE_TEMPLATE = """
 <body class="h-screen overflow-hidden">
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="flex h-full">
-        <aside class="w-72 border-r border-slate-200/70 app-panel backdrop-blur-xl flex flex-col min-h-0">
+        <div id="sidebarBackdrop" aria-hidden="true"></div>
+        <aside id="appSidebar" class="w-72 border-r border-slate-200/70 app-panel backdrop-blur-xl flex flex-col min-h-0">
             <a href="/" class="p-6 font-semibold text-lg flex items-center gap-3 tracking-tight">
                 <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">H</div>
                 <span class="text-slate-900 title-font">History</span>
@@ -656,6 +695,9 @@ BASE_TEMPLATE = """
         <main id="main-content" class="flex-1 flex flex-col min-w-0 min-h-0 app-main">
             <div class="h-16 border-b border-slate-200/70 app-panel backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-20">
                 <div class="flex items-center gap-3 w-full max-w-3xl">
+                    <button id="sidebarToggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="appSidebar" class="lg:hidden flex-shrink-0 w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
                     <div class="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 shadow-sm">
                         <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                         <input type="text" onfocus="openSearch()" class="w-full bg-transparent outline-none text-sm text-slate-700" placeholder="Start a new chat across all your AI context...">
@@ -1034,7 +1076,7 @@ BASE_TEMPLATE = """
             toast.className = 'fixed bottom-4 right-4 max-w-md bg-red-50 border border-red-200 rounded-xl shadow-2xl p-4 z-50';
             const safeTitle = String(title || 'Error');
             const safeMessage = String(message || 'Unexpected error');
-            toast.innerHTML = `<div class="flex items-start gap-3"><div class="text-red-600" aria-hidden="true">!</div><div class="flex-1"><div class="text-sm font-semibold text-red-900">${escapeHtml(safeTitle)}</div><div class="text-sm text-red-700 mt-1">${escapeHtml(safeMessage)}</div></div><button type="button" class="text-red-500 hover:text-red-700" aria-label="Close error" onclick="this.closest('#errorToast').remove()">x</button></div>`;
+            toast.innerHTML = `<div class="flex items-start gap-3"><div class="text-red-600" aria-hidden="true">!</div><div class="flex-1"><div class="text-sm font-semibold text-red-900">${escapeHtml(safeTitle)}</div><div class="text-sm text-red-700 mt-1">${escapeHtml(safeMessage)}</div></div><button type="button" class="text-red-500 hover:text-red-700" aria-label="Close error" onclick="this.closest('#errorToast').remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
             document.body.appendChild(toast);
             setTimeout(() => {
                 const current = document.getElementById('errorToast');
@@ -1404,18 +1446,19 @@ BASE_TEMPLATE = """
             if (toggle) toggle.setAttribute('aria-pressed', mode === 'dark' ? 'true' : 'false');
             if (toggle) toggle.classList.toggle('active', mode === 'dark');
         }
-        function forceToggleTheme(btn) {
-            const dark = document.documentElement.classList.toggle('dark');
-            try { localStorage.setItem('aihistory-theme', dark ? 'dark' : 'light'); } catch (_) {}
-            const target = btn || document.getElementById('themeToggle');
-            if (target) target.classList.toggle('active', window.aiHistoryTheme?.get() === theme);
-        }
         document.addEventListener('DOMContentLoaded', () => {
             const currentTheme = window.aiHistoryTheme?.get() || 'catppuccin';
             document.querySelectorAll('.theme-option').forEach(function(el) {
                 el.classList.toggle('active', el.dataset.theme === currentTheme);
             });
             const themeToggle = document.getElementById('themeToggle');
+            try {
+                applyDensity(localStorage.getItem('aihistory-density') || 'comfortable');
+                applyCleanMode(localStorage.getItem('aihistory-clean-mode') || 'full');
+                applyUltraClean(localStorage.getItem('aihistory-ultra-clean') || 'off');
+                applyReadability(localStorage.getItem('aihistory-readability') || 'standard');
+                applyPresenterMode(localStorage.getItem('aihistory-presenter-mode') || 'off');
+            } catch (_) {}
             document.querySelectorAll('form[data-autosubmit="true"] select, form[data-autosubmit="true"] input[type="date"]').forEach((el) => {
                 el.addEventListener('change', () => {
                     if (!el.form) return;
@@ -1448,6 +1491,38 @@ BASE_TEMPLATE = """
             });
         }
         document.addEventListener('DOMContentLoaded', initTocSpy);
+    </script>
+    <script nonce="{{ nonce }}">
+        (function () {
+            const toggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('appSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (!toggle || !sidebar) return;
+            function openSidebar() {
+                document.body.classList.add('sidebar-open');
+                toggle.setAttribute('aria-expanded', 'true');
+            }
+            function closeSidebar() {
+                document.body.classList.remove('sidebar-open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+            toggle.addEventListener('click', function () {
+                if (document.body.classList.contains('sidebar-open')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+            if (backdrop) backdrop.addEventListener('click', closeSidebar);
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+                    closeSidebar();
+                }
+            });
+            sidebar.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', closeSidebar);
+            });
+        })();
     </script>
 </body>
 </html>
@@ -1707,7 +1782,6 @@ DASHBOARD_TEMPLATE = """
             <div class="compact-list">
                 {% for s in recent_sessions %}
                 <a href="/session/{{ s.id|urlpath }}" class="compact-row flex items-center gap-3 group">
-                    <div class="w-4 h-4 rounded border border-slate-200 bg-white"></div>
                     <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200" style="color: {{ get_style(s.tool).color }}">
                         {{ get_style(s.tool).icon }}
                     </div>
@@ -1717,6 +1791,8 @@ DASHBOARD_TEMPLATE = """
                     </div>
                     <div class="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-full">{{ s.prompts or s.messages }} prompts</div>
                 </a>
+                {% else %}
+                <div class="compact-row text-sm text-slate-500">No sessions yet. Run <code>ai-history sync --all</code> and refresh to import your AI conversations.</div>
                 {% endfor %}
             </div>
         </div>
@@ -1745,7 +1821,6 @@ SESSION_ROWS_TEMPLATE = """
 {% for s in sessions %}
 <div class="compact-row flex items-start gap-3 group">
     <a href="/session/{{ s.id|urlpath }}?back={{ (back_to or '/sessions')|urlpath }}" class="flex items-center gap-3 flex-1">
-        <div class="w-4 h-4 rounded border border-slate-200 bg-white mt-1"></div>
         <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200" style="color: {{ get_style(s.tool).color }}">
             {{ get_style(s.tool).icon }}
         </div>
@@ -1764,7 +1839,7 @@ SESSION_ROWS_TEMPLATE = """
     </a>
     <form action="/session/{{ s.id|urlpath }}/delete" method="POST" onsubmit="return confirm('Delete this session?');" class="ml-2">
         <input type="hidden" name="next" value="{{ back_to or '/sessions' }}">
-        <button type="submit" aria-label="Delete session {{ s.display_title or s.title or s.id }}" class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg transition-all bg-white">×</button>
+        <button type="submit" aria-label="Delete session {{ s.display_title or s.title or s.id }}" class="text-red-600 hover:text-red-900 border border-red-200 p-1.5 rounded-lg transition-all bg-white"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg></button>
     </form>
 </div>
 {% endfor %}
@@ -2102,7 +2177,6 @@ THREADS_LIST_TEMPLATE = """
     <div class="compact-list">
         {% for t in threads %}
         <a href="/thread/{{ t.thread_id|urlpath }}" class="compact-row flex items-center gap-3 group">
-            <div class="w-4 h-4 rounded border border-slate-200 bg-white"></div>
             <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200 text-slate-500">T</div>
             <div class="flex-1 min-w-0">
                 <div class="compact-title text-slate-900 group-hover:text-slate-900 truncate">{{ t.title }}</div>
@@ -2181,6 +2255,8 @@ PROJECTS_TEMPLATE = """
                 {% endfor %}
             </div>
         </div>
+        {% else %}
+        <div class="compact-row text-sm text-slate-500 lg:col-span-2">No projects found. Run <code>ai-history sync --all</code> and refresh to group your sessions by project.</div>
         {% endfor %}
     </div>
 </section>

@@ -600,16 +600,19 @@ def add_security_headers(response):
     # All assets (Tailwind, highlight.js) are vendored under /static/ — no CDN
     # origins are allowed, so the UI works in air-gapped installs.
     #
-    # style-src keeps 'unsafe-inline': the Tailwind JIT runtime injects an
-    # un-nonced <style> element it generates at runtime, which a nonce-only
-    # policy would block. CSP3 ignores 'unsafe-inline' for our own
-    # nonce-carrying <style> blocks, so those stay nonce-protected; only the
-    # dynamic Tailwind sheet relies on it. Style injection cannot exfiltrate
-    # data the way script injection can, so this is an accepted trade-off.
+    # script-src is nonce-only — strong protection against script injection.
+    #
+    # style-src uses 'unsafe-inline' WITHOUT a nonce. This is deliberate and
+    # required: the Tailwind play-CDN runtime sets inline style= attributes
+    # and injects un-nonced <style> elements. Per CSP3, a nonce in style-src
+    # makes 'unsafe-inline' be IGNORED — which would block every Tailwind
+    # style and leave the whole UI unstyled. Style injection cannot exfiltrate
+    # data the way script injection can, and all user content is nh3-
+    # sanitised, so an attacker cannot inject a raw <style>/style= anyway.
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         f"script-src 'self' {nonce_src}; "
-        f"style-src 'self' {nonce_src} 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
         "font-src 'self' data:; "
         "connect-src 'self'; "
@@ -1391,11 +1394,9 @@ def session_delete(session_id):
     if not validate_session_id(session_id):
         return "Invalid session ID", 400
 
-    if not INDEX_PATH.exists():
-        return "Not found", 404
-    with open(INDEX_PATH, "r", encoding="utf-8") as handle:
-        idx = json.load(handle)
-    sessions = idx.get("sessions", [])
+    # Find the session through load_index() so this works regardless of
+    # whether the active store is v2 or the legacy JSON index (#44).
+    sessions = load_index().get("sessions", [])
     session_meta = next((s for s in sessions if s.get("id") == session_id), None)
 
     if not session_meta:
@@ -1410,31 +1411,10 @@ def session_delete(session_id):
             except OSError:
                 pass
 
-    idx["sessions"] = [s for s in sessions if s.get("id") != session_id]
+    # Deletion is recorded as a tombstone — both the v2 reader and the JSON
+    # reader filter tombstoned ids out. No need to rewrite any index in
+    # place (the in-place index.json rewrite was dead code on the v2 path).
     remember_deleted_session_id(session_id)
-
-    by_tool = {}
-    by_project = {}
-    total_messages = 0
-    for session in idx["sessions"]:
-        tool_name = str(session.get("tool") or "")
-        if tool_name:
-            by_tool[tool_name] = by_tool.get(tool_name, 0) + 1
-        project_name = session.get("project")
-        if project_name:
-            by_project[project_name] = by_project.get(project_name, 0) + 1
-        total_messages += int(session.get("messages") or 0)
-
-    idx["stats"] = {
-        "total_sessions": len(idx["sessions"]),
-        "total_messages": total_messages,
-        "by_tool": by_tool,
-        "by_project": by_project,
-    }
-
-    with open(INDEX_PATH, "w", encoding="utf-8") as f:
-        json.dump(idx, f, indent=2)
-
     clear_index_cache()
 
     next_url = _sanitize_next_url(request.form.get("next", ""))

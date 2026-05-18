@@ -496,20 +496,26 @@ def test_session_delete_removes_index_entry_and_export(monkeypatch, tmp_path):
 
     monkeypatch.setattr(web_data, "OUTPUT_DIR", fake_output_dir)
     monkeypatch.setattr(web_data, "INDEX_PATH", index_path)
+    monkeypatch.setattr(web_data, "DELETED_SESSIONS_PATH", fake_output_dir / "deleted.json")
     monkeypatch.setattr(web, "INDEX_PATH", index_path)
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    web_data.clear_index_cache()
 
     with web.app.test_client() as client:
         response = client.post(f"/session/{session_id}/delete")
 
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/sessions")
+    # The session's export markdown is removed.
     assert export_path.exists() is False
 
-    updated = json.loads(index_path.read_text(encoding="utf-8"))
-    assert [s["id"] for s in updated["sessions"]] == ["test-session-2"]
-    assert updated["stats"]["total_sessions"] == 1
-    assert updated["stats"]["total_messages"] == 3
-    assert updated["stats"]["by_tool"] == {"codex": 1}
+    # Deletion is tombstone-based (#44): the session is recorded as deleted
+    # and load_index() no longer surfaces it. The index.json is not rewritten
+    # in place — the tombstone filter does the work.
+    web_data.clear_index_cache()
+    remaining = [s["id"] for s in web_data.load_index().get("sessions", [])]
+    assert session_id not in remaining
+    assert "test-session-2" in remaining
 
 
 def test_export_session_builds_markdown_from_live_indexed_session(monkeypatch, tmp_path):

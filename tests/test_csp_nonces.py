@@ -83,18 +83,23 @@ class TestCspHeader:
         csp = response.headers.get("Content-Security-Policy", "")
         assert _extract_nonce_from_csp(csp) is not None, f"No nonce found in CSP: {csp}"
 
-    def test_nonce_appears_in_both_script_and_style_src(self):
+    def test_nonce_in_script_src_only(self):
+        """script-src carries the nonce; style-src must NOT.
+
+        A nonce in style-src makes CSP3 ignore 'unsafe-inline', which would
+        block every Tailwind-injected inline style and leave the UI unstyled.
+        """
         with web.app.test_client() as client:
             response = client.get("/")
         csp = response.headers.get("Content-Security-Policy", "")
         nonce = _extract_nonce_from_csp(csp)
         assert nonce, f"No nonce in CSP: {csp}"
-        assert f"'nonce-{nonce}'" in csp
-        # Both directives must carry the nonce
         script_src = next((d for d in csp.split(";") if "script-src" in d), "")
         style_src = next((d for d in csp.split(";") if "style-src" in d), "")
         assert f"'nonce-{nonce}'" in script_src, f"nonce missing from script-src: {script_src}"
-        assert f"'nonce-{nonce}'" in style_src, f"nonce missing from style-src: {style_src}"
+        assert (
+            "nonce-" not in style_src
+        ), f"style-src must NOT carry a nonce (would disable unsafe-inline): {style_src}"
 
     def test_hardened_directives_still_present(self):
         """Regression guard: existing strict directives must survive the nonce change."""
