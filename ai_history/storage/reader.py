@@ -15,25 +15,67 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from .schema import current_version
 from .writer import v2_db_path
 
 # A v2 DB is only usable once the denormalised display columns exist (v6).
 _MIN_USABLE_VERSION = 6
+# store_meta.generated_at is written from migration 9 onward; below this a v2
+# store cannot be staleness-checked, so it is not considered usable.
+_MIN_STALENESS_VERSION = 9
 
 
-def v2_is_available(output_dir: Path) -> bool:
-    """True if a v2 DB exists and is migrated far enough to read from."""
+def _read_generated_at(conn: sqlite3.Connection) -> Optional[str]:
+    """Return the v2 store's generated_at stamp, or None if absent."""
+    try:
+        row = conn.execute("SELECT value FROM store_meta WHERE key = 'generated_at'").fetchone()
+    except sqlite3.Error:
+        return None
+    return row[0] if row else None
+
+
+def v2_is_available(output_dir: Path, compare_to: Optional[Path] = None) -> bool:
+    """True if a v2 DB exists, is migrated far enough, and is not stale.
+
+    Args:
+        output_dir: directory holding ``index_v2.sqlite``.
+        compare_to: optional path (typically ``index.json``) — if the v2
+            store's ``generated_at`` is older than this file's mtime, the v2
+            store is considered stale and unusable, so callers fall back.
+    """
     db = v2_db_path(output_dir)
     if not db.exists():
         return False
     try:
         conn = sqlite3.connect(str(db))
         try:
-            return current_version(conn) >= _MIN_USABLE_VERSION
+            version = current_version(conn)
+            if version < _MIN_USABLE_VERSION:
+                return False
+            # Staleness check needs the generated_at stamp (migration 9+).
+            if compare_to is not None and compare_to.exists():
+                if version < _MIN_STALENESS_VERSION:
+                    return False
+                generated_at = _read_generated_at(conn)
+                if not generated_at:
+                    return False
+                try:
+                    v2_time = datetime.fromisoformat(generated_at)
+                except ValueError:
+                    return False
+                # Compare both as POSIX timestamps so the v2 stamp (stored
+                # UTC) and the file mtime (POSIX, tz-independent) line up
+                # regardless of the local timezone. A 2 s grace window
+                # absorbs the sub-second ordering of the JSON-then-v2 write.
+                v2_ts = v2_time.timestamp()
+                ref_ts = compare_to.stat().st_mtime
+                if v2_ts < ref_ts - 2.0:
+                    return False
+            return True
         finally:
             conn.close()
     except sqlite3.Error:
@@ -117,12 +159,14 @@ def load_index_v2(output_dir: Path) -> Dict[str, Any]:
             ORDER BY updated DESC
             """
         ).fetchall()
+        generated_at = _read_generated_at(conn)
     finally:
         conn.close()
 
     sessions = [_row_to_session_dict(r) for r in rows]
     return {
         "version": "2",
+        "generated_at": generated_at,
         "stats": _compute_stats(sessions),
         "sessions": sessions,
     }

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, Optional
 
@@ -229,6 +230,12 @@ def write_sessions(
                 ),
             )
 
+        # Stamp the write time so readers can detect a stale v2 store (#36).
+        conn.execute(
+            "INSERT INTO store_meta(key, value) VALUES('generated_at', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (datetime.now(timezone.utc).isoformat(timespec="seconds"),),
+        )
         conn.execute("COMMIT")
         return count
     except sqlite3.Error:

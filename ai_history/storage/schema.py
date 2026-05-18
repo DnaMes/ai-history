@@ -167,6 +167,19 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         ALTER TABLE sessions ADD COLUMN messages_synced INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        9,
+        "store-level metadata (generated_at) for staleness detection",
+        # A key/value side table. 'generated_at' is stamped on every write so
+        # readers can tell whether the v2 store is fresh relative to the
+        # legacy index.json.
+        """
+        CREATE TABLE IF NOT EXISTS store_meta (
+            key   TEXT PRIMARY KEY,
+            value TEXT
+        );
+        """,
+    ),
 ]
 
 

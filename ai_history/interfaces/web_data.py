@@ -336,7 +336,9 @@ def _load_index_from_v2():
         from ai_history.storage import v2_is_available
 
         index_dir = INDEX_PATH.parent
-        if not v2_is_available(index_dir):
+        # Staleness check: if a JSON index exists and is newer than the v2
+        # store, the v2 store is stale — fall back to JSON (#36).
+        if not v2_is_available(index_dir, compare_to=INDEX_PATH):
             return None
         v2_db = index_dir / "index_v2.sqlite"
         stat = v2_db.stat()

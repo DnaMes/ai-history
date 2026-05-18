@@ -187,3 +187,61 @@ def test_v2_and_json_agree_on_session_ids(tmp_path, monkeypatch):
     json_ids = sorted(s["id"] for s in web_data.load_index()["sessions"])
 
     assert v2_ids == json_ids == ["a", "b", "c"]
+
+
+# ---------------------------------------------------------------------------
+# #36 — staleness check + generated_at
+# ---------------------------------------------------------------------------
+
+
+def test_load_index_v2_sets_generated_at(tmp_path):
+    IndexBuilder(tmp_path).build_index([_session("a")], {})
+    idx = load_index_v2(tmp_path)
+    assert idx.get("generated_at") is not None
+
+
+def test_v2_fresh_store_is_available(tmp_path):
+    IndexBuilder(tmp_path).build_index([_session("a")], {})
+    assert v2_is_available(tmp_path, compare_to=tmp_path / "index.json") is True
+
+
+def test_v2_stale_store_is_rejected(tmp_path):
+    """A v2 store older than index.json must be reported unavailable."""
+    import time
+
+    IndexBuilder(tmp_path).build_index([_session("a")], {})
+    time.sleep(3.2)
+    (tmp_path / "index.json").touch()  # index.json now newer than v2
+    assert v2_is_available(tmp_path, compare_to=tmp_path / "index.json") is False
+
+
+def test_v2_available_without_compare_to(tmp_path):
+    """Without a compare_to path, no staleness check is applied."""
+    IndexBuilder(tmp_path).build_index([_session("a")], {})
+    assert v2_is_available(tmp_path) is True
+
+
+def test_load_index_falls_back_when_v2_stale(tmp_path, monkeypatch):
+    """load_index() must serve JSON when the v2 store is stale."""
+    import time
+
+    from ai_history.interfaces import web_data
+
+    monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
+    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    web_data.clear_index_cache()
+
+    IndexBuilder(tmp_path).build_index([_session("v2sess", title="From V2 store")], {})
+    time.sleep(3.2)
+    # Rewrite index.json newer, with a different session id.
+    (tmp_path / "index.json").write_text(
+        '{"version":"1.0.0","stats":{},"sessions":'
+        '[{"id":"jsonsess","tool":"warp","title":"t",'
+        '"created":"2026-01-01","updated":"2026-01-01","messages":1}]}',
+        encoding="utf-8",
+    )
+    web_data.clear_index_cache()
+    payload = web_data.load_index()
+    # v2 is stale -> JSON path wins
+    assert payload["sessions"][0]["id"] == "jsonsess"
