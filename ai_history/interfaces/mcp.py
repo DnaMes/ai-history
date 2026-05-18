@@ -9,8 +9,21 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from ..exporters.index import IndexBuilder
-from ..extractors.factory import get_all_extractors
+from ..services import (
+    build_index_if_missing as _service_build_index_if_missing,
+)
+from ..services import (
+    collect_sessions,
+)
+from ..services import (
+    load_deleted_session_ids as _service_load_deleted_session_ids,
+)
+from ..services import (
+    load_index as _service_load_index,
+)
+from ..services import (
+    search_index as _service_search_index,
+)
 from ..utils.datetime import make_naive, parse_duration
 from ..utils.security import (
     validate_search_param,
@@ -25,12 +38,44 @@ from .api_payloads import (
     serialize_thread_messages,
     serialize_thread_overview,
 )
-from .web_data import INDEX_PATH, load_index, load_sessions_for_tool, search_index
 from .web_services import (
     build_projects_payload,
     build_thread_detail_payload,
     build_threads_overview,
 )
+
+# Default output directory for the MCP server. Kept as a module global so
+# tests can monkeypatch ``mcp.INDEX_PATH`` (the historical patch target).
+OUTPUT_DIR = Path.home() / ".ai-history"
+INDEX_PATH = OUTPUT_DIR / "index.json"
+
+
+def _deleted_ids() -> set:
+    """Tombstone set, resolved relative to the (patchable) INDEX_PATH."""
+    return _service_load_deleted_session_ids(INDEX_PATH.parent / "deleted_sessions.json")
+
+
+def load_index():
+    """Load the search index from the MCP server's output directory."""
+    return _service_load_index(INDEX_PATH, INDEX_PATH.parent, _deleted_ids())
+
+
+def load_sessions_for_tool(tool=None):
+    """Collect live sessions for a tool (shared service-layer routine)."""
+    return collect_sessions(tool, deleted_ids=_deleted_ids())
+
+
+def search_index(query, tool=None, project=None, limit=50, scope=None):
+    """Search the index from the MCP server's output directory."""
+    return _service_search_index(
+        INDEX_PATH,
+        query,
+        _deleted_ids(),
+        tool=tool,
+        project=project,
+        limit=limit,
+        scope=scope,
+    )
 
 
 class MCPServer:
@@ -220,23 +265,8 @@ def create_server() -> MCPServer:
     def _json_text(payload: dict) -> str:
         return json.dumps(payload, indent=2, ensure_ascii=False)
 
-    def build_index_if_missing() -> None:
-        if INDEX_PATH.exists():
-            return
-        extractors = get_all_extractors()
-        sessions = []
-        for extractor in extractors:
-            if not extractor.is_available():
-                continue
-            try:
-                sessions.extend(list(extractor.extract_sessions()))
-            except Exception:
-                continue
-        IndexBuilder(server.output_dir).build_index(sessions, {})
-
     def _ensure_index() -> dict:
-        if not INDEX_PATH.exists():
-            build_index_if_missing()
+        _service_build_index_if_missing(server.output_dir, INDEX_PATH)
         return load_index()
 
     def _normalize_limit(raw_value: object, default: int = 10, max_value: int = 100) -> int:

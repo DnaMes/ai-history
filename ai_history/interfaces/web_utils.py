@@ -18,6 +18,12 @@ from typing import Optional
 
 from flask import request
 
+# ActionJobCancelledError is defined in the framework-free service layer
+# (issue #47) so both ``services`` and the interface modules share one
+# exception type. Re-exported here for backwards compatibility — callers
+# and tests historically import it from ``web_utils``.
+from ai_history.services import ActionJobCancelledError  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 # Rate limiting state
@@ -32,10 +38,6 @@ METRICS_LOCK = Lock()
 # Paths
 OUTPUT_DIR = Path.home() / ".ai-history"
 NOISE_RULES_PATH = OUTPUT_DIR / "noise_rules.json"
-
-
-class ActionJobCancelledError(RuntimeError):
-    pass
 
 
 class ActionJobTimeoutError(RuntimeError):

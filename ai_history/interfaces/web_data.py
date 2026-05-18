@@ -1,52 +1,75 @@
 """Data loading and caching for the web interface.
 
-This module handles session loading, index management, and data caching
+This module handles session loading, index management and data caching
 for the web interface.
+
+Most of the genuinely shared, framework-free logic now lives in
+``ai_history.services`` (issue #47). The functions here are thin
+wrappers that supply this module's — test-patchable — path globals
+(``INDEX_PATH``, ``OUTPUT_DIR``, ``DELETED_SESSIONS_PATH``) to the
+service-layer functions, plus the Flask-specific bits that stay here
+(export-markdown parsing, export-path resolution, the sessions cache).
+
+Re-exports from ``ai_history.services`` keep the historical
+``web_data.<symbol>`` import surface intact for callers and tests.
 """
 
-import json
-import logging
 import os
 import re
-import threading
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Optional
 
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder, _stat_mtime_ns
-from ai_history.extractors.factory import get_all_extractors
-from ai_history.titles.generator import TitleGenerator, TitleStrategy
+from ai_history.services import (
+    ActionJobCancelledError,  # noqa: F401  (backwards-compat re-export)
+    annotate_display_titles,
+    apply_deleted_filter,
+    build_search_index,
+    collect_sessions,
+    threadsafe_lru_cache,
+)
+from ai_history.services import (
+    clear_index_cache as _service_clear_index_cache,
+)
+from ai_history.services import (
+    load_index as _service_load_index,
+)
+from ai_history.services import (
+    load_index_summary as _service_load_index_summary,
+)
+from ai_history.services import (
+    remember_deleted_session_id as _service_remember_deleted_session_id,
+)
+from ai_history.services import (
+    save_deleted_session_ids as _service_save_deleted_session_ids,
+)
+from ai_history.services import (
+    search_index as _service_search_index,
+)
+from ai_history.services.index import (
+    _load_deleted_session_ids_cached,
+    _load_index_cached,
+    _load_index_v2_cached,
+)
+from ai_history.services.index import (
+    load_deleted_session_ids as _service_load_deleted_session_ids,
+)
 
-from .web_utils import ActionJobCancelledError
-
-logger = logging.getLogger(__name__)
-
-# Thread-safe LRU cache wrapper
-_threadsafe_cache_locks: dict = {}
-_threadsafe_cache_lock = threading.Lock()
+# Backwards-compatible re-export — same signature as the service helper.
+_annotate_display_titles = annotate_display_titles
 
 
-def threadsafe_lru_cache(maxsize: int = 128) -> Callable:
-    """Thread-safe LRU cache decorator for use in multi-threaded Flask applications."""
-
-    def decorator(func: Callable) -> Any:
-        cached_func = lru_cache(maxsize=maxsize)(func)
-        cache_lock = threading.Lock()
-
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            with cache_lock:
-                return cached_func(*args, **kwargs)
-
-        wrapper.cache_clear = cached_func.cache_clear  # type: ignore[attr-defined]
-        wrapper.cache_info = cached_func.cache_info  # type: ignore[attr-defined]
-        return wrapper
-
-    return decorator
+def _apply_deleted_filter(payload: dict) -> dict:
+    """Backwards-compatible wrapper: reads the tombstone set from this
+    module's ``DELETED_SESSIONS_PATH`` then delegates to the service helper.
+    """
+    return apply_deleted_filter(payload, load_deleted_session_ids())
 
 
-# Paths
+# Paths — kept as module globals so tests can monkeypatch them. The
+# service-layer functions take paths as explicit arguments; the wrappers
+# below pass these values, so patching them here stays effective.
 OUTPUT_DIR = Path.home() / ".ai-history"
 INDEX_PATH = OUTPUT_DIR / "index.json"
 DELETED_SESSIONS_PATH = OUTPUT_DIR / "deleted_sessions.json"
@@ -61,46 +84,16 @@ if os.environ.get("AI_HISTORY_CLEAR_OPENCODE_CACHE", "").lower() == "true":
 # --- Deleted Session IDs ---
 
 
-@threadsafe_lru_cache(maxsize=1)
-def _load_deleted_session_ids_cached(path: str, mtime_ns: int, size: int):
-    with open(path, "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    if isinstance(payload, dict):
-        values = payload.get("session_ids", [])
-    else:
-        values = payload
-    return {str(value) for value in values if str(value).strip()}
-
-
 def load_deleted_session_ids() -> set[str]:
-    if not DELETED_SESSIONS_PATH.exists():
-        return set()
-    stat = DELETED_SESSIONS_PATH.stat()
-    try:
-        return set(
-            _load_deleted_session_ids_cached(
-                str(DELETED_SESSIONS_PATH), stat.st_mtime_ns, stat.st_size
-            )
-        )
-    except Exception as exc:
-        logger.warning("Failed to load deleted session ids from %s: %s", DELETED_SESSIONS_PATH, exc)
-        return set()
-
-
-def _save_deleted_session_ids(session_ids: set[str]) -> None:
-    from ai_history.utils.paths import restrict_file, secure_dir
-
-    secure_dir(OUTPUT_DIR)
-    with open(DELETED_SESSIONS_PATH, "w", encoding="utf-8") as handle:
-        json.dump({"session_ids": sorted(session_ids)}, handle, indent=2)
-    restrict_file(DELETED_SESSIONS_PATH)  # session ids — owner-only (#41)
-    _load_deleted_session_ids_cached.cache_clear()
+    return _service_load_deleted_session_ids(DELETED_SESSIONS_PATH)
 
 
 def remember_deleted_session_id(session_id: str) -> None:
-    ids = load_deleted_session_ids()
-    ids.add(session_id)
-    _save_deleted_session_ids(ids)
+    _service_remember_deleted_session_id(session_id, OUTPUT_DIR, DELETED_SESSIONS_PATH)
+
+
+def _save_deleted_session_ids(session_ids: set[str]) -> None:
+    _service_save_deleted_session_ids(session_ids, OUTPUT_DIR, DELETED_SESSIONS_PATH)
 
 
 # --- URL Sanitization ---
@@ -120,47 +113,11 @@ def _sanitize_next_url(next_url: str) -> str:
     return value
 
 
-# --- Index Filtering ---
-
-
-def _apply_deleted_filter(payload: dict) -> dict:
-    deleted = load_deleted_session_ids()
-    if not deleted:
-        return payload
-
-    sessions = [
-        session for session in payload.get("sessions", []) if session.get("id") not in deleted
-    ]
-
-    by_tool: dict[str, int] = {}
-    by_project: dict[str, int] = {}
-    total_messages = 0
-    for session in sessions:
-        tool = str(session.get("tool") or "")
-        if tool:
-            by_tool[tool] = by_tool.get(tool, 0) + 1
-        project = session.get("project")
-        if project:
-            by_project[project] = by_project.get(project, 0) + 1
-        total_messages += int(session.get("messages") or 0)
-
-    payload["sessions"] = sessions
-    payload["stats"] = {
-        "total_sessions": len(sessions),
-        "total_messages": total_messages,
-        "by_tool": by_tool,
-        "by_project": by_project,
-    }
-    return payload
-
-
 # --- Cache Management ---
 
 
 def clear_index_cache():
-    _load_index_cached.cache_clear()
-    _load_index_v2_cached.cache_clear()
-    _load_deleted_session_ids_cached.cache_clear()
+    _service_clear_index_cache()
     load_export_lookup.cache_clear()
 
 
@@ -177,359 +134,51 @@ def _build_index_from_extractors(
     should_stop=None,
     incremental: bool = True,
 ):
-    """Build the search index.
+    """Build the search index (wrapper over ``services.build_search_index``).
 
     When ``incremental=True`` (default) sessions already present in the
-    existing index whose source-file mtime hasn't changed are reused verbatim
-    instead of being re-processed by :class:`IndexBuilder`. Set
-    ``incremental=False`` to force a full rebuild.
+    existing index whose source-file mtime hasn't changed are reused
+    verbatim. Set ``incremental=False`` to force a full rebuild.
     """
-    extractors = get_all_extractors()
-    selected = [
-        extractor
-        for extractor in extractors
-        if extractor.is_available() and (not tool_filter or extractor.tool.value == tool_filter)
-    ]
-
-    existing_by_id: dict[str, dict] = {}
-    if incremental and INDEX_PATH.exists():
-        try:
-            with open(INDEX_PATH, "r", encoding="utf-8") as handle:
-                existing_payload = json.load(handle)
-            for entry in existing_payload.get("sessions", []) or []:
-                sid = str(entry.get("id") or "")
-                if sid:
-                    existing_by_id[sid] = entry
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Failed to read existing index for incremental build: %s", exc)
-
-    sessions = []
-    reused_entries: list[dict] = []
-    # The full UnifiedSession objects behind reused_entries — incremental sync
-    # has already extracted them (messages included), so we hand them to the
-    # v2 store as complete sessions instead of metadata-only rows (#35).
-    reused_sessions = []
-    reused_ids: set[str] = set()
-    errors: list[dict] = []
-    title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
-    total = len(selected) or 1
-
-    for i, extractor in enumerate(selected, start=1):
-        if should_stop and should_stop():
-            raise ActionJobCancelledError("Cancelled by user")
-        if progress_callback:
-            progress_callback(15 + int((i - 1) / total * 45), f"Loading {extractor.tool.value}")
-        try:
-            extracted_sessions = []
-            for session in extractor.extract_sessions():
-                if should_stop and should_stop():
-                    raise ActionJobCancelledError("Cancelled by user")
-
-                if incremental:
-                    prior = existing_by_id.get(session.session_id)
-                    if prior is not None:
-                        prior_mtime = prior.get("source_mtime")
-                        current_mtime = _stat_mtime_ns(session.source_path)
-                        if (
-                            prior_mtime is not None
-                            and current_mtime is not None
-                            and prior_mtime == current_mtime
-                            and session.session_id not in reused_ids
-                        ):
-                            reused_entries.append(prior)
-                            # Keep the fully-extracted session for the v2 store
-                            # so its message rows are written too (#35).
-                            reused_sessions.append(session)
-                            reused_ids.add(session.session_id)
-                            continue
-
-                title = title_generator.generate(session, force=False)
-                if title:
-                    session.title = title
-                extracted_sessions.append(session)
-            sessions.extend(extracted_sessions)
-        except ActionJobCancelledError:
-            raise
-        except Exception as exc:
-            logger.warning(
-                "Extractor %s failed during index build: %s",
-                extractor.tool.value,
-                exc,
-                exc_info=True,
-            )
-            errors.append({"extractor": extractor.tool.value, "error": str(exc)})
-            continue
-
-    deleted = load_deleted_session_ids()
-    filtered = [session for session in sessions if session.session_id not in deleted]
-    reused_filtered = [entry for entry in reused_entries if entry.get("id") not in deleted]
-    reused_sessions_filtered = [s for s in reused_sessions if s.session_id not in deleted]
-    IndexBuilder(OUTPUT_DIR).build_index(
-        filtered,
-        {},
-        reused_entries=reused_filtered if reused_filtered else None,
-        reused_sessions=reused_sessions_filtered if reused_sessions_filtered else None,
+    return build_search_index(
+        OUTPUT_DIR,
+        INDEX_PATH,
+        deleted_ids=load_deleted_session_ids(),
+        tool_filter=tool_filter,
+        progress_callback=progress_callback,
+        should_stop=should_stop,
+        incremental=incremental,
     )
-
-    if progress_callback:
-        message = (
-            f"Index written ({len(reused_filtered)} reused, {len(filtered)} refreshed)"
-            if incremental
-            else "Index written"
-        )
-        progress_callback(62, message)
-
-    return errors
 
 
 @threadsafe_lru_cache(maxsize=128)
 def load_sessions_for_tool(tool: Optional[str] = None):
-    extractors = get_all_extractors()
-    sessions = []
-    title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
-
-    for extractor in extractors:
-        if tool and extractor.tool.value != tool:
-            continue
-        if not extractor.is_available():
-            continue
-        try:
-            extracted_sessions = list(extractor.extract_sessions())
-            for session in extracted_sessions:
-                title = title_generator.generate(session, force=False)
-                if title:
-                    session.title = title
-            sessions.extend(extracted_sessions)
-        except Exception as exc:
-            logger.debug("Failed loading sessions for tool %s: %s", tool, exc)
-            continue
-    deleted = load_deleted_session_ids()
-    if deleted:
-        sessions = [session for session in sessions if session.session_id not in deleted]
-    return sessions
+    return collect_sessions(tool, deleted_ids=load_deleted_session_ids())
 
 
-def _v2_enabled() -> bool:
-    """Whether to read sessions from the v2 SQLite store (issue #44).
-
-    Default is **on**: the v2 store is now consistency-checked (#34 search,
-    #35 message completeness, #36 staleness) and concurrency-hardened (#40).
-    Set ``AI_HISTORY_USE_V2=0`` (or false/no/off) to force the legacy
-    index.json reader as an escape hatch.
-    """
-    raw = os.environ.get("AI_HISTORY_USE_V2", "1").strip().lower()
-    return raw not in ("0", "false", "no", "off")
-
-
-def _load_index_from_v2():
-    """Load and post-process the index from the v2 store, or None to fall back.
-
-    Returns the same dict shape as the JSON path (deleted-filtered, display
-    titles annotated) or ``None`` when v2 is unavailable/unreadable so the
-    caller can fall back to index.json.
-
-    The v2 DB is located relative to ``INDEX_PATH`` (not OUTPUT_DIR) so it
-    follows the same directory the JSON reader uses — keeping the two paths
-    consistent and letting tests that patch INDEX_PATH stay isolated.
-    """
-    if not _v2_enabled():
-        return None
-    try:
-        from ai_history.storage import v2_is_available
-
-        index_dir = INDEX_PATH.parent
-        # Staleness check: if a JSON index exists and is newer than the v2
-        # store, the v2 store is stale — fall back to JSON (#36).
-        if not v2_is_available(index_dir, compare_to=INDEX_PATH):
-            return None
-        v2_db = index_dir / "index_v2.sqlite"
-        stat = v2_db.stat()
-        payload = _load_index_v2_cached(str(v2_db), stat.st_mtime_ns, stat.st_size)
-    except Exception as exc:
-        logger.warning("v2 index read failed, falling back to JSON: %s", exc)
-        return None
-    payload = _apply_deleted_filter(payload)
-    payload["sessions"] = _annotate_display_titles(payload.get("sessions", []))
-    return payload
-
-
-@threadsafe_lru_cache(maxsize=1)
-def _load_index_v2_cached(db_path: str, _mtime_ns: int, _size: int):
-    """File-stat-keyed cache of the v2 store read (mirrors _load_index_cached)."""
-    from ai_history.storage import load_index_v2
-
-    return load_index_v2(Path(db_path).parent)
+# --- Index Loading & Search ---
 
 
 def search_index(query, tool=None, project=None, limit=50, scope=None):
-    """Search sessions, reading from whichever store load_index() uses (#34).
-
-    When the v2 store is the active source, search v2's FTS5 index so search
-    results and the session list stay consistent. Otherwise fall back to the
-    legacy SearchEngine over index.sqlite.
-
-    ``scope`` optionally restricts matches to a message-role subset (issue
-    #24): ``"user_only"``, ``"assistant_only"`` or ``"tool_results"``; unset
-    or ``"all"`` searches whole sessions. Scoped search needs the v2 store's
-    per-message rows — on the legacy fallback path scope is a no-op and the
-    unfiltered legacy result is returned.
-
-    Returns ``[{"session": <dict>, "score": <float>}]``.
-
-    Raises:
-        ValueError: when ``scope`` is not a recognised value.
-    """
-    index_dir = INDEX_PATH.parent
-    if _v2_enabled():
-        try:
-            from ai_history.storage import search_sessions, v2_is_available
-
-            if v2_is_available(index_dir):
-                results = search_sessions(
-                    index_dir, query, tool=tool, project=project, limit=limit, scope=scope
-                )
-                return _apply_deleted_filter_to_results(results)
-        except ValueError:
-            # Invalid scope — surface to the caller, do not fall back.
-            raise
-        except Exception as exc:
-            logger.warning("v2 search failed, falling back to legacy: %s", exc)
-
-    # Legacy SearchEngine has no per-message rows; validate scope but treat
-    # any non-"all" value as a no-op (return the unfiltered legacy result).
-    from ai_history.storage.search import SEARCH_SCOPES
-
-    if (scope or "all").strip().lower() not in SEARCH_SCOPES:
-        raise ValueError(
-            f"Invalid scope '{scope}'. " f"Expected one of: {', '.join(sorted(SEARCH_SCOPES))}."
-        )
-
-    from ai_history.search.engine import SearchEngine
-
-    results = SearchEngine(INDEX_PATH).search(query, tool=tool, project=project)[:limit]
-    return _apply_deleted_filter_to_results(results)
-
-
-def _apply_deleted_filter_to_results(results):
-    """Drop search results whose session id is tombstoned."""
-    deleted = load_deleted_session_ids()
-    if not deleted:
-        return results
-    return [r for r in results if r.get("session", {}).get("id") not in deleted]
+    """Search sessions (wrapper over ``services.search_index``)."""
+    return _service_search_index(
+        INDEX_PATH,
+        query,
+        load_deleted_session_ids(),
+        tool=tool,
+        project=project,
+        limit=limit,
+        scope=scope,
+    )
 
 
 def load_index():
-    # Prefer the v2 SQLite store; fall back to index.json transparently.
-    v2_payload = _load_index_from_v2()
-    if v2_payload is not None:
-        return v2_payload
-
-    if not INDEX_PATH.exists():
-        try:
-            _build_index_from_extractors()
-        except Exception as exc:
-            logger.warning("Failed to build index from extractors: %s", exc)
-            return {"stats": {}, "sessions": []}
-        # A rebuild also produces the v2 store — retry the v2 path once.
-        v2_payload = _load_index_from_v2()
-        if v2_payload is not None:
-            return v2_payload
-    if not INDEX_PATH.exists():
-        return {"stats": {}, "sessions": []}
-    stat = INDEX_PATH.stat()
-    payload = _load_index_cached(str(INDEX_PATH), stat.st_mtime_ns, stat.st_size)
-    payload = _apply_deleted_filter(payload)
-    payload["sessions"] = _annotate_display_titles(payload.get("sessions", []))
-    return payload
+    return _service_load_index(INDEX_PATH, OUTPUT_DIR, load_deleted_session_ids())
 
 
 def load_index_summary() -> dict:
-    """Return lightweight index metadata without loading full session details.
-
-    Derives counts from the cached full index (already in memory after any
-    previous load_index() call) so there is no extra I/O cost in the common
-    case.  Falls back to reading index.json stats block directly when the
-    cache is cold — the stats block is at the top of the file but json.load
-    still parses the whole file, so this is only a minor win for cold starts;
-    the real benefit is not shipping all session records to the caller.
-    """
-    # When v2 is the source, derive the summary from the (deleted-filtered,
-    # already-cached) full index — no extra I/O, and counts stay consistent.
-    v2_payload = _load_index_from_v2()
-    if v2_payload is not None:
-        sessions = v2_payload.get("sessions", [])
-        stats = v2_payload.get("stats", {})
-        v2_db = INDEX_PATH.parent / "index_v2.sqlite"
-        return {
-            "total_sessions": int(stats.get("total_sessions") or len(sessions)),
-            "by_tool": dict(stats.get("by_tool") or {}),
-            "last_updated": v2_payload.get("generated_at"),
-            "index_size_bytes": v2_db.stat().st_size if v2_db.exists() else 0,
-        }
-
-    if not INDEX_PATH.exists():
-        return {
-            "total_sessions": 0,
-            "by_tool": {},
-            "last_updated": None,
-            "index_size_bytes": 0,
-        }
-
-    stat = INDEX_PATH.stat()
-    # Re-use the LRU-cached full parse — no extra disk I/O when warm.
-    payload = _load_index_cached(str(INDEX_PATH), stat.st_mtime_ns, stat.st_size)
-
-    # Apply deleted-session filter so counts are consistent with load_index().
-    deleted = load_deleted_session_ids()
-    if deleted:
-        sessions = [s for s in payload.get("sessions", []) if s.get("id") not in deleted]
-        by_tool: dict[str, int] = {}
-        for session in sessions:
-            tool = str(session.get("tool") or "")
-            if tool:
-                by_tool[tool] = by_tool.get(tool, 0) + 1
-        total_sessions = len(sessions)
-    else:
-        stats = payload.get("stats", {})
-        by_tool = dict(stats.get("by_tool") or {})
-        total_sessions = int(stats.get("total_sessions") or 0)
-
-    return {
-        "total_sessions": total_sessions,
-        "by_tool": by_tool,
-        "last_updated": payload.get("generated_at"),
-        "index_size_bytes": stat.st_size,
-    }
-
-
-@threadsafe_lru_cache(maxsize=1)
-def _load_index_cached(index_path: str, _mtime_ns: int, _size: int):
-    with open(index_path, "r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
-def _annotate_display_titles(sessions):
-    title_counts: dict[str, int] = {}
-    for session in sessions:
-        raw_title = (session.get("title") or "").strip()
-        if not raw_title:
-            continue
-        key = raw_title.casefold()
-        title_counts[key] = title_counts.get(key, 0) + 1
-
-    for session in sessions:
-        raw_title = (session.get("title") or "").strip()
-        session_id = str(session.get("id") or "")
-        if raw_title:
-            key = raw_title.casefold()
-            if title_counts.get(key, 0) > 1:
-                suffix = session_id[:8] if session_id else "session"
-                session["display_title"] = f"{raw_title} · {suffix}"
-            else:
-                session["display_title"] = raw_title
-        else:
-            session["display_title"] = session_id[:12] if session_id else "Untitled Session"
-    return sessions
+    """Return lightweight index metadata without loading full session details."""
+    return _service_load_index_summary(INDEX_PATH, load_deleted_session_ids())
 
 
 # --- Export Path Resolution ---
@@ -685,15 +334,24 @@ def build_session_from_export_markdown(
     )
 
 
+# Re-bound for ``clear_index_cache`` and tests that historically reached
+# ``web_data._load_*_cached.cache_clear()``. These are the *same* cache
+# objects the service layer uses, so clearing either clears both.
 __all__ = [
     "OUTPUT_DIR",
     "INDEX_PATH",
     "DELETED_SESSIONS_PATH",
+    "ActionJobCancelledError",
     "threadsafe_lru_cache",
     "load_deleted_session_ids",
     "remember_deleted_session_id",
+    "_save_deleted_session_ids",
+    "_load_deleted_session_ids_cached",
+    "_load_index_cached",
+    "_load_index_v2_cached",
     "_sanitize_next_url",
     "_apply_deleted_filter",
+    "_annotate_display_titles",
     "clear_index_cache",
     "clear_sessions_cache",
     "_build_index_from_extractors",
@@ -701,7 +359,6 @@ __all__ = [
     "load_index",
     "load_index_summary",
     "search_index",
-    "_annotate_display_titles",
     "resolve_export_path",
     "load_export_lookup",
     "_tool_from_value",
