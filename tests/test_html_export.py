@@ -111,3 +111,40 @@ def test_empty_session_renders() -> None:
     html_doc = render_session_html(session)
     assert "<!DOCTYPE html>" in html_doc
     assert "Messages: 0" in html_doc
+
+
+# ---------------------------------------------------------------------------
+# CLI hardening — export-html path containment + file perms (QA re-audit)
+# ---------------------------------------------------------------------------
+
+
+def _argns(**kw):
+    import argparse
+
+    return argparse.Namespace(**kw)
+
+
+def test_export_html_rejects_nonexistent_output_dir(tmp_path, monkeypatch, capsys):
+    """A typo'd --output dir must fail loudly, not mkdir -p across the FS."""
+    import ai_history_cli
+
+    monkeypatch.setattr(ai_history_cli, "_find_session_by_id", lambda _id: _make_session())
+    missing = tmp_path / "does" / "not" / "exist" / "out.html"
+    rc = ai_history_cli.cmd_export_html(_argns(session_id="x", output=str(missing)))
+    assert rc == 1
+    assert "does not exist" in capsys.readouterr().err
+    assert not missing.exists()
+
+
+def test_export_html_writes_owner_only(tmp_path, monkeypatch):
+    """The export holds transcript content — it must be chmod 0600."""
+    import stat
+
+    import ai_history_cli
+
+    monkeypatch.setattr(ai_history_cli, "_find_session_by_id", lambda _id: _make_session())
+    out = tmp_path / "session.html"
+    rc = ai_history_cli.cmd_export_html(_argns(session_id="x", output=str(out)))
+    assert rc == 0
+    assert out.exists()
+    assert stat.S_IMODE(out.stat().st_mode) & 0o077 == 0

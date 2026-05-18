@@ -437,6 +437,11 @@ def supersede_memory(
         metadata=metadata,
     )
 
+    # Point the old row at the new one. add_memory has already committed the
+    # new memory, so if this UPDATE fails we compensate by deleting the new
+    # memory — leaving the store as it was rather than with two unlinked,
+    # non-superseded memories.
+    update_ok = False
     conn = _connect(output_dir)
     try:
         conn.execute("BEGIN")
@@ -445,6 +450,7 @@ def supersede_memory(
             (new_id, _now(), old_id),
         )
         conn.execute("COMMIT")
+        update_ok = True
     except sqlite3.Error:
         try:
             conn.execute("ROLLBACK")
@@ -453,6 +459,10 @@ def supersede_memory(
         raise
     finally:
         conn.close()
+        if not update_ok:
+            # The superseded_by link failed — delete the orphan new memory
+            # so the store is unchanged rather than holding two unlinked rows.
+            delete_memory(output_dir, new_id)
     return new_id
 
 

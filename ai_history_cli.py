@@ -331,6 +331,7 @@ def _find_session_by_id(session_id: str):
 def cmd_export_html(args):
     """Export a single session as a standalone, shareable HTML file."""
     from ai_history.exporters.html import render_session_html
+    from ai_history.utils.security import sanitize_filename
 
     try:
         session = _find_session_by_id(args.session_id)
@@ -342,15 +343,34 @@ def cmd_export_html(args):
         print(f"Error: no session found for id '{args.session_id}'", file=sys.stderr)
         return 1
 
-    output_path = (
-        Path(args.output).expanduser() if args.output else Path.cwd() / f"{session.session_id}.html"
-    )
-    if output_path.is_dir():
-        output_path = output_path / f"{session.session_id}.html"
+    # The default filename is derived from the session id — sanitise it so a
+    # malformed extractor id (e.g. containing '/' or '..') cannot escape cwd.
+    try:
+        default_name = sanitize_filename(f"{session.session_id}.html")
+    except ValueError:
+        default_name = "session-export.html"
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path = Path(args.output).expanduser() if args.output else Path.cwd() / default_name
+    if output_path.is_dir():
+        output_path = output_path / default_name
+
+    # Do NOT create parent directories implicitly — a typo'd --output should
+    # fail loudly, not scatter directories across the filesystem.
+    if not output_path.parent.exists():
+        print(
+            f"Error: output directory does not exist: {output_path.parent}",
+            file=sys.stderr,
+        )
+        return 1
+
     html_doc = render_session_html(session)
     output_path.write_text(html_doc, encoding="utf-8")
+    # The export contains full transcript content — restrict it like the
+    # other transcript-bearing files (issue #41 threat model).
+    try:
+        os.chmod(output_path, 0o600)
+    except OSError:
+        pass
 
     print(f"Exported session {session.session_id} ({session.message_count} messages)")
     print(f"  → {output_path}")

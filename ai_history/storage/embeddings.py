@@ -90,9 +90,18 @@ def pack_vector(vector: Sequence[float]) -> bytes:
 
 
 def unpack_vector(blob: bytes) -> List[float]:
-    """Unpack a float32 BLOB back into a list of floats."""
-    count = len(blob) // 4
-    return list(struct.unpack(f"<{count}f", blob))
+    """Unpack a float32 BLOB back into a list of floats.
+
+    Returns ``[]`` for an empty, truncated or otherwise malformed BLOB
+    (length not a multiple of 4) rather than raising — a single corrupt
+    ``memory_embeddings`` row must not abort semantic recall.
+    """
+    if not blob or len(blob) % 4 != 0:
+        return []
+    try:
+        return list(struct.unpack(f"<{len(blob) // 4}f", blob))
+    except struct.error:
+        return []
 
 
 def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:

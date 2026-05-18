@@ -693,7 +693,7 @@ BASE_TEMPLATE = """
             </div>
             <div class="mt-auto px-5 py-3 border-t border-slate-200/70 text-[10px] text-slate-500 flex items-center justify-between">
                 <span class="font-mono">ai-history v{{ app_version }}</span>
-                <a href="/api/build-info" class="hover:text-slate-700">build</a>
+                <a href="/api/build-info" class="hover:text-slate-700" aria-label="Build info">build</a>
             </div>
         </aside>
         <main id="main-content" class="flex-1 flex flex-col min-w-0 min-h-0 app-main">
@@ -1961,9 +1961,9 @@ MEMORY_TEMPLATE = """
 
     <form method="get" class="flex flex-wrap items-center gap-3 mb-8">
         <input type="text" name="q" value="{{ query or '' }}"
-               placeholder="Search memory…"
+               placeholder="Search memory…" aria-label="Search memory"
                class="flex-1 min-w-[12rem] bg-white border border-slate-200 text-sm text-slate-700 rounded-xl px-3 py-2 outline-none focus:border-slate-300">
-        <select name="kind"
+        <select name="kind" aria-label="Filter by kind"
                 class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300">
             <option value="">All kinds</option>
             {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if kind==k else '' }}>{{ k }}</option>{% endfor %}
