@@ -61,8 +61,13 @@ def _source_mtime_ns(source_path: Optional[str]) -> Optional[int]:
 # UnifiedSession path and the reused-dict path. The trailing
 # messages_synced flag is 1 when the session's message rows were written,
 # 0 for a metadata-only reused row.
+#
+# INSERT OR REPLACE so a duplicate session_id from upstream (e.g. Claude
+# Code occasionally stores the same sessionId under two project dirs after
+# a resume) doesn't abort the whole sync transaction. Last write wins; the
+# extractors deduplicate ahead of us, this is a safety net.
 _SESSION_INSERT = """
-    INSERT INTO sessions (
+    INSERT OR REPLACE INTO sessions (
         id, tool, project, thread_id, title, created, updated,
         source_path, source_mtime_ns, git_branch, git_commit,
         cli_version, metadata_json,

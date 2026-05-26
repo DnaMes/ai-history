@@ -76,6 +76,13 @@ class ClaudeCodeExtractor(BaseExtractor):
         if not self.is_available():
             return
 
+        # Claude Code occasionally stores the same sessionId under two
+        # different project directories (e.g. when a session is resumed via
+        # --continue from a different cwd). Both files exist on disk and both
+        # claim the same id, which then violates UNIQUE(sessions.id) in the
+        # v2 store. Keep the most recently modified copy and drop the rest.
+        seen: dict[str, UnifiedSession] = {}
+
         for base_path in self.base_paths:
             for project_dir in base_path.iterdir():
                 if not project_dir.is_dir():
@@ -89,7 +96,7 @@ class ClaudeCodeExtractor(BaseExtractor):
                         session = self._parse_session(jsonl_file, project_path)
 
                         if self.should_import_session(session):
-                            yield session
+                            self._add_or_replace_newer(seen, session)
                     except Exception as e:
                         logger.warning("Failed to parse %s: %s", jsonl_file, e)
 
@@ -109,9 +116,29 @@ class ClaudeCodeExtractor(BaseExtractor):
                         )
 
                         if self.should_import_session(session):
-                            yield session
+                            self._add_or_replace_newer(seen, session)
                     except Exception as e:
                         logger.warning("Failed to parse %s: %s", subagent_file, e)
+
+        yield from seen.values()
+
+    @staticmethod
+    def _add_or_replace_newer(
+        seen: "dict[str, UnifiedSession]", session: UnifiedSession
+    ) -> None:
+        """Insert ``session`` unless an entry with the same id is newer."""
+        existing = seen.get(session.session_id)
+        if existing is None:
+            seen[session.session_id] = session
+            return
+        # last_updated is set in _parse_session for every parsed file.
+        if session.last_updated > existing.last_updated:
+            logger.debug(
+                "Duplicate session id %s: keeping newer copy from %s",
+                session.session_id,
+                session.source_path,
+            )
+            seen[session.session_id] = session
 
     def _parse_session(
         self, path: Path, project_path: str, parent_session_id: str | None = None
