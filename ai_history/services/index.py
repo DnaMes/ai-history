@@ -319,11 +319,19 @@ def search_index(
         try:
             from ai_history.storage import search_sessions, v2_is_available
 
-            if v2_is_available(index_dir):
+            # Pass compare_to so a v2 store that is older than the JSON index
+            # (e.g. a prune ran but the v2 dual-write failed with a constraint
+            # error) is treated as stale and skipped — otherwise the legacy
+            # JSON has 793 sessions and v2 has 0 and search silently returns
+            # nothing.
+            if v2_is_available(index_dir, compare_to=index_path):
                 results = search_sessions(
                     index_dir, query, tool=tool, project=project, limit=limit, scope=scope
                 )
-                return apply_deleted_filter_to_results(results, deleted)
+                if results:
+                    return apply_deleted_filter_to_results(results, deleted)
+                # v2 returned nothing — fall through to legacy. Better to
+                # double-check than to silently lie. Legacy may still have it.
         except ValueError:
             # Invalid scope — surface to the caller, do not fall back.
             raise

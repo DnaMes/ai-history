@@ -164,16 +164,39 @@ def build_search_index(
     title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
     total = len(selected) or 1
 
+    import time as _time
+
     for i, extractor in enumerate(selected, start=1):
         if should_stop and should_stop():
             raise ActionJobCancelledError("Cancelled by user")
+        # Base progress for this tool (covers the range [base, base+per_tool))
+        # so we can move the bar smoothly as sessions stream in. Without these
+        # mid-extractor updates the bar visibly froze for the user — claude-code
+        # alone needs to walk 368+ JSONL files with no other I/O signal.
+        base_progress = 15 + int((i - 1) / total * 45)
+        per_tool = max(1, int(45 / total))
+        tool_name = extractor.tool.value
         if progress_callback:
-            progress_callback(15 + int((i - 1) / total * 45), f"Loading {extractor.tool.value}")
+            progress_callback(base_progress, f"Loading {tool_name}")
         try:
             extracted_sessions: list[UnifiedSession] = []
+            sess_count = 0
+            last_tick = _time.monotonic()
             for session in extractor.extract_sessions():
                 if should_stop and should_stop():
                     raise ActionJobCancelledError("Cancelled by user")
+                sess_count += 1
+                now = _time.monotonic()
+                if progress_callback and now - last_tick >= 1.0:
+                    # Crawl the bar within this tool's slice; the count keeps
+                    # the user looking at a moving number even if the bar nudges
+                    # only a percent.
+                    sub = min(per_tool - 1, int(sess_count / 50))
+                    progress_callback(
+                        base_progress + sub,
+                        f"Loading {tool_name} ({sess_count} sessions)",
+                    )
+                    last_tick = now
 
                 if incremental:
                     prior = existing_by_id.get(session.session_id)
