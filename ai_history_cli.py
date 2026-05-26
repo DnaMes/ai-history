@@ -48,7 +48,7 @@ from ai_history.extractors.opencode import OpenCodeExtractor
 from ai_history.search.engine import SearchEngine
 from ai_history.utils.datetime import make_naive, parse_duration
 from ai_history.utils.git import get_git_info
-from ai_history.utils.paths import get_current_project, make_thread_id
+from ai_history.utils.paths import get_current_project, lore_home, make_thread_id
 from ai_history.utils.rules import extract_rules
 from ai_history.utils.tooling import normalize_tool_name
 
@@ -258,24 +258,30 @@ def cmd_export(args):
             except Exception as e:
                 print(f"  Error exporting {session.session_id}: {e}", file=sys.stderr)
 
-    # Build index
+    # Build index. When no --tool/--project filter is active, the sessions
+    # already collected by the export loop above ARE the full set — re-running
+    # every extractor here would double the I/O, CPU and memory on a full
+    # sync (1885 sessions × 10 tools easily exhausts a 38 GiB box).
     print("\nBuilding index...")
-    all_sessions = []
-    git_info_cache = {}
-    for extractor in get_all_extractors():
-        if not extractor.is_available():
-            continue
-        for session in extractor.extract_sessions():
-            if session.git_branch is None or session.git_commit is None:
-                key = session.project_path or ""
-                if key not in git_info_cache:
-                    git_info_cache[key] = get_git_info(session.project_path)
-                info = git_info_cache[key]
-                if session.git_branch is None:
-                    session.git_branch = info["branch"]
-                if session.git_commit is None:
-                    session.git_commit = info["sha"]
-            all_sessions.append(session)
+    if not tool_filter and not args.project:
+        all_sessions = sessions
+    else:
+        all_sessions = []
+        git_info_cache = {}
+        for extractor in get_all_extractors():
+            if not extractor.is_available():
+                continue
+            for session in extractor.extract_sessions():
+                if session.git_branch is None or session.git_commit is None:
+                    key = session.project_path or ""
+                    if key not in git_info_cache:
+                        git_info_cache[key] = get_git_info(session.project_path)
+                    info = git_info_cache[key]
+                    if session.git_branch is None:
+                        session.git_branch = info["branch"]
+                    if session.git_commit is None:
+                        session.git_commit = info["sha"]
+                all_sessions.append(session)
 
     existing_paths = {}
     index_path = output_dir / "index.json"
@@ -1285,8 +1291,8 @@ Examples:
     )
     parser.add_argument(
         "--output-dir",
-        default="~/.ai-history",
-        help="Output directory (default: ~/.ai-history)",
+        default=str(lore_home()),
+        help="Output directory (default: ~/.lore — migrates from ~/.ai-history if present)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
