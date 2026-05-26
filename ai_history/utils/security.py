@@ -225,18 +225,29 @@ _UUID_RE = re.compile(
 )
 # Alphanumeric/base58 IDs: OpenCode and other tools (8–64 chars)
 _ALPHANUM_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+# Claude Code subagent IDs: <parent-uuid>:<agent-name> where agent-name is
+# like 'agent-a3e4335'. The colon disambiguates subagents from main sessions
+# because the agent file name alone is not globally unique.
+_SUBAGENT_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[A-Za-z0-9_-]{1,64}$"
+)
 
 
 def validate_session_id(session_id: str, max_length: int = 256) -> bool:
     """Validate session ID format using a strict allowlist approach.
 
-    Accepts IDs that match either:
-    - UUID format (e.g. Claude Code): xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    - Alphanumeric/base58 format (e.g. OpenCode): 8–64 chars of [A-Za-z0-9_-]
+    Accepts IDs that match any of:
+    - UUID format (e.g. Claude Code main session)
+    - Alphanumeric/base58 (e.g. OpenCode)
+    - <UUID>:<agent-name> (Claude Code subagent)
     """
     if not session_id or len(session_id) > max_length:
         return False
-    return bool(_UUID_RE.match(session_id) or _ALPHANUM_RE.match(session_id))
+    return bool(
+        _UUID_RE.match(session_id)
+        or _ALPHANUM_RE.match(session_id)
+        or _SUBAGENT_RE.match(session_id)
+    )
 
 
 def validate_search_param(param: str, max_length: int = 256) -> bool:
