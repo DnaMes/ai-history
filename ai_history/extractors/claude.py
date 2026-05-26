@@ -83,6 +83,7 @@ class ClaudeCodeExtractor(BaseExtractor):
 
                 project_path = self._decode_project_name(project_dir.name)
 
+                # Main sessions: <projectdir>/<sessionid>.jsonl
                 for jsonl_file in project_dir.glob("*.jsonl"):
                     try:
                         session = self._parse_session(jsonl_file, project_path)
@@ -92,11 +93,42 @@ class ClaudeCodeExtractor(BaseExtractor):
                     except Exception as e:
                         logger.warning("Failed to parse %s: %s", jsonl_file, e)
 
-    def _parse_session(self, path: Path, project_path: str) -> UnifiedSession:
-        """Parse a single JSONL session file."""
+                # Subagent sessions: <projectdir>/<sessionid>/subagents/agent-XXX.jsonl
+                # Claude Code stores each Task-tool subagent invocation as its
+                # own JSONL alongside the parent. Without this loop the heavy
+                # multi-agent workflows (the bulk of the user's activity)
+                # would all be invisible — only the 46 direct-child files
+                # would show up while the 300+ subagent transcripts get lost.
+                for subagent_file in project_dir.glob("*/subagents/*.jsonl"):
+                    try:
+                        parent_session_id = subagent_file.parent.parent.name
+                        session = self._parse_session(
+                            subagent_file,
+                            project_path,
+                            parent_session_id=parent_session_id,
+                        )
+
+                        if self.should_import_session(session):
+                            yield session
+                    except Exception as e:
+                        logger.warning("Failed to parse %s: %s", subagent_file, e)
+
+    def _parse_session(
+        self, path: Path, project_path: str, parent_session_id: str | None = None
+    ) -> UnifiedSession:
+        """Parse a single JSONL session file.
+
+        When parent_session_id is set, the file is a subagent transcript:
+        title gets a [subagent] prefix and thread_id is bound to the parent
+        so the UI groups them together.
+        """
         messages = []
         summary = None
         session_id = path.stem
+        if parent_session_id:
+            # Subagent files use names like 'agent-a9dff77.jsonl' which are
+            # not globally unique across parent sessions — disambiguate.
+            session_id = f"{parent_session_id}:{path.stem}"
         cli_version = None
         git_branch = None
         created_at = None
@@ -195,6 +227,18 @@ class ClaudeCodeExtractor(BaseExtractor):
         if last_updated is None:
             last_updated = datetime.fromtimestamp(path.stat().st_mtime)
 
+        title = summary
+        if parent_session_id:
+            agent_label = path.stem
+            if summary:
+                title = f"[subagent {agent_label}] {summary}"
+            else:
+                title = f"[subagent {agent_label}]"
+
+        thread_id = make_thread_id(project_path=project_path)
+        if parent_session_id:
+            thread_id = f"claude-code:{parent_session_id}"
+
         return UnifiedSession(
             tool=Tool.CLAUDE_CODE,
             session_id=session_id,
@@ -202,8 +246,8 @@ class ClaudeCodeExtractor(BaseExtractor):
             last_updated=last_updated,
             messages=messages,
             project_path=project_path,
-            thread_id=make_thread_id(project_path=project_path),
-            title=summary,
+            thread_id=thread_id,
+            title=title,
             summary=summary,
             cli_version=cli_version,
             git_branch=git_branch,
