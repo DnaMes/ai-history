@@ -9,9 +9,11 @@ BASE_TEMPLATE = """
     <script nonce="{{ nonce }}">
         (() => {
             try {
-                const saved = localStorage.getItem('aihistory-theme');
-                const mode = saved || 'light';
-                if (mode === 'dark') document.documentElement.classList.add('dark');
+                const saved = localStorage.getItem('aihistory-theme') || 'light';
+                // Anything other than literal 'light' counts as dark — handles
+                // both the new 'dark' value and any legacy theme name a user
+                // might still have stored (catppuccin, dracula, etc).
+                if (saved !== 'light') document.documentElement.classList.add('dark');
             } catch (_) {}
         })();
     </script>
@@ -378,67 +380,10 @@ BASE_TEMPLATE = """
         html.dark input::placeholder { color: var(--muted) !important; }
         html.dark .text-slate-950 { color: var(--text) !important; }
 
-        /* Professional Theme System - SpecStory Quality */
-        html[data-theme="catppuccin"] {
-            --bg: #1e1e2e; --text: #cdd6f4; --text-muted: #a6adc8;
-            --panel: rgba(30, 30, 46, 0.92); --panel-strong: #181825;
-            --border: #45475a; --card: #1e1e2e; --main: rgba(24, 24, 37, 0.88);
-            --primary: #b4befe; --secondary: #89dceb; --accent: #cba6f7;
-            --user-bg: #313244; --user-border: #b4befe; --user-text: #cdd6f4;
-            --assistant-bg: #1e1e2e; --assistant-border: #89dceb; --assistant-text: #cdd6f4;
-            --code-bg: #0d1117; --code-border: #30363d; --code-text: #cdd6f4;
-            --success: #a6e3a1; --warning: #f9e2af; --error: #f38ba8; --info: #89dceb;
-        }
-        html[data-theme="dracula"] {
-            --bg: #282a36; --text: #f8f8f2; --text-muted: #b2b2c6;
-            --panel: rgba(40, 42, 54, 0.92); --panel-strong: #21222c;
-            --border: #44475a; --card: #282a36; --main: rgba(33, 34, 44, 0.88);
-            --primary: #bd93f9; --secondary: #8be9fd; --accent: #ff79c6;
-            --user-bg: #44475a; --user-border: #bd93f9; --user-text: #f8f8f2;
-            --assistant-bg: #343746; --assistant-border: #8be9fd; --assistant-text: #f8f8f2;
-            --code-bg: #282a36; --code-border: #44475a; --code-text: #f8f8f2;
-            --success: #50fa7b; --warning: #f1fa8c; --error: #ff5555; --info: #8be9fd;
-        }
-        html[data-theme="nord"] {
-            --bg: #2e3440; --text: #e5e9f0; --text-muted: #a3b1c6;
-            --panel: rgba(46, 52, 64, 0.92); --panel-strong: #242933;
-            --border: #4c566a; --card: #2e3440; --main: rgba(36, 41, 51, 0.88);
-            --primary: #88c0d0; --secondary: #81a1c1; --accent: #b48ead;
-            --user-bg: #3b4252; --user-border: #88c0d0; --user-text: #e5e9f0;
-            --assistant-bg: #2e3440; --assistant-border: #81a1c1; --assistant-text: #e5e9f0;
-            --code-bg: #2e3440; --code-border: #4c566a; --code-text: #e5e9f0;
-            --success: #a3be8c; --warning: #ebcb8b; --error: #bf616a; --info: #88c0d0;
-        }
-        html[data-theme="monokai"] {
-            --bg: #272822; --text: #f8f8f2; --text-muted: #a59f85;
-            --panel: rgba(39, 40, 34, 0.92); --panel-strong: #1e1f1c;
-            --border: #49483e; --card: #272822; --main: rgba(30, 31, 28, 0.88);
-            --primary: #a6e22e; --secondary: #66d9ef; --accent: #fd971f;
-            --user-bg: #31332c; --user-border: #a6e22e; --user-text: #f8f8f2;
-            --assistant-bg: #272822; --assistant-border: #66d9ef; --assistant-text: #f8f8f2;
-            --code-bg: #272822; --code-border: #49483e; --code-text: #f8f8f2;
-            --success: #a6e22e; --warning: #e6db74; --error: #f92672; --info: #66d9ef;
-        }
-        html[data-theme="github"] {
-            --bg: #0d1117; --text: #c9d1d9; --text-muted: #8b949e;
-            --panel: rgba(13, 17, 23, 0.92); --panel-strong: #010409;
-            --border: #30363d; --card: #0d1117; --main: rgba(1, 4, 9, 0.88);
-            --primary: #58a6ff; --secondary: #79c0ff; --accent: #d2a8ff;
-            --user-bg: #161b22; --user-border: #58a6ff; --user-text: #c9d1d9;
-            --assistant-bg: #0d1117; --assistant-border: #79c0ff; --assistant-text: #c9d1d9;
-            --code-bg: #0d1117; --code-border: #30363d; --code-text: #c9d1d9;
-            --success: #3fb950; --warning: #d29922; --error: #f85149; --info: #58a6ff;
-        }
-        html[data-theme="tokyo"] {
-            --bg: #1a1b26; --text: #c0caf5; --text-muted: #9aa5ce;
-            --panel: rgba(26, 27, 38, 0.92); --panel-strong: #16161e;
-            --border: #414868; --card: #1a1b26; --main: rgba(22, 22, 30, 0.88);
-            --primary: #7aa2f7; --secondary: #7dcfff; --accent: #bb9af7;
-            --user-bg: #24283b; --user-border: #7aa2f7; --user-text: #c0caf5;
-            --assistant-bg: #1a1b26; --assistant-border: #7dcfff; --assistant-text: #c0caf5;
-            --code-bg: #1a1b26; --code-border: #414868; --code-text: #c0caf5;
-            --success: #9ece6a; --warning: #e0af68; --error: #f7768e; --info: #7dcfff;
-        }
+        /* Theme System — Light + Dark only. The base :root and html.dark
+         * blocks higher in this stylesheet already define every variable;
+         * these data-theme selectors just need to mirror the same tokens so
+         * .prose pre and other rules that key off data-theme keep working. */
         html[data-theme="light"] {
             --bg: #f6f7fb; --text: #0f172a; --text-muted: #64748b;
             --panel: rgba(255, 255, 255, 0.86); --panel-strong: #ffffff;
@@ -448,6 +393,16 @@ BASE_TEMPLATE = """
             --assistant-bg: #ffffff; --assistant-border: #e5e7eb; --assistant-text: #0f172a;
             --code-bg: #f8fafc; --code-border: #e2e8f0; --code-text: #0f172a;
             --success: #10b981; --warning: #f59e0b; --error: #ef4444; --info: #3b82f6;
+        }
+        html[data-theme="dark"] {
+            --bg: #090b12; --text: #e2e8f0; --text-muted: #94a3b8;
+            --panel: rgba(15, 23, 42, 0.72); --panel-strong: #0f172a;
+            --border: #253247; --card: #0f172a; --main: rgba(5, 9, 20, 0.68);
+            --primary: #60a5fa; --secondary: #7dd3fc; --accent: #a78bfa;
+            --user-bg: #102946; --user-border: #2f4d76; --user-text: #dbeafe;
+            --assistant-bg: #0f172a; --assistant-border: #253247; --assistant-text: #e2e8f0;
+            --code-bg: #0b1220; --code-border: #273449; --code-text: #e2e8f0;
+            --success: #34d399; --warning: #fbbf24; --error: #f87171; --info: #60a5fa;
         }
 
         /* Theme-aware code blocks with headers */
@@ -630,29 +585,27 @@ BASE_TEMPLATE = """
         /* Theme Switcher */
         (function() {
             const THEME_KEY = 'aihistory-theme';
-            const DEFAULT_THEME = 'catppuccin';
+            const DEFAULT_THEME = 'light';
 
             const THEMES = [
-                { id: 'catppuccin', name: 'Catppuccin', swatch: '#1e1e2e' },
-                { id: 'dracula', name: 'Dracula', swatch: '#282a36' },
-                { id: 'nord', name: 'Nord', swatch: '#2e3440' },
-                { id: 'monokai', name: 'Monokai', swatch: '#272822' },
-                { id: 'github', name: 'GitHub Dark', swatch: '#0d1117' },
-                { id: 'tokyo', name: 'Tokyo Night', swatch: '#1a1b26' },
                 { id: 'light', name: 'Light', swatch: '#f6f7fb' },
+                { id: 'dark', name: 'Dark', swatch: '#0f172a' },
             ];
 
             function getStoredTheme() {
-                try { return localStorage.getItem(THEME_KEY) || DEFAULT_THEME; }
+                try {
+                    const v = localStorage.getItem(THEME_KEY) || DEFAULT_THEME;
+                    // Migrate any legacy named theme (catppuccin/dracula/...)
+                    // to plain dark so previously-saved prefs keep dark mode.
+                    return (v === 'light' || v === 'dark') ? v : 'dark';
+                }
                 catch (e) { return DEFAULT_THEME; }
             }
 
-            const DARK_THEMES = ['catppuccin', 'dracula', 'nord', 'monokai', 'github', 'tokyo'];
-
             function setTheme(themeName) {
-                if (!THEMES.find(t => t.id === themeName)) return;
+                if (themeName !== 'light' && themeName !== 'dark') return;
                 document.documentElement.setAttribute('data-theme', themeName);
-                if (DARK_THEMES.includes(themeName)) {
+                if (themeName === 'dark') {
                     document.documentElement.classList.add('dark');
                 } else {
                     document.documentElement.classList.remove('dark');
@@ -663,12 +616,7 @@ BASE_TEMPLATE = """
             }
 
             const storedTheme = getStoredTheme();
-            document.documentElement.setAttribute('data-theme', storedTheme);
-            if (DARK_THEMES.includes(storedTheme)) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            setTheme(storedTheme);
 
             window.aiHistoryTheme = { set: setTheme, get: getStoredTheme, list: THEMES };
 
@@ -798,13 +746,8 @@ BASE_TEMPLATE = """
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
                         </button>
                         <div class="theme-dropdown-menu" role="menu" aria-label="Theme options">
-                            <button type="button" role="menuitemradio" aria-checked="true" class="theme-option active" data-theme="catppuccin" onclick="selectTheme('catppuccin')"><span class="theme-swatch" style="background:#1e1e2e"></span><span class="theme-option-label">Catppuccin</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
-                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="dracula" onclick="selectTheme('dracula')"><span class="theme-swatch" style="background:#282a36"></span><span class="theme-option-label">Dracula</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
-                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="nord" onclick="selectTheme('nord')"><span class="theme-swatch" style="background:#2e3440"></span><span class="theme-option-label">Nord</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
-                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="monokai" onclick="selectTheme('monokai')"><span class="theme-swatch" style="background:#272822"></span><span class="theme-option-label">Monokai</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
-                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="github" onclick="selectTheme('github')"><span class="theme-swatch" style="background:#0d1117"></span><span class="theme-option-label">GitHub Dark</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
-                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="tokyo" onclick="selectTheme('tokyo')"><span class="theme-swatch" style="background:#1a1b26"></span><span class="theme-option-label">Tokyo Night</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
-                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="light" onclick="selectTheme('light')"><span class="theme-swatch" style="background:#f6f7fb"></span><span class="theme-option-label">Light</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
+                            <button type="button" role="menuitemradio" aria-checked="true" class="theme-option active" data-theme="light" onclick="selectTheme('light')"><span class="theme-swatch" style="background:#f6f7fb"></span><span class="theme-option-label">Light</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
+                            <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="dark" onclick="selectTheme('dark')"><span class="theme-swatch" style="background:#0f172a"></span><span class="theme-option-label">Dark</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
                         </div>
                     </div>
                     <script nonce="{{ nonce }}">
