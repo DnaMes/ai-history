@@ -6,6 +6,18 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _relax_min_user_prompts_for_tests(monkeypatch):
+    """Production default MIN_USER_PROMPTS=3 filters out the tiny 1-2 message
+    fixtures most extractor tests rely on. The threshold change is a product
+    decision, not a test-quality decision — relax it to 1 inside the test
+    suite so the existing fixtures stay valid.
+    """
+    from ai_history.extractors.base import BaseExtractor
+
+    monkeypatch.setattr(BaseExtractor, "MIN_USER_PROMPTS", 1, raising=True)
+
+
+@pytest.fixture(autouse=True)
 def _reset_embedding_singletons():
     """Reset the embedding-model module singletons between tests.
 

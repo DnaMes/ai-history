@@ -14,7 +14,7 @@ class BaseExtractor(ABC):
     # Minimum thresholds for importing sessions
     MIN_MESSAGES = 1
     MIN_CONTENT_SIZE = 0
-    MIN_USER_PROMPTS = 1
+    MIN_USER_PROMPTS = 3
 
     @property
     @abstractmethod
@@ -71,7 +71,7 @@ class BaseExtractor(ABC):
     def _effective_thresholds(self) -> tuple[int, int, int]:
         profile = os.environ.get("AI_HISTORY_IMPORT_PROFILE", "relaxed").strip().lower()
         if profile == "strict":
-            return (3, 2048, 2)
+            return (3, 2048, 5)
         return (self.MIN_MESSAGES, self.MIN_CONTENT_SIZE, self.MIN_USER_PROMPTS)
 
     def should_import_session(self, session: UnifiedSession) -> bool:
