@@ -8,9 +8,22 @@ services:
     # stays writable without loosening its permissions. Override via a .env
     # file if your uid/gid differ from 1000.
     user: "${LORE_UID:-1000}:${LORE_GID:-1000}"
+    # localhost-bind (sofort nutzbar). Die traefik-labels greifen ZUSÄTZLICH, sobald
+    # traefik wieder TLS-certs holen kann (aktuell blockt der container-DNS-bug, s.
+    # docs/issues — bis dahin ist 127.0.0.1:5000 der Zugang).
     ports:
-      # localhost-only: lore indexiert AI-Session-History — nicht im LAN/Tailnet exponieren.
       - "127.0.0.1:5000:5000"
+    networks:
+      - traefik_local
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: traefik_local
+      traefik.http.routers.lore.rule: Host(`lore.local.erdlabs.com`)
+      traefik.http.routers.lore.entrypoints: websecure
+      traefik.http.routers.lore.tls: "true"
+      traefik.http.routers.lore.tls.certresolver: dns-cloudflare
+      traefik.http.routers.lore.middlewares: local-only@file,secure-headers@file
+      traefik.http.services.lore.loadbalancer.server.port: "5000"
     volumes:
       # Mount config directories (ReadOnly)
       - ${HOME}/.claude:/home/ai/.claude:ro
@@ -48,3 +61,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+networks:
+  traefik_local:
+    external: true
