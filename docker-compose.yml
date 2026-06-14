@@ -9,7 +9,8 @@ services:
     # file if your uid/gid differ from 1000.
     user: "${LORE_UID:-1000}:${LORE_GID:-1000}"
     ports:
-      - "5000:5000"
+      # localhost-only: lore indexiert AI-Session-History — nicht im LAN/Tailnet exponieren.
+      - "127.0.0.1:5000:5000"
     volumes:
       # Mount config directories (ReadOnly)
       - ${HOME}/.claude:/home/ai/.claude:ro
