@@ -1,8 +1,8 @@
-"""Tests for ai_history/utils/formatting.py — MessageFormatter."""
+"""Tests for lore/utils/formatting.py — MessageFormatter."""
 
 from __future__ import annotations
 
-from ai_history.utils.formatting import (
+from lore.utils.formatting import (
     MessageFormatter,
     format_message,
     format_tool_output,

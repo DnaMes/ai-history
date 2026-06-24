@@ -22,7 +22,7 @@ Source: multi-agent review + competitive research (7 tools surveyed) + user feed
 
 ## P0 — Still open (must ship before public announcement)
 
-- [ ] **#1b** Rename `_new` suffix modules: `ai_history_mcp_new.py` → `ai_history/cli/mcp.py`, `ai_history_web_new.py` → `ai_history/cli/web.py`. Update `pyproject.toml` console scripts. (`pyproject.toml:42-47`) (1h)
+- [ ] **#1b** Rename `_new` suffix modules: `ai_history_mcp_new.py` → `lore/cli/mcp.py`, `ai_history_web_new.py` → `lore/cli/web.py`. Update `pyproject.toml` console scripts. (`pyproject.toml:42-47`) (1h)
 - [ ] **#1d** `safe_copy_db` leaks `/tmp/*.vscdb` forever — add `try/finally` or context manager. (`utils/paths.py:64`) (30m)
 - [ ] **#1e** Extractor exceptions silently swallowed at `logger.debug` — surface to job result metadata. (`web_data.py:213`, `web.py:870`) (2h)
 - [ ] **#PyPI** Publish to PyPI: update `pyproject.toml` author email, bump `requires-python` to `>=3.11`, add `CHANGELOG.md`, test with `twine upload --repository testpypi`.
@@ -47,7 +47,7 @@ Source: multi-agent review + competitive research (7 tools surveyed) + user feed
 - [ ] **#15b-c** Add type hints + `from __future__ import annotations` repo-wide.
 - [ ] **#15d** Bump `requires-python` to `>=3.11` in `pyproject.toml`.
 - [ ] **#15e** Switch pre-commit from black+isort+flake8 to `ruff` (format + check).
-- [ ] **#bandit** Add `bandit -r ai_history/ -ll` to CI. Fix HIGH findings.
+- [ ] **#bandit** Add `bandit -r lore/ -ll` to CI. Fix HIGH findings.
 
 ### Performance
 
@@ -77,13 +77,13 @@ Sourced from surveying 7 competing tools: claude-code-history-viewer (1.2k★), 
 - [ ] **#34** **Token cost dashboard** — per-session, per-tool, per-project, over time. `jhlee0409/CCHV` ships this; it's the #1 requested feature in the space. (1 week) ⭐
 - [ ] **#35** **Semantic search via local embeddings** — `sqlite-vec` + `nomic-embed-text` via Ollama. Zero competitors have shipped this. "Find sessions where I debugged auth" works; FTS misses it. (1 week) ⭐
 - [ ] **#36** Shareable static HTML export — self-contained single file per session. SpecStory does cloud links; we can do offline-first.
-- [ ] **#37** `ai-history rules` UI — polish the existing rule generation, expose as web UI. SpecStory's main hook.
+- [ ] **#37** `lore rules` UI — polish the existing rule generation, expose as web UI. SpecStory's main hook.
 - [ ] **#38** Session timeline / git-diff view — show file changes alongside the conversation. Nobody has shipped this. (Major)
 - [ ] **#39** Project-level cost attribution — pairs with #34; lets devs justify AI spend.
 - [ ] **#40** Noise filter web UI — drag-and-drop rules with live preview.
 - [ ] **#41** MCP-over-HTTP transport — `--transport streamable-http` so Cursor/remote MCP hosts can query history without running a local process.
 - [ ] **#42** Warp Block deeper import — verify Warp coverage, add block-level extraction.
-- [ ] **#43** `ai-history digest` — weekly summary CLI command (sessions, cost, top projects). Habit-forming, trivial to ship.
+- [ ] **#43** `lore digest` — weekly summary CLI command (sessions, cost, top projects). Habit-forming, trivial to ship.
 - [ ] **#51** **Aider extractor** — `~/.aider/` chat logs. `jhlee0409/CCHV` already ships this; gap for users who run both. (4h)
 - [ ] **#52** **File watcher / auto-sync daemon** — `inotify`/`watchdog` that indexes on JSONL append so the dashboard is always live without manual Sync. SpecStory's `specstory watch` analog. (1 day)
 - [ ] **#53** **Scoped MCP search** — add `scope` param (`user_only`, `assistant_only`, `tool_results_only`) to `search_history` MCP tool. `claude-historian-mcp` has this. (2h)
@@ -102,7 +102,7 @@ Sourced from surveying 7 competing tools: claude-code-history-viewer (1.2k★), 
 - [ ] **#25** `web_jobs.py` should own `_audit_*` helpers.
 - [ ] **#25a** Decompose `session_detail` (199 LOC, cyclomatic ~25).
 - [ ] **#25b** Decompose `mcp.create_server()` (445 LOC).
-- [ ] **#25c** Move HTML out of `web_templates.py` (2,036 LOC) to `ai_history/templates/*.html`.
+- [ ] **#25c** Move HTML out of `web_templates.py` (2,036 LOC) to `lore/templates/*.html`.
 - [ ] **#25d** Build Jinja2 `Environment` once at module import (not per-request).
 - [ ] **#25e** `BaseExtractor.iter_sqlite_dbs()` helper — DRY the copy-connect-try pattern.
 - [ ] **#25f** Centralize tool data root paths in `utils/paths`.
@@ -115,7 +115,7 @@ Sourced from surveying 7 competing tools: claude-code-history-viewer (1.2k★), 
 - [ ] **#45** Persistent JobStore (`SQLiteJobStore` default). Unblocks `gunicorn --workers >1`.
 - [ ] **#46** Templates → Jinja files on disk + Tailwind CLI prebuild.
 - [ ] **#47** Optional FastAPI alongside Flask.
-- [ ] **#48** Plugin extractor SDK (`pip install ai-history-extractor-foo`).
+- [ ] **#48** Plugin extractor SDK (`pip install lore-extractor-foo`).
 
 ---
 

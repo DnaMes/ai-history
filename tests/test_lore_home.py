@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import ai_history.utils.paths as paths
+import lore.utils.paths as paths
 
 
 def _reset():

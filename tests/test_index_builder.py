@@ -1,4 +1,4 @@
-"""Tests for ai_history/exporters/index.py — IndexBuilder and _stat_mtime_ns."""
+"""Tests for lore/exporters/index.py — IndexBuilder and _stat_mtime_ns."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder, _stat_mtime_ns
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.index import IndexBuilder, _stat_mtime_ns
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -3,9 +3,9 @@ from datetime import datetime
 
 import pytest
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.interfaces import web
-from ai_history.interfaces.web_data import _annotate_display_titles
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.interfaces import web
+from lore.interfaces.web_data import _annotate_display_titles
 
 
 def test_annotate_display_titles_deduplicates_same_title():
@@ -64,7 +64,7 @@ def test_render_escapes_recent_titles(monkeypatch):
 
 
 def test_format_message_content_escapes_when_markdown_unavailable(monkeypatch):
-    from ai_history.interfaces import web_formatting
+    from lore.interfaces import web_formatting
 
     monkeypatch.setattr(web_formatting, "markdown", None)
 
@@ -192,15 +192,15 @@ def test_security_headers_include_referrer_and_stricter_csp():
 
 
 def test_api_build_info_exposes_revision_and_hardening(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_BUILD_SHA", "abc123")
-    monkeypatch.delenv("AI_HISTORY_EXPORT_FALLBACK_SCAN", raising=False)
+    monkeypatch.setenv("LORE_BUILD_SHA", "abc123")
+    monkeypatch.delenv("LORE_EXPORT_FALLBACK_SCAN", raising=False)
 
     with web.app.test_client() as client:
         response = client.get("/api/build-info")
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["module"] == "ai_history.interfaces.web"
+    assert payload["module"] == "lore.interfaces.web"
     assert payload["revision"] == "abc123"
     assert payload["hardening"]["thread_unknown_returns_404"] is True
     assert payload["hardening"]["search_param_validation"] is True
@@ -210,7 +210,7 @@ def test_api_build_info_exposes_revision_and_hardening(monkeypatch):
 
 def test_build_info_reports_package_version():
     """build-info exposes the single-source-of-truth package version."""
-    from ai_history import __version__
+    from lore import __version__
 
     with web.app.test_client() as client:
         response = client.get("/api/build-info")
@@ -219,7 +219,7 @@ def test_build_info_reports_package_version():
 
 def test_version_shown_in_sidebar():
     """The dashboard sidebar footer displays the app version."""
-    from ai_history import __version__
+    from lore import __version__
 
     with web.app.test_client() as client:
         page = client.get("/").get_data(as_text=True)
@@ -248,7 +248,7 @@ def test_route_probe_matrix_statuses(monkeypatch, path, expected_status):
 
 
 def test_export_unknown_does_not_scan_extractors_by_default(monkeypatch):
-    monkeypatch.delenv("AI_HISTORY_EXPORT_FALLBACK_SCAN", raising=False)
+    monkeypatch.delenv("LORE_EXPORT_FALLBACK_SCAN", raising=False)
     monkeypatch.setattr(web, "load_index", lambda: {"sessions": []})
 
     called = {"value": False}
@@ -267,7 +267,7 @@ def test_export_unknown_does_not_scan_extractors_by_default(monkeypatch):
 
 
 def test_export_unknown_scan_opt_in_calls_extractors(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_EXPORT_FALLBACK_SCAN", "true")
+    monkeypatch.setenv("LORE_EXPORT_FALLBACK_SCAN", "true")
     monkeypatch.setattr(web, "load_index", lambda: {"sessions": []})
 
     called = {"value": False}
@@ -477,7 +477,7 @@ def test_session_delete_rejects_invalid_session_id():
 
 
 def test_session_delete_removes_index_entry_and_export(monkeypatch, tmp_path):
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     session_id = "test-session-1"
     # export_path must live inside OUTPUT_DIR so resolve_export_path accepts it
@@ -516,7 +516,7 @@ def test_session_delete_removes_index_entry_and_export(monkeypatch, tmp_path):
     monkeypatch.setattr(web_data, "INDEX_PATH", index_path)
     monkeypatch.setattr(web_data, "DELETED_SESSIONS_PATH", fake_output_dir / "deleted.json")
     monkeypatch.setattr(web, "INDEX_PATH", index_path)
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    monkeypatch.setenv("LORE_USE_V2", "0")
     web_data.clear_index_cache()
 
     with web.app.test_client() as client:
@@ -571,7 +571,7 @@ def test_export_session_builds_markdown_from_live_indexed_session(monkeypatch, t
         title="live title",
     )
 
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "INDEX_PATH", index_path)
     monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [live_session])
@@ -680,9 +680,9 @@ def test_api_responses_include_request_id_header():
 
 
 def test_api_rate_limit_enforced_when_enabled(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_ENABLED", "true")
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS", "60")
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_SEARCH_PER_WINDOW", "2")
+    monkeypatch.setenv("LORE_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("LORE_RATE_LIMIT_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("LORE_RATE_LIMIT_SEARCH_PER_WINDOW", "2")
     web.RATE_LIMIT_STATE.clear()
 
     with web.app.test_client() as client:
@@ -700,9 +700,9 @@ def test_api_rate_limit_enforced_when_enabled(monkeypatch):
 
 
 def test_api_rate_limit_disabled_when_configured(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_ENABLED", "false")
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS", "60")
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_SEARCH_PER_WINDOW", "1")
+    monkeypatch.setenv("LORE_RATE_LIMIT_ENABLED", "false")
+    monkeypatch.setenv("LORE_RATE_LIMIT_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("LORE_RATE_LIMIT_SEARCH_PER_WINDOW", "1")
     web.RATE_LIMIT_STATE.clear()
 
     with web.app.test_client() as client:
@@ -728,9 +728,9 @@ def test_api_build_info_includes_new_hardening_flags():
 
 
 def test_api_rate_limit_headers_present_on_api_responses(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_ENABLED", "true")
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_WINDOW_SECONDS", "60")
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_SEARCH_PER_WINDOW", "5")
+    monkeypatch.setenv("LORE_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("LORE_RATE_LIMIT_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("LORE_RATE_LIMIT_SEARCH_PER_WINDOW", "5")
     web.RATE_LIMIT_STATE.clear()
 
     with web.app.test_client() as client:
@@ -745,7 +745,7 @@ def test_api_rate_limit_headers_present_on_api_responses(monkeypatch):
 
 
 def test_metrics_endpoint_returns_counters(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_ENABLED", "false")
+    monkeypatch.setenv("LORE_RATE_LIMIT_ENABLED", "false")
     web.RATE_LIMIT_STATE.clear()
     with web.METRICS_LOCK:
         for key in list(web.METRICS.keys()):
@@ -767,7 +767,7 @@ def test_metrics_endpoint_returns_counters(monkeypatch):
 
 
 def test_metrics_endpoint_supports_prometheus_text(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_ENABLED", "false")
+    monkeypatch.setenv("LORE_RATE_LIMIT_ENABLED", "false")
     web.RATE_LIMIT_STATE.clear()
     with web.METRICS_LOCK:
         for key in list(web.METRICS.keys()):
@@ -780,12 +780,12 @@ def test_metrics_endpoint_supports_prometheus_text(monkeypatch):
     assert response.status_code == 200
     assert response.mimetype == "text/plain"
     body = response.get_data(as_text=True)
-    assert "# HELP ai_history_uptime_seconds" in body
-    assert "ai_history_requests_total" in body
+    assert "# HELP lore_uptime_seconds" in body
+    assert "lore_requests_total" in body
 
 
 def test_record_job_outcome_updates_job_metrics(monkeypatch):
-    monkeypatch.setenv("AI_HISTORY_RATE_LIMIT_ENABLED", "false")
+    monkeypatch.setenv("LORE_RATE_LIMIT_ENABLED", "false")
     with web.METRICS_LOCK:
         for key in list(web.METRICS.keys()):
             web.METRICS[key] = 0

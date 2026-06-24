@@ -1,7 +1,7 @@
 """Tests for vendored web assets — offline / air-gapped support (issue #19).
 
 The web UI must not depend on any CDN: Tailwind and highlight.js are
-checked into ``ai_history/interfaces/static/`` and served by Flask.
+checked into ``lore/interfaces/static/`` and served by Flask.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_history.interfaces import web
+from lore.interfaces import web
 
 STATIC_DIR = Path(web.__file__).parent / "static"
 
@@ -45,7 +45,7 @@ def test_static_route_serves_asset(client, name):
 
 def test_templates_reference_no_cdn():
     """No CDN host may appear in any rendered HTML template string."""
-    from ai_history.interfaces import web_templates
+    from lore.interfaces import web_templates
 
     cdn_hosts = (
         "cdn.tailwindcss.com",

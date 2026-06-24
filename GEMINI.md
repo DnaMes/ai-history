@@ -8,7 +8,7 @@ a modern web interface for browsing and searching conversations, and exposes a
 cross-tool knowledge store that agents write to and recall from.
 
 > Product/CLI = **Lore** (`lore`, `lore-session`, `lore-web`, `lore-mcp`).
-> The Python import package is `ai_history` — deliberately not renamed.
+> The Python import package is `lore` — deliberately not renamed.
 
 ### Key Features
 - **Unified Extraction**: Supports Claude Code, Cursor, Gemini CLI, Codex, VSCode Copilot, Warp, and GitHub Copilot CLI.
@@ -19,9 +19,9 @@ cross-tool knowledge store that agents write to and recall from.
 - **Local-First Architecture**: No cloud connectivity required; data stays on the machine.
 
 ### Architecture & Tech Stack
-- **Backend**: Python 3.11+ (Modular package structure under `ai_history/`).
+- **Backend**: Python 3.11+ (Modular package structure under `lore/`).
 - **Web Interface**: Flask with Jinja2 templates, Tailwind CSS, and highlight.js.
-- **Data Model**: Unified session and message objects (`ai_history/core/models.py`).
+- **Data Model**: Unified session and message objects (`lore/core/models.py`).
 - **Database**: Hybrid approach using `index.json` for rapid indexing and PostgreSQL for persistent storage.
 - **Infrastructure**: Dockerized environment with Postgres and Redis.
 
@@ -51,19 +51,19 @@ pip install -e .
 - **Start Full Stack (Docker)**: `./start_stack.sh` (Launches App + Postgres + Redis).
 - **Switch Tools**: `lore-session switch gemini` (Transfers context to Gemini CLI).
 
-(The underlying script files are `ai_history_cli.py`, `ai_history_web_new.py`,
-and `ai_session_cli.py`; the installed CLI binaries are the `lore*` commands.)
+(The underlying entry modules are `lore_cli.py`, `lore_session_cli.py`, and
+`lore/cli/web.py`; the installed CLI binaries are the `lore*` commands.)
 
 ---
 
 ## Development Conventions
 
 ### Package Structure
-- `ai_history/core`: Domain models and business logic.
-- `ai_history/extractors`: Logic for parsing specific AI tool databases/logs.
-- `ai_history/utils`: Shared utilities for path detection, datetime parsing, and text processing.
-- `ai_history/interfaces`: Entry points for CLI, Web, and MCP.
-- `ai_history/exporters`: Formatters for Markdown and Context files.
+- `lore/core`: Domain models and business logic.
+- `lore/extractors`: Logic for parsing specific AI tool databases/logs.
+- `lore/utils`: Shared utilities for path detection, datetime parsing, and text processing.
+- `lore/interfaces`: Entry points for CLI, Web, and MCP.
+- `lore/exporters`: Formatters for Markdown and Context files.
 
 ### Coding Style
 - **Modular Extractors**: Each tool has its own extractor class inheriting from `BaseExtractor`.

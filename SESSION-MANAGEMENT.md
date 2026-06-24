@@ -127,7 +127,7 @@ Use list_active_sessions to see all sessions
 Starte die Web UI:
 
 ```bash
-ai-history-web
+lore-web
 ```
 
 Öffne: http://localhost:5000
@@ -144,7 +144,7 @@ ai-history-web
 
 ### 1. Session Tracking
 
-`ai-history` sammelt automatisch Sessions von:
+`lore` sammelt automatisch Sessions von:
 - Claude Code (`~/.claude/projects/`)
 - Gemini CLI (`~/.gemini/tmp/`)
 - Codex CLI (`~/.codex/sessions/`)
@@ -197,8 +197,8 @@ In `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
-    "ai-history": {
-      "command": "ai-history-mcp"
+    "lore": {
+      "command": "lore-mcp"
     }
   }
 }

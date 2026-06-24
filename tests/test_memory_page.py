@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from ai_history.interfaces import web, web_data
-from ai_history.storage import add_memory
+from lore.interfaces import web, web_data
+from lore.storage import add_memory
 
 
 @pytest.fixture()

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.html import render_session_html
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.html import render_session_html
 
 
 def _make_session() -> UnifiedSession:
@@ -126,11 +126,11 @@ def _argns(**kw):
 
 def test_export_html_rejects_nonexistent_output_dir(tmp_path, monkeypatch, capsys):
     """A typo'd --output dir must fail loudly, not mkdir -p across the FS."""
-    import ai_history_cli
+    import lore_cli
 
-    monkeypatch.setattr(ai_history_cli, "_find_session_by_id", lambda _id: _make_session())
+    monkeypatch.setattr(lore_cli, "_find_session_by_id", lambda _id: _make_session())
     missing = tmp_path / "does" / "not" / "exist" / "out.html"
-    rc = ai_history_cli.cmd_export_html(_argns(session_id="x", output=str(missing)))
+    rc = lore_cli.cmd_export_html(_argns(session_id="x", output=str(missing)))
     assert rc == 1
     assert "does not exist" in capsys.readouterr().err
     assert not missing.exists()
@@ -140,11 +140,11 @@ def test_export_html_writes_owner_only(tmp_path, monkeypatch):
     """The export holds transcript content — it must be chmod 0600."""
     import stat
 
-    import ai_history_cli
+    import lore_cli
 
-    monkeypatch.setattr(ai_history_cli, "_find_session_by_id", lambda _id: _make_session())
+    monkeypatch.setattr(lore_cli, "_find_session_by_id", lambda _id: _make_session())
     out = tmp_path / "session.html"
-    rc = ai_history_cli.cmd_export_html(_argns(session_id="x", output=str(out)))
+    rc = lore_cli.cmd_export_html(_argns(session_id="x", output=str(out)))
     assert rc == 0
     assert out.exists()
     assert stat.S_IMODE(out.stat().st_mode) & 0o077 == 0

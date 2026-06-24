@@ -1,8 +1,8 @@
 # Contributing to Lore
 
 > The product/CLI is **Lore** (`lore`), but the Python import package is
-> `ai_history` — the import name was deliberately not renamed. Paths like
-> `ai_history/...` below refer to the code package, not the product name.
+> `lore` — the import name was deliberately not renamed. Paths like
+> `lore/...` below refer to the code package, not the product name.
 
 ## Development Setup
 
@@ -36,7 +36,7 @@ python -m pytest tests/ -v --tb=short
 black . --line-length=100
 isort . --profile black --line-length=100
 flake8 . --max-line-length=100 --ignore=E501,W503,E203
-mypy ai_history/ --ignore-missing-imports
+mypy lore/ --ignore-missing-imports
 ```
 
 Or run all pre-commit hooks at once:
@@ -47,14 +47,14 @@ pre-commit run --all-files
 
 ## Adding a New AI Tool Extractor
 
-1. Create `ai_history/extractors/<toolname>.py`
-2. Inherit `BaseExtractor` from `ai_history.extractors.base`
+1. Create `lore/extractors/<toolname>.py`
+2. Inherit `BaseExtractor` from `lore.extractors.base`
 3. Implement:
    - `tool` property → return the correct `Tool` enum value
    - `extract_sessions()` → `Iterator[UnifiedSession]`
    - `is_available()` → check if the tool's data directory exists
-4. Register in `ai_history/extractors/factory.py`
-5. Add the tool to `Tool` enum in `ai_history/core/models.py` if it's new
+4. Register in `lore/extractors/factory.py`
+5. Add the tool to `Tool` enum in `lore/core/models.py` if it's new
 6. Add a contract test in `tests/test_extractors_contract.py`
 
 See existing extractors (e.g. `claude.py`, `gemini.py`) for patterns. Use `safe_copy_db()` from `BaseExtractor` when reading SQLite files.
@@ -71,10 +71,10 @@ See existing extractors (e.g. `claude.py`, `gemini.py`) for patterns. Use `safe_
 ## Releasing
 
 The version is defined in exactly one place: `__version__` in
-`ai_history/__init__.py` (`pyproject.toml` reads it dynamically). To cut a
+`lore/__init__.py` (`pyproject.toml` reads it dynamically). To cut a
 release:
 
-1. Bump `__version__` in `ai_history/__init__.py` (semantic versioning).
+1. Bump `__version__` in `lore/__init__.py` (semantic versioning).
 2. Move the `[Unreleased]` entries in `CHANGELOG.md` into a new dated
    `[X.Y.Z]` section.
 3. Commit: `docs: changelog for X.Y.Z` together with the version bump.

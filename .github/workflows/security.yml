@@ -26,4 +26,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install bandit[toml]
-      - run: bandit -r ai_history/ -c pyproject.toml -ll
+      - run: bandit -r lore/ -c pyproject.toml -ll

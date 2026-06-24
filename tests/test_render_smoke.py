@@ -41,7 +41,7 @@ def _free_port() -> int:
 @pytest.fixture(scope="module")
 def live_server():
     """Run the Flask app in a background thread on a free port."""
-    from ai_history.interfaces.web import app
+    from lore.interfaces.web import app
 
     port = _free_port()
 

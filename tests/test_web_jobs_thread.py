@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import time
 
-from ai_history.interfaces import web, web_jobs
-from ai_history.interfaces.web_jobs import (
+from lore.interfaces import web, web_jobs
+from lore.interfaces.web_jobs import (
     RELOAD_JOBS,
     RELOAD_JOBS_LOCK,
     _get_reload_job,
     _start_audit_job,
     _start_reload_job,
 )
-from ai_history.interfaces.web_utils import ActionJobCancelledError, ActionJobTimeoutError
+from lore.interfaces.web_utils import ActionJobCancelledError, ActionJobTimeoutError
 
 # ---------------------------------------------------------------------------
 # Helpers

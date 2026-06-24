@@ -7,14 +7,14 @@ from datetime import datetime
 
 import pytest
 
-from ai_history.interfaces.web_helpers import (
+from lore.interfaces.web_helpers import (
     TOOL_STYLES,
     filter_sessions,
     get_style,
     parse_date_param,
     project_label,
 )
-from ai_history.interfaces.web_jobs import (
+from lore.interfaces.web_jobs import (
     RELOAD_JOB_TTL_SECONDS,
     RELOAD_JOBS,
     RELOAD_JOBS_LOCK,
@@ -24,7 +24,7 @@ from ai_history.interfaces.web_jobs import (
     _prune_reload_jobs_locked,
     _set_reload_job,
 )
-from ai_history.interfaces.web_utils import (
+from lore.interfaces.web_utils import (
     ActionJobCancelledError,
     ActionJobTimeoutError,
     _record_job_outcome,
@@ -70,8 +70,8 @@ def test_project_label_empty():
 
 
 def test_project_label_path():
-    result = project_label("/home/user/projects/ai-history")
-    assert result == "ai-history"
+    result = project_label("/home/user/projects/lore")
+    assert result == "lore"
 
 
 def test_project_label_just_slash():
@@ -354,7 +354,7 @@ def test_assert_job_active_cancel_requested():
 
 
 def test_assert_job_active_timed_out():
-    from ai_history.interfaces import web_jobs
+    from lore.interfaces import web_jobs
 
     job_id = "assert-timeout-test"
     with RELOAD_JOBS_LOCK:

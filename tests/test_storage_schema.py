@@ -11,13 +11,13 @@ import sqlite3
 
 import pytest
 
-from ai_history.storage import (
+from lore.storage import (
     apply_migrations,
     current_version,
     initialise,
     open_connection,
 )
-from ai_history.storage.schema import MIGRATIONS
+from lore.storage.schema import MIGRATIONS
 
 # ---------------------------------------------------------------------------
 # Connection PRAGMAs

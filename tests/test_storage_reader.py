@@ -1,7 +1,7 @@
 """Tests for the v2 SQLite reader (issue #44, PR 3).
 
 `load_index_v2` reads the v2 store back into the legacy index dict shape;
-`load_index()` prefers it over index.json behind the AI_HISTORY_USE_V2 flag,
+`load_index()` prefers it over index.json behind the LORE_USE_V2 flag,
 falling back to JSON transparently. These tests cover both.
 """
 
@@ -11,9 +11,9 @@ from datetime import datetime
 
 import pytest
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder
-from ai_history.storage import load_index_v2, v2_is_available
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.index import IndexBuilder
+from lore.storage import load_index_v2, v2_is_available
 
 
 def _session(
@@ -120,11 +120,11 @@ def test_load_index_v2_carries_prompt_outline(tmp_path):
 
 
 def test_load_index_uses_v2_when_available(tmp_path, monkeypatch):
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    monkeypatch.setenv("LORE_USE_V2", "1")
     web_data.clear_index_cache()
 
     IndexBuilder(tmp_path).build_index([_session("v2only", title="From V2")], {})
@@ -134,11 +134,11 @@ def test_load_index_uses_v2_when_available(tmp_path, monkeypatch):
 
 
 def test_load_index_falls_back_to_json_when_flag_off(tmp_path, monkeypatch):
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    monkeypatch.setenv("LORE_USE_V2", "0")
     web_data.clear_index_cache()
 
     IndexBuilder(tmp_path).build_index([_session("j", title="From JSON")], {})
@@ -150,11 +150,11 @@ def test_load_index_falls_back_to_json_when_flag_off(tmp_path, monkeypatch):
 
 def test_load_index_falls_back_when_v2_missing(tmp_path, monkeypatch):
     """v2 enabled but no DB yet — must transparently use index.json."""
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    monkeypatch.setenv("LORE_USE_V2", "1")
     web_data.clear_index_cache()
 
     # Write only a JSON index — no v2 db.
@@ -170,7 +170,7 @@ def test_load_index_falls_back_when_v2_missing(tmp_path, monkeypatch):
 
 def test_v2_and_json_agree_on_session_ids(tmp_path, monkeypatch):
     """The v2 reader and the JSON reader must surface the same sessions."""
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
@@ -178,11 +178,11 @@ def test_v2_and_json_agree_on_session_ids(tmp_path, monkeypatch):
     sessions = [_session("a"), _session("b"), _session("c")]
     IndexBuilder(tmp_path).build_index(sessions, {})
 
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    monkeypatch.setenv("LORE_USE_V2", "1")
     web_data.clear_index_cache()
     v2_ids = sorted(s["id"] for s in web_data.load_index()["sessions"])
 
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    monkeypatch.setenv("LORE_USE_V2", "0")
     web_data.clear_index_cache()
     json_ids = sorted(s["id"] for s in web_data.load_index()["sessions"])
 
@@ -225,11 +225,11 @@ def test_load_index_falls_back_when_v2_stale(tmp_path, monkeypatch):
     """load_index() must serve JSON when the v2 store is stale."""
     import time
 
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    monkeypatch.setenv("LORE_USE_V2", "1")
     web_data.clear_index_cache()
 
     IndexBuilder(tmp_path).build_index([_session("v2sess", title="From V2 store")], {})

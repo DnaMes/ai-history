@@ -1,4 +1,4 @@
-from ai_history.utils.datetime import parse_timestamp
+from lore.utils.datetime import parse_timestamp
 
 
 def test_parse_timestamp_invalid_is_epoch():

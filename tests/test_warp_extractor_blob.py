@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from ai_history.core.models import Role, UnifiedMessage
-from ai_history.extractors.warp import WarpExtractor
+from lore.core.models import Role, UnifiedMessage
+from lore.extractors.warp import WarpExtractor
 
 
 def test_extract_assistant_text_from_blob_picks_human_text():

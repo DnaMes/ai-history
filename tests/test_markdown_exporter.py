@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from ai_history.core.models import Tool, UnifiedSession
-from ai_history.exporters.markdown import MarkdownExporter
+from lore.core.models import Tool, UnifiedSession
+from lore.exporters.markdown import MarkdownExporter
 
 
 def _session(session_id: str, title: str) -> UnifiedSession:

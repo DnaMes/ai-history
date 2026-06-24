@@ -1,14 +1,14 @@
 # Lore — Agent Guidelines
 
-Local-first AI chat history manager for Claude Code, Cursor, VSCode Copilot, Gemini CLI, Warp, Codex, OpenCode. Product/CLI = **Lore**; the Python import package stays `ai_history`.
+Local-first AI chat history manager for Claude Code, Cursor, VSCode Copilot, Gemini CLI, Warp, Codex, OpenCode. Product/CLI = **Lore**; the Python import package stays `lore`.
 
 ## Project Structure
 
 ```
 lore/
-├── ai_history_cli.py           # CLI entry point (`lore`)
-├── ai_session_cli.py           # Session switching CLI (`lore-session`)
-├── ai_history/
+├── lore_cli.py           # CLI entry point (`lore`)
+├── lore_session_cli.py           # Session switching CLI (`lore-session`)
+├── lore/
 │   ├── cli/web.py              # Web UI entry point (`lore-web`)
 │   ├── cli/mcp.py              # MCP server entry point (`lore-mcp`)
 │   ├── extractors/            # Tool-specific data extractors
@@ -30,8 +30,8 @@ pip install -e . && pre-commit install
 
 # Lint & Type Check — ruff replaces black/isort/flake8
 ruff format . && ruff check --fix .
-mypy ai_history/ --ignore-missing-imports
-bandit -r ai_history/
+mypy lore/ --ignore-missing-imports
+bandit -r lore/
 
 # Run Tests
 pytest tests/                              # All tests
@@ -56,7 +56,7 @@ lore-web  # http://localhost:5000
 
 1. Standard library (`os`, `sys`, `json`, `re`, etc.)
 2. Third-party (`flask`, `markdown`, etc.)
-3. Local (`ai_history.core`, `ai_history.utils`, etc.)
+3. Local (`lore.core`, `lore.utils`, etc.)
 4. **Alphabetical within groups, explicit only - no `from X import *`**
 
 ### Formatting
@@ -149,13 +149,13 @@ const DARK_THEMES = [
 - ❌ Add cloud dependencies → local-first philosophy
 - ❌ `from X import *` → explicit imports only
 - ❌ Bare `except:` → catch specific exceptions
-- ❌ Rename the `ai_history/` package → import name is deliberately kept; edit inside it
+- ❌ Rename the `lore/` package → import name is deliberately kept; edit inside it
 
 ## Debugging
 
 ```bash
 # Test extractor
-python3 -c "from ai_history.extractors.claude import ClaudeCodeExtractor; print(list(ClaudeCodeExtractor().extract_sessions()))"
+python3 -c "from lore.extractors.claude import ClaudeCodeExtractor; print(list(ClaudeCodeExtractor().extract_sessions()))"
 
 # Check tools
 lore check

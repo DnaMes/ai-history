@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
-from ai_history.utils.security import sanitize_path
+from lore.utils.security import sanitize_path
 
 
 def find_latest_session(project_dir: str) -> Path:

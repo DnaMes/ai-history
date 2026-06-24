@@ -12,8 +12,8 @@ import sqlite3
 import threading
 from datetime import datetime
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.storage import (
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.storage import (
     add_memory,
     apply_migrations,
     current_version,
@@ -21,7 +21,7 @@ from ai_history.storage import (
     open_connection,
     write_sessions,
 )
-from ai_history.storage.schema import _run_migration_sql
+from lore.storage.schema import _run_migration_sql
 
 
 def _session(sid, n=2):

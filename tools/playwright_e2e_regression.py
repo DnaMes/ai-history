@@ -5,7 +5,7 @@ import sys
 from playwright.sync_api import expect, sync_playwright
 
 # Config
-BASE_URL = os.environ.get("AI_HISTORY_WEB_PROBE_BASE_URL", "http://127.0.0.1:5000")
+BASE_URL = os.environ.get("LORE_WEB_PROBE_BASE_URL", "http://127.0.0.1:5000")
 EVIDENCE = []
 FAILURES = []
 

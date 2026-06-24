@@ -1,6 +1,6 @@
-from ai_history.interfaces import web
-from ai_history.interfaces.web_formatting import format_message_content, format_tool_calls
-from ai_history.utils.text_processing import format_tool_display, format_tool_result
+from lore.interfaces import web
+from lore.interfaces.web_formatting import format_message_content, format_tool_calls
+from lore.utils.text_processing import format_tool_display, format_tool_result
 
 
 def test_format_tool_display_renders_command_and_raw_args():

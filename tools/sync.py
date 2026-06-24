@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ai-history Cloud Sync
+lore Cloud Sync
 
 Synchronize your AI chat history to cloud storage for backup and cross-device access.
 
@@ -29,9 +29,9 @@ from pathlib import Path
 from typing import Optional
 
 # Configuration
-AI_HISTORY_DIR = Path.home() / ".ai-history"
-SYNC_CONFIG_PATH = AI_HISTORY_DIR / "sync-config.json"
-SYNC_STATE_PATH = AI_HISTORY_DIR / "sync-state.json"
+LORE_DIR = Path.home() / ".lore"
+SYNC_CONFIG_PATH = LORE_DIR / "sync-config.json"
+SYNC_STATE_PATH = LORE_DIR / "sync-state.json"
 
 
 class SyncBackend:
@@ -50,9 +50,9 @@ class SyncBackend:
 class RcloneBackend(SyncBackend):
     """Sync using rclone (supports Google Drive, Dropbox, S3, etc.)."""
 
-    def __init__(self, remote_name: str = "ai-history"):
+    def __init__(self, remote_name: str = "lore"):
         self.remote_name = remote_name
-        self.remote_path = f"{remote_name}:ai-history"
+        self.remote_path = f"{remote_name}:lore"
 
     @staticmethod
     def is_available() -> bool:
@@ -99,7 +99,7 @@ class RcloneBackend(SyncBackend):
 
             print("\n✓ Google Drive configured successfully!")
             print(f"  Remote: {self.remote_name}:")
-            print("  Sync folder: ai-history/")
+            print("  Sync folder: lore/")
 
             # Save config
             self._save_config(
@@ -116,7 +116,7 @@ class RcloneBackend(SyncBackend):
             print(f"\n❌ Configuration failed: {e}")
             return False
 
-    def push(self, local_path: Path = AI_HISTORY_DIR, remote_path: Optional[str] = None) -> bool:
+    def push(self, local_path: Path = LORE_DIR, remote_path: Optional[str] = None) -> bool:
         """Push local changes to remote."""
         if not self.is_configured():
             print("❌ Remote not configured. Run: python3 sync.py --setup gdrive")
@@ -156,7 +156,7 @@ class RcloneBackend(SyncBackend):
             print(f"❌ Push error: {e}")
             return False
 
-    def pull(self, remote_path: Optional[str] = None, local_path: Path = AI_HISTORY_DIR) -> bool:
+    def pull(self, remote_path: Optional[str] = None, local_path: Path = LORE_DIR) -> bool:
         """Pull remote changes to local."""
         if not self.is_configured():
             print("❌ Remote not configured. Run: python3 sync.py --setup gdrive")
@@ -243,7 +243,7 @@ class RcloneBackend(SyncBackend):
 
     def _save_config(self, config: dict):
         """Save sync configuration."""
-        AI_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+        LORE_DIR.mkdir(parents=True, exist_ok=True)
         with open(SYNC_CONFIG_PATH, "w") as f:
             json.dump(config, f, indent=2)
 
@@ -267,7 +267,7 @@ class LocalBackend(SyncBackend):
     def __init__(self, target_dir: Path):
         self.target_dir = Path(target_dir)
 
-    def push(self, local_path: Path = AI_HISTORY_DIR) -> bool:
+    def push(self, local_path: Path = LORE_DIR) -> bool:
         """Copy to target directory."""
         print(f"\n📤 Copying to {self.target_dir}...")
 
@@ -301,7 +301,7 @@ class LocalBackend(SyncBackend):
             print(f"❌ Copy failed: {e}")
             return False
 
-    def pull(self, local_path: Path = AI_HISTORY_DIR) -> bool:
+    def pull(self, local_path: Path = LORE_DIR) -> bool:
         """Copy from target directory."""
         if not self.target_dir.exists():
             print(f"❌ Source directory doesn't exist: {self.target_dir}")
@@ -378,7 +378,7 @@ def print_status(status: dict):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sync ai-history to cloud storage",
+        description="Sync lore to cloud storage",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -403,9 +403,7 @@ Supported cloud providers (via rclone):
     parser.add_argument("--pull", action="store_true", help="Pull cloud changes to local")
     parser.add_argument("--status", action="store_true", help="Show sync status")
     parser.add_argument("--local-dir", type=Path, help="Target directory for local sync")
-    parser.add_argument(
-        "--remote", default="ai-history", help="rclone remote name (default: ai-history)"
-    )
+    parser.add_argument("--remote", default="lore", help="rclone remote name (default: lore)")
 
     args = parser.parse_args()
 
@@ -424,7 +422,7 @@ Supported cloud providers (via rclone):
         if args.setup == "gdrive":
             backend.setup_gdrive()
         elif args.setup == "dropbox":
-            print("Dropbox setup: rclone config create ai-history dropbox")
+            print("Dropbox setup: rclone config create lore dropbox")
         elif args.setup == "local":
             print("Local sync doesn't need setup. Use --local-dir to specify target.")
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from ai_history.interfaces import web
+from lore.interfaces import web
 
 
 def _make_index(count: int) -> dict:

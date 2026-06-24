@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to this project are documented here.
-The version is the single source of truth in `ai_history/__init__.py`.
+The version is the single source of truth in `lore/__init__.py`.
 
 ## [Unreleased]
 
@@ -15,7 +15,7 @@ The version is the single source of truth in `ai_history/__init__.py`.
 - Repository moved to `github.com/DnaMes/lore`.
 - Default data directory is now `~/.lore` (was `~/.ai-history`) — an existing
   `~/.ai-history` is auto-migrated in place on first run.
-- The Python import package remains `ai_history` — the import name was
+- The Python import package remains `lore` — the import name was
   deliberately not renamed.
 
 ### Added
@@ -33,7 +33,7 @@ The version is the single source of truth in `ai_history/__init__.py`.
 - Release checklist documented in CONTRIBUTING.
 
 ### Changed
-- New `ai_history/services/` layer holds shared index/extractor logic;
+- New `lore/services/` layer holds shared index/extractor logic;
   the `mcp → web_data` layering inversion is removed.
 - `mcp.create_server()` decomposed from ~550 lines into focused
   `mcp_tools/` modules.

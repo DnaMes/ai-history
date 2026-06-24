@@ -1,4 +1,4 @@
-"""Tests for ai_history/extractors/vscode.py.
+"""Tests for lore/extractors/vscode.py.
 
 VSCode Copilot writes chat sessions under
 ``~/.config/Code/User/workspaceStorage/<hash>/chatSessions/`` as either
@@ -12,8 +12,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ai_history.core.models import Role, Tool
-from ai_history.extractors.vscode import VSCodeCopilotExtractor
+from lore.core.models import Role, Tool
+from lore.extractors.vscode import VSCodeCopilotExtractor
 
 
 def _chat_sessions_dir(home: Path, workspace: str = "ws-abc") -> Path:
