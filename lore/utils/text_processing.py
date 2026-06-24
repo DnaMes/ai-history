@@ -1,6 +1,127 @@
+import difflib
 import html
 import json
 import re
+
+
+def _diff_rows(old: str, new: str, context: int = 3) -> tuple[list[dict], int, int]:
+    """Compute unified-diff rows between two texts.
+
+    Returns ``(rows, additions, deletions)`` where each row is
+    ``{"kind": "context"|"add"|"del"|"gap", "old": int|None, "new": int|None,
+    "text": str}``. Long runs of unchanged lines collapse to a single ``gap``
+    row carrying the hidden count in ``text`` (UMBAU §5).
+    """
+    old_lines = old.splitlines()
+    new_lines = new.splitlines()
+    sm = difflib.SequenceMatcher(a=old_lines, b=new_lines, autojunk=False)
+    rows: list[dict] = []
+    additions = deletions = 0
+
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            run = i2 - i1
+            # Collapse the middle of long unchanged runs, keep `context` lines
+            # of padding on each side so changes stay readable.
+            if run > 2 * context + 1:
+                for k in range(context):
+                    rows.append(
+                        {
+                            "kind": "context",
+                            "old": i1 + k + 1,
+                            "new": j1 + k + 1,
+                            "text": old_lines[i1 + k],
+                        }
+                    )
+                hidden = run - 2 * context
+                rows.append(
+                    {"kind": "gap", "old": None, "new": None, "text": f"{hidden} unchanged lines"}
+                )
+                for k in range(run - context, run):
+                    rows.append(
+                        {
+                            "kind": "context",
+                            "old": i1 + k + 1,
+                            "new": j1 + k + 1,
+                            "text": old_lines[i1 + k],
+                        }
+                    )
+            else:
+                for k in range(run):
+                    rows.append(
+                        {
+                            "kind": "context",
+                            "old": i1 + k + 1,
+                            "new": j1 + k + 1,
+                            "text": old_lines[i1 + k],
+                        }
+                    )
+        else:
+            for k in range(i1, i2):
+                rows.append({"kind": "del", "old": k + 1, "new": None, "text": old_lines[k]})
+                deletions += 1
+            for k in range(j1, j2):
+                rows.append({"kind": "add", "old": None, "new": k + 1, "text": new_lines[k]})
+                additions += 1
+    return rows, additions, deletions
+
+
+def _render_diff_rows(rows: list[dict]) -> str:
+    """Render diff rows to an HTML table. Inputs are HTML-escaped here."""
+    out = []
+    for row in rows:
+        kind = row["kind"]
+        if kind == "gap":
+            out.append(
+                f'<div class="diff-row diff-gap"><span class="diff-gap-label">'
+                f"⋯ {html.escape(row['text'])} ⋯</span></div>"
+            )
+            continue
+        marker = {"add": "+", "del": "-", "context": " "}[kind]
+        old_no = "" if row["old"] is None else str(row["old"])
+        new_no = "" if row["new"] is None else str(row["new"])
+        out.append(
+            f'<div class="diff-row diff-{kind}">'
+            f'<span class="diff-lineno diff-old">{old_no}</span>'
+            f'<span class="diff-lineno diff-new">{new_no}</span>'
+            f'<span class="diff-marker">{marker}</span>'
+            f'<span class="diff-text">{html.escape(row["text"])}</span>'
+            "</div>"
+        )
+    return "".join(out)
+
+
+def format_diff(file_path: str, old: str, new: str, *, is_new_file: bool = False) -> str:
+    """Render an Edit/Write as a unified diff block (UMBAU §5).
+
+    ``is_new_file`` renders every line as an addition (Write). Otherwise a
+    line-level unified diff between ``old`` and ``new`` is shown with +/-
+    gutters and collapsed unchanged runs.
+    """
+    if is_new_file:
+        new_lines = (new or "").splitlines()
+        rows = [
+            {"kind": "add", "old": None, "new": idx + 1, "text": line}
+            for idx, line in enumerate(new_lines)
+        ]
+        additions, deletions = len(new_lines), 0
+    else:
+        rows, additions, deletions = _diff_rows(old or "", new or "")
+
+    header = (
+        f'<div class="diff-header">'
+        f'<span class="diff-file">{html.escape(file_path or "(file)")}</span>'
+        f'<span class="diff-stat diff-stat-add">+{additions}</span>'
+        f'<span class="diff-stat diff-stat-del">−{deletions}</span>'
+        "</div>"
+    )
+    return (
+        '<div class="diff-block">'
+        + header
+        + '<div class="diff-body">'
+        + _render_diff_rows(rows)
+        + "</div></div>"
+    )
 
 
 def strip_ansi(text: str) -> str:
@@ -230,7 +351,25 @@ def format_tool_display(tool_name: str, args: str) -> str:
     display_command = command_text
     if language == "bash":
         display_command = _format_shell_command_for_display(command_text)
-    kv_grid = _render_kv_grid(parsed_input)
+
+    # Edit/Write: show a real diff instead of a key/value dump — it is the whole
+    # point of the call (UMBAU §5). The kv-grid is suppressed when a diff renders.
+    diff_block = ""
+    if isinstance(parsed_input, dict):
+        lowered_tool = normalized_tool.lower().replace(" ", "")
+        file_path = str(parsed_input.get("file_path", ""))
+        if "edit" in lowered_tool and "old_string" in parsed_input:
+            diff_block = format_diff(
+                file_path,
+                str(parsed_input.get("old_string", "")),
+                str(parsed_input.get("new_string", "")),
+            )
+        elif lowered_tool == "write" and "content" in parsed_input:
+            diff_block = format_diff(
+                file_path, "", str(parsed_input.get("content", "")), is_new_file=True
+            )
+
+    kv_grid = "" if diff_block else _render_kv_grid(parsed_input)
 
     command_block = ""
     if display_command:
@@ -257,6 +396,7 @@ def format_tool_display(tool_name: str, args: str) -> str:
         </summary>
         <div class="action-content">
             {command_block}
+            {diff_block}
             {kv_grid}
             {raw_block}
         </div>
