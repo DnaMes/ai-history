@@ -196,13 +196,26 @@ BASE_TEMPLATE = """
             color: var(--text);
         }
         .message-card.user-card .prose { color: var(--text); }
-        /* Assistant turn: calm, near-flat surface — no heavy outline */
+        /* Assistant turn: calm, near-flat surface with a quiet slate accent so
+           the message type reads at a glance (UMBAU §3.2). */
         .message-card.assistant-card {
             border: 1px solid var(--border);
+            border-left: 3px solid color-mix(in srgb, var(--border) 40%, var(--text) 60%);
             background: color-mix(in srgb, var(--card) 88%, var(--text) 5%);
             color: var(--text);
         }
         .message-card.assistant-card .prose { color: var(--text); }
+        /* Model + token chips on the assistant meta line. Absent when the tool
+           does not record per-message model/usage, so they never render empty. */
+        .model-chip, .token-chip {
+            display: inline-flex; align-items: center;
+            padding: 1px 7px; margin-left: 6px; border-radius: 999px;
+            font-size: 10px; font-family: ui-monospace, "JetBrains Mono", monospace;
+            font-variant-numeric: tabular-nums;
+            border: 1px solid var(--border);
+            background: var(--panel-strong); color: var(--muted);
+        }
+        .model-chip { text-transform: none; letter-spacing: 0; }
         body.session-view .message-card.user-card,
         body.session-view .message-card.assistant-card { border-radius: 12px; }
         .tool-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 11px; font-weight: 600; color: #475569; }
@@ -1944,6 +1957,11 @@ SESSION_PAIRS_TEMPLATE = """
                 <div class="role-badge">
                     <span class="response-icon" title="{{ style.name }}">AI</span>
                     <span>{{ style.name }}</span>
+                    {% if resp.model %}<span class="model-chip" title="model">{{ resp.model }}</span>{% endif %}
+                    {% if resp.tokens %}
+                        {% if resp.tokens.get('input') %}<span class="token-chip" title="input tokens">↑{{ resp.tokens.get('input') }}</span>{% endif %}
+                        {% if resp.tokens.get('output') %}<span class="token-chip" title="output tokens">↓{{ resp.tokens.get('output') }}</span>{% endif %}
+                    {% endif %}
                 </div>
                 <div class="message-time">{{ resp.timestamp.strftime('%H:%M') }}</div>
             </div>
