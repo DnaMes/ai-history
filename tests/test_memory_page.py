@@ -132,7 +132,10 @@ def test_memory_html_in_title_is_escaped(client):
 def test_memory_page_shows_source_session(client):
     c, tmp_path = client
     add_memory(
-        tmp_path, "decision", "Linked memory", "body",
+        tmp_path,
+        "decision",
+        "Linked memory",
+        "body",
         source_session="sess-provenance-xyz",
     )
     body = c.get("/memory").get_data(as_text=True)

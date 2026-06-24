@@ -29,9 +29,7 @@ _CHROME = (
     or shutil.which("chrome")
 )
 
-requires_chrome = pytest.mark.skipif(
-    _CHROME is None, reason="no Chromium/Chrome binary available"
-)
+requires_chrome = pytest.mark.skipif(_CHROME is None, reason="no Chromium/Chrome binary available")
 
 
 def _free_port() -> int:

@@ -136,8 +136,11 @@ def build_search_index(
     verbatim instead of being re-processed by :class:`IndexBuilder`. Set
     ``incremental=False`` to force a full rebuild.
 
-    Returns a list of ``{"extractor": ..., "error": ...}`` dicts, one per
-    extractor that failed.
+    Returns a list of report dicts:
+    - ``{"extractor": ..., "error": ...}`` for an extractor that crashed.
+    - ``{"extractor": ..., "skipped": {reason: n}, "imported": k}`` for an
+      extractor whose quality filter dropped sessions (#1e — no silent drops).
+    Consumers distinguish the two by presence of the ``"error"`` key.
     """
     selected = select_extractors(tool_filter)
 
@@ -221,6 +224,25 @@ def build_search_index(
                     session.title = title
                 extracted_sessions.append(session)
             sessions.extend(extracted_sessions)
+            # Surface how many sessions the quality filter dropped instead of
+            # letting them vanish silently inside the generator (#1e).
+            skipped = dict(getattr(extractor, "skip_counts", {}) or {})
+            if skipped:
+                total_skipped = sum(skipped.values())
+                logger.info(
+                    "Extractor %s: imported %d, skipped %d (%s)",
+                    tool_name,
+                    len(extracted_sessions),
+                    total_skipped,
+                    ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())),
+                )
+                errors.append(
+                    {
+                        "extractor": tool_name,
+                        "skipped": skipped,
+                        "imported": len(extracted_sessions),
+                    }
+                )
         except ActionJobCancelledError:
             raise
         except Exception as exc:

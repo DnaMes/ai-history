@@ -1,15 +1,16 @@
-# ai-history - Agent Guidelines
+# Lore — Agent Guidelines
 
-Local-first AI chat history manager for Claude Code, Cursor, VSCode Copilot, Gemini CLI, Warp, Codex, OpenCode.
+Local-first AI chat history manager for Claude Code, Cursor, VSCode Copilot, Gemini CLI, Warp, Codex, OpenCode. Product/CLI = **Lore**; the Python import package stays `ai_history`.
 
 ## Project Structure
 
 ```
-ai-history/
-├── ai_history_cli.py           # CLI entry point
-├── ai_session_cli.py           # Session switching CLI
-├── ai_history_web_new.py      # Web UI (Flask)
+lore/
+├── ai_history_cli.py           # CLI entry point (`lore`)
+├── ai_session_cli.py           # Session switching CLI (`lore-session`)
 ├── ai_history/
+│   ├── cli/web.py              # Web UI entry point (`lore-web`)
+│   ├── cli/mcp.py              # MCP server entry point (`lore-mcp`)
 │   ├── extractors/            # Tool-specific data extractors
 │   ├── interfaces/            # Web UI (web_templates.py, web.py)
 │   ├── exporters/             # Markdown/JSON export
@@ -27,9 +28,8 @@ ai-history/
 # Install
 pip install -e . && pre-commit install
 
-# Lint & Type Check
-black . --line-length=100 && isort . --profile black --line-length=100
-flake8 . --max-line-length=100 --ignore=E501,W503,E203
+# Lint & Type Check — ruff replaces black/isort/flake8
+ruff format . && ruff check --fix .
 mypy ai_history/ --ignore-missing-imports
 bandit -r ai_history/
 
@@ -44,10 +44,10 @@ docker compose build app && docker compose up -d app
 docker compose logs -f app
 
 # CLI
-ai-history check && ai-history list --since 7d
-ai-history search "query" --context 3
-ai-history export --all
-ai-history-web  # http://localhost:5000
+lore check && lore list --since 7d
+lore search "query" --context 3
+lore export --all
+lore-web  # http://localhost:5000
 ```
 
 ## Code Style Guidelines
@@ -149,7 +149,7 @@ const DARK_THEMES = [
 - ❌ Add cloud dependencies → local-first philosophy
 - ❌ `from X import *` → explicit imports only
 - ❌ Bare `except:` → catch specific exceptions
-- ❌ Modify `ai-history.py` → it's legacy, edit `ai_history/` package
+- ❌ Rename the `ai_history/` package → import name is deliberately kept; edit inside it
 
 ## Debugging
 
@@ -158,12 +158,12 @@ const DARK_THEMES = [
 python3 -c "from ai_history.extractors.claude import ClaudeCodeExtractor; print(list(ClaudeCodeExtractor().extract_sessions()))"
 
 # Check tools
-ai-history check
+lore check
 
 # Debug logging
-AI_HISTORY_DEBUG=1 ai-history list
+AI_HISTORY_DEBUG=1 lore list
 
 # Docker debugging
 docker compose logs -f app
-docker exec -it ai-history-app bash
+docker exec -it lore-app bash
 ```

@@ -24,12 +24,20 @@ def _minimal_session_records(session_id: str = "test-session-01") -> list[dict]:
         {
             "type": "message",
             "timestamp": ts,
-            "payload": {"role": "user", "content": "Hello, implement a quick sort", "id": "msg-001"},
+            "payload": {
+                "role": "user",
+                "content": "Hello, implement a quick sort",
+                "id": "msg-001",
+            },
         },
         {
             "type": "message",
             "timestamp": "2025-06-15T10:01:00",
-            "payload": {"role": "assistant", "content": "Sure, here is quicksort.", "id": "msg-002"},
+            "payload": {
+                "role": "assistant",
+                "content": "Sure, here is quicksort.",
+                "id": "msg-002",
+            },
         },
     ]
 
@@ -159,7 +167,7 @@ def test_parse_response_item_message(monkeypatch, tmp_path):
                 "id": "resp-001",
                 "content": [{"type": "output_text", "text": "Here is the answer."}],
             },
-        }
+        },
     ]
     _make_session_file(tmp_path, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -185,7 +193,7 @@ def test_parse_response_item_reasoning(monkeypatch, tmp_path):
                 "type": "reasoning",
                 "summary": [{"type": "summary_text", "text": "I should think carefully."}],
             },
-        }
+        },
     ]
     _make_session_file(tmp_path, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -217,7 +225,7 @@ def test_parse_response_item_function_call_shell(monkeypatch, tmp_path):
                 "arguments": json.dumps({"command": "ls -la"}),
                 "call_id": "call-001",
             },
-        }
+        },
     ]
     _make_session_file(tmp_path, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -241,7 +249,7 @@ def test_parse_response_item_function_call_read_file(monkeypatch, tmp_path):
                 "arguments": json.dumps({"path": "/home/user/foo.py"}),
                 "call_id": "call-002",
             },
-        }
+        },
     ]
     _make_session_file(tmp_path, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -265,7 +273,7 @@ def test_parse_response_item_function_call_generic(monkeypatch, tmp_path):
                 "arguments": json.dumps({"key": "value"}),
                 "call_id": "call-003",
             },
-        }
+        },
     ]
     _make_session_file(tmp_path, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -304,7 +312,7 @@ def test_parse_invalid_json_lines_skipped(monkeypatch, tmp_path):
     rollout = sessions_dir / "rollout-corrupt.jsonl"
     rollout.write_text(
         '{"type": "message", "timestamp": "2025-06-15T10:00:00", "payload": {"role": "user", "content": "ok", "id": "m1"}}\n'
-        'NOT VALID JSON HERE\n'
+        "NOT VALID JSON HERE\n"
         '{"type": "message", "timestamp": "2025-06-15T10:01:00", "payload": {"role": "assistant", "content": "reply", "id": "m2"}}\n',
         encoding="utf-8",
     )
@@ -365,7 +373,7 @@ def test_parse_function_call_bad_json_args(monkeypatch, tmp_path):
                 "arguments": "NOT VALID JSON {{",
                 "call_id": "call-bad",
             },
-        }
+        },
     ]
     _make_session_file(tmp_path, records)
     monkeypatch.setenv("HOME", str(tmp_path))

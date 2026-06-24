@@ -78,6 +78,60 @@ def test_should_import_session_allows_single_prompt_session_after_relaxation():
     assert extractor.should_import_session(session) is True
 
 
+def _thin_session():
+    """A session with a single user prompt and little content."""
+    return _session(
+        [
+            UnifiedMessage(
+                role=Role.USER,
+                content="hi",
+                timestamp=datetime(2026, 3, 4, 12, 0, 0),
+            ),
+        ]
+    )
+
+
+def test_skip_counts_tracks_dropped_sessions(monkeypatch):
+    """Dropped sessions are tallied per reason, not silently discarded (#1e)."""
+    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "3")
+    extractor = _DummyExtractor()
+
+    assert extractor.should_import_session(_thin_session()) is False
+    assert extractor.should_import_session(_thin_session()) is False
+    assert extractor.skip_counts.get("too_few_user_prompts") == 2
+
+
+def test_min_user_prompts_env_override(monkeypatch):
+    """AI_HISTORY_MIN_USER_PROMPTS lowers the threshold without a profile flip."""
+    extractor = _DummyExtractor()
+    session = _session(
+        [
+            UnifiedMessage(
+                role=Role.USER,
+                content="single but meaningful prompt",
+                timestamp=datetime(2026, 3, 4, 12, 0, 0),
+            ),
+        ]
+    )
+
+    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "3")
+    assert extractor.should_import_session(session) is False
+
+    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "1")
+    assert extractor.should_import_session(session) is True
+
+
+def test_min_user_prompts_invalid_override_falls_back(monkeypatch):
+    """A garbage override is ignored, falling back to the class/profile default."""
+    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "not-a-number")
+    monkeypatch.setenv("AI_HISTORY_IMPORT_PROFILE", "relaxed")
+    # Pin the relaxed default to 3 so the single-prompt session must be dropped
+    # (conftest pins it to 1 for the rest of the suite).
+    monkeypatch.setattr(BaseExtractor, "MIN_USER_PROMPTS", 3, raising=True)
+    extractor = _DummyExtractor()
+    assert extractor.should_import_session(_thin_session()) is False
+
+
 def test_is_low_value_index_entry_flags_thin_sessions():
     assert _is_low_value_index_entry({"id": "x", "prompts": 1, "messages": 2}) is True
     assert (

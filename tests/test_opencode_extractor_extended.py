@@ -9,7 +9,6 @@ from pathlib import Path
 from ai_history.core.models import Role, Tool
 from ai_history.extractors.opencode import LoadStats, OpenCodeExtractor
 
-
 # ---------------------------------------------------------------------------
 # Helpers for building OpenCode storage layout
 # ---------------------------------------------------------------------------
@@ -28,7 +27,9 @@ def _make_storage(
     return session_dir, message_dir, part_dir
 
 
-def _write_session(session_dir: Path, session_id: str, project: str | None = None, title: str | None = None) -> Path:
+def _write_session(
+    session_dir: Path, session_id: str, project: str | None = None, title: str | None = None
+) -> Path:
     ts_ms = 1700000000000  # fixed timestamp in ms
     data = {
         "id": session_id,
@@ -60,7 +61,13 @@ def _write_message(message_dir: Path, session_id: str, message_id: str, role: st
     return f
 
 
-def _write_part(part_dir: Path, message_id: str, part_id: str, part_type: str = "text", text: str = "Hello from test") -> Path:
+def _write_part(
+    part_dir: Path,
+    message_id: str,
+    part_id: str,
+    part_type: str = "text",
+    text: str = "Hello from test",
+) -> Path:
     part_d = part_dir / message_id
     part_d.mkdir(parents=True, exist_ok=True)
     data: dict = {
@@ -187,7 +194,13 @@ def test_extract_reasoning_parts(monkeypatch, tmp_path):
     _write_part(part_dir, "msg-u1", "prt-u1", text="Think deeply about this problem")
     _write_message(message_dir, "sess-reasoning", "msg-a1", role="assistant")
     _write_part(part_dir, "msg-a1", "prt-text", text="The answer is 42")
-    _write_part(part_dir, "msg-a1", "prt-reasoning", part_type="reasoning", text="I need to consider carefully")
+    _write_part(
+        part_dir,
+        "msg-a1",
+        "prt-reasoning",
+        part_type="reasoning",
+        text="I need to consider carefully",
+    )
 
     extractor = OpenCodeExtractor()
     sessions = list(extractor.extract_sessions())
@@ -577,7 +590,9 @@ def _insert_sqlite_session(db_path: Path, session_id: str, directory: str | None
     conn.close()
 
 
-def _insert_sqlite_message(db_path: Path, session_id: str, message_id: str, role: str, content: str) -> None:
+def _insert_sqlite_message(
+    db_path: Path, session_id: str, message_id: str, role: str, content: str
+) -> None:
     conn = sqlite3.connect(db_path)
     ts = 1700000000000
     msg_data = {"id": message_id, "role": role, "time": {"created": ts}}
@@ -598,7 +613,9 @@ def test_extract_from_sqlite(monkeypatch, tmp_path):
     db_path = tmp_path / "opencode.db"
     _create_opencode_sqlite(db_path)
     _insert_sqlite_session(db_path, "sql-sess-001", directory="/home/user/proj")
-    _insert_sqlite_message(db_path, "sql-sess-001", "sql-msg-u1", "user", "User question via sqlite")
+    _insert_sqlite_message(
+        db_path, "sql-sess-001", "sql-msg-u1", "user", "User question via sqlite"
+    )
     _insert_sqlite_message(db_path, "sql-sess-001", "sql-msg-a1", "assistant", "Answer via sqlite")
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -653,12 +670,14 @@ def test_parse_message_no_id(monkeypatch, tmp_path):
 def test_parse_message_with_model_dict(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     extractor = OpenCodeExtractor()
-    result = extractor._parse_message({
-        "id": "msg-with-model",
-        "role": "assistant",
-        "time": {"created": 1700000000000},
-        "model": {"providerID": "openai", "modelID": "gpt-4o"},
-    })
+    result = extractor._parse_message(
+        {
+            "id": "msg-with-model",
+            "role": "assistant",
+            "time": {"created": 1700000000000},
+            "model": {"providerID": "openai", "modelID": "gpt-4o"},
+        }
+    )
     assert result is not None
     assert result.model == "openai/gpt-4o"
 
@@ -666,13 +685,15 @@ def test_parse_message_with_model_dict(monkeypatch, tmp_path):
 def test_parse_message_with_provider_fields(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     extractor = OpenCodeExtractor()
-    result = extractor._parse_message({
-        "id": "msg-provider-fields",
-        "role": "user",
-        "time": {"created": 1700000000000},
-        "providerID": "anthropic",
-        "modelID": "claude-sonnet",
-    })
+    result = extractor._parse_message(
+        {
+            "id": "msg-provider-fields",
+            "role": "user",
+            "time": {"created": 1700000000000},
+            "providerID": "anthropic",
+            "modelID": "claude-sonnet",
+        }
+    )
     assert result is not None
     assert result.model == "anthropic/claude-sonnet"
 
@@ -680,12 +701,14 @@ def test_parse_message_with_provider_fields(monkeypatch, tmp_path):
 def test_parse_message_with_tokens(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     extractor = OpenCodeExtractor()
-    result = extractor._parse_message({
-        "id": "msg-tokens",
-        "role": "assistant",
-        "time": {"created": 1700000000000},
-        "tokens": {"input": 500, "output": 1000, "reasoning": 200},
-    })
+    result = extractor._parse_message(
+        {
+            "id": "msg-tokens",
+            "role": "assistant",
+            "time": {"created": 1700000000000},
+            "tokens": {"input": 500, "output": 1000, "reasoning": 200},
+        }
+    )
     assert result is not None
     assert result.tokens is not None
     assert result.tokens["input"] == 500

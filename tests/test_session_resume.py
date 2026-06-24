@@ -1,6 +1,5 @@
 """Tests for POST /api/sessions/<session_id>/resume endpoint."""
 
-
 from ai_history.interfaces import web
 
 
@@ -59,7 +58,9 @@ def test_resume_claude_code_no_project(monkeypatch):
 
 
 def test_resume_opencode_returns_command(monkeypatch):
-    monkeypatch.setattr(web, "load_index", lambda: _index_with_session("ses-opencode-01", "opencode"))
+    monkeypatch.setattr(
+        web, "load_index", lambda: _index_with_session("ses-opencode-01", "opencode")
+    )
 
     with web.app.test_client() as client:
         resp = client.post("/api/sessions/ses-opencode-01/resume")

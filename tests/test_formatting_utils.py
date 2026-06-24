@@ -9,7 +9,6 @@ from ai_history.utils.formatting import (
     get_formatter,
 )
 
-
 # ---------------------------------------------------------------------------
 # Basic format_message (convenience function)
 # ---------------------------------------------------------------------------
@@ -258,7 +257,9 @@ def test_clean_whitespace_preserves_code_blocks():
 
 def test_detect_language_python():
     formatter = MessageFormatter()
-    lang = formatter._detect_language("import os\nfrom pathlib import Path\n\ndef main():\n    pass")
+    lang = formatter._detect_language(
+        "import os\nfrom pathlib import Path\n\ndef main():\n    pass"
+    )
     assert lang == "python"
 
 
@@ -289,14 +290,22 @@ def test_detect_language_sql():
 def test_detect_language_rust():
     formatter = MessageFormatter()
     # Use rust-specific patterns: fn, let, mut, impl, struct, enum
-    lang = formatter._detect_language("fn main() {\n    let mut vec: Vec<i32> = Vec::new();\n    struct Point { x: i32 }\n    enum Status { Ok, Err }\n}")
-    assert lang in ("rust", "typescript", "javascript")  # detection may vary, but exercise the code path
+    lang = formatter._detect_language(
+        "fn main() {\n    let mut vec: Vec<i32> = Vec::new();\n    struct Point { x: i32 }\n    enum Status { Ok, Err }\n}"
+    )
+    assert lang in (
+        "rust",
+        "typescript",
+        "javascript",
+    )  # detection may vary, but exercise the code path
 
 
 def test_detect_language_go():
     formatter = MessageFormatter()
     # Use goroutine keyword that uniquely identifies go
-    lang = formatter._detect_language("goroutine main() {\n    defer wg.Done()\n    go func() {}\n}")
+    lang = formatter._detect_language(
+        "goroutine main() {\n    defer wg.Done()\n    go func() {}\n}"
+    )
     assert lang == "go"
 
 
@@ -321,7 +330,9 @@ def test_detect_language_css():
 def test_detect_language_dockerfile():
     formatter = MessageFormatter()
     # Use WORKDIR which is unique to Dockerfiles and not matched by other patterns
-    lang = formatter._detect_language("WORKDIR /app\nCOPY . .\nEXPOSE 8080\nENTRYPOINT [\"/entrypoint.sh\"]")
+    lang = formatter._detect_language(
+        'WORKDIR /app\nCOPY . .\nEXPOSE 8080\nENTRYPOINT ["/entrypoint.sh"]'
+    )
     assert lang == "dockerfile"
 
 

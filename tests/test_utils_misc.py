@@ -21,7 +21,6 @@ from ai_history.utils.paths import (
 )
 from ai_history.utils.rules import extract_rules
 
-
 # ---------------------------------------------------------------------------
 # utils/datetime.py
 # ---------------------------------------------------------------------------
@@ -155,9 +154,7 @@ def test_get_git_info_subprocess_error(tmp_path):
 
 
 def test_get_git_info_timeout(tmp_path):
-    with patch(
-        "subprocess.check_output", side_effect=subprocess.TimeoutExpired("git", 2)
-    ):
+    with patch("subprocess.check_output", side_effect=subprocess.TimeoutExpired("git", 2)):
         result = get_git_info(str(tmp_path))
     assert result == {"branch": None, "sha": None}
 
@@ -307,7 +304,9 @@ def test_get_current_project_no_cwd_arg():
 def _make_session(messages: list[tuple[str, str]]) -> UnifiedSession:
     """Helper to build a minimal UnifiedSession for rules tests."""
     msgs = [
-        UnifiedMessage(role=Role.USER if r == "user" else Role.ASSISTANT, content=c, timestamp=datetime.now())
+        UnifiedMessage(
+            role=Role.USER if r == "user" else Role.ASSISTANT, content=c, timestamp=datetime.now()
+        )
         for r, c in messages
     ]
     return UnifiedSession(
@@ -331,13 +330,15 @@ def test_extract_rules_no_assistant_messages():
 
 
 def test_extract_rules_extracts_sentences_with_keywords():
-    session = _make_session([
-        (
-            "assistant",
-            "You should always use type hints. You must never use bare except. "
-            "Best practice is to write tests. Avoid hardcoding secrets.",
-        )
-    ])
+    session = _make_session(
+        [
+            (
+                "assistant",
+                "You should always use type hints. You must never use bare except. "
+                "Best practice is to write tests. Avoid hardcoding secrets.",
+            )
+        ]
+    )
     result = extract_rules([session])
     assert len(result) > 0
     # All results should be from assistant messages
@@ -353,7 +354,10 @@ def test_extract_rules_skips_short_sentences():
 
 def test_extract_rules_respects_max_rules():
     long_content = " ".join(
-        [f"You must always do step {i} carefully and thoroughly every time you work." for i in range(50)]
+        [
+            f"You must always do step {i} carefully and thoroughly every time you work."
+            for i in range(50)
+        ]
     )
     session = _make_session([("assistant", long_content)])
     result = extract_rules([session], max_rules=5)

@@ -14,6 +14,31 @@ from .base import BaseExtractor
 logger = logging.getLogger(__name__)
 
 
+def _stringify_tool_result(content) -> str:
+    """Flatten a Claude tool_result ``content`` to text.
+
+    The field is either a plain string or a list of content blocks
+    (``{"type": "text", "text": ...}`` / image refs). Join the text blocks
+    and keep a placeholder for non-text so nothing silently vanishes.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    parts.append(block.get("text", ""))
+                else:
+                    parts.append(f"[{block.get('type', 'block')}]")
+            elif isinstance(block, str):
+                parts.append(block)
+        return "\n".join(parts)
+    if content is None:
+        return ""
+    return str(content)
+
+
 class ClaudeCodeExtractor(BaseExtractor):
     """Extract chat history from Claude Code."""
 
@@ -123,9 +148,7 @@ class ClaudeCodeExtractor(BaseExtractor):
         yield from seen.values()
 
     @staticmethod
-    def _add_or_replace_newer(
-        seen: "dict[str, UnifiedSession]", session: UnifiedSession
-    ) -> None:
+    def _add_or_replace_newer(seen: "dict[str, UnifiedSession]", session: UnifiedSession) -> None:
         """Insert ``session`` unless an entry with the same id is newer."""
         existing = seen.get(session.session_id)
         if existing is None:
@@ -159,6 +182,12 @@ class ClaudeCodeExtractor(BaseExtractor):
         cli_version = None
         git_branch = None
         created_at = None
+        # tool_use and its matching tool_result live in DIFFERENT JSONL records
+        # (the result arrives in the next user message). Keep a reference to each
+        # tool_use dict so we can attach the result to it once it shows up. The
+        # dicts are stored by reference inside messages[], so mutating them here
+        # after the loop is fine.
+        tool_use_by_id: dict[str, dict] = {}
         last_updated = None
 
         with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -190,6 +219,9 @@ class ClaudeCodeExtractor(BaseExtractor):
                                     text_parts.append(item.get("text", ""))
                                 elif item.get("type") == "tool_use":
                                     tool_calls.append(item)
+                                    tool_use_id = item.get("id")
+                                    if tool_use_id:
+                                        tool_use_by_id[tool_use_id] = item
                                     tool_name = item.get("name", "Unknown")
                                     tool_input = item.get("input", {})
                                     if isinstance(tool_input, dict):
@@ -211,13 +243,20 @@ class ClaudeCodeExtractor(BaseExtractor):
                                             text_parts.append(f"[Tool: {tool_name}]")
                                 elif item.get("type") == "tool_result":
                                     tool_id = item.get("tool_use_id", "")
-                                    result_content = item.get("content", "")
-                                    if (
-                                        isinstance(result_content, str)
-                                        and len(result_content) > 500
-                                    ):
-                                        result_content = result_content[:500] + "..."
+                                    result_content = _stringify_tool_result(item.get("content", ""))
+                                    # Full result kept — no truncation. The web view
+                                    # collapses long output behind an expand toggle
+                                    # (see session_view_prep), the source must stay
+                                    # complete for search and forensics.
                                     text_parts.append(f"[Tool Result]\n{result_content}")
+                                    # Attach the result back to its tool_use dict so
+                                    # the structured renderer can show call+result
+                                    # together instead of re-parsing the string.
+                                    parent_call = tool_use_by_id.get(tool_id)
+                                    if parent_call is not None:
+                                        parent_call["output"] = result_content
+                                        if item.get("is_error"):
+                                            parent_call["status"] = "error"
                             elif isinstance(item, str):
                                 text_parts.append(item)
                         content = "\n".join(text_parts)

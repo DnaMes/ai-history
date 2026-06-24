@@ -393,7 +393,7 @@ When enabled, API/error requests are logged as JSON objects with method, path, s
 
 Container runtime uses Gunicorn (`ai_history.interfaces.web:app`) instead of Flask development server.
 
-`docker-compose.yml` now includes health checks for `app`, `db`, and `redis`, and startup ordering waits for healthy dependencies.
+`docker-compose.yml` defines a single `app` service with a health check. There is no `db`/`redis` — the store is local SQLite (+WAL); Gunicorn runs `--workers 1` because the reload-job state is in-memory.
 
 ```bash
 # Validate compose config

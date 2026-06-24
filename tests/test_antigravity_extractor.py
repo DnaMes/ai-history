@@ -170,7 +170,7 @@ def test_project_path_from_file_link(monkeypatch, tmp_path):
     """A file:// link in the walkthrough yields a project path when it exists."""
     project = tmp_path / "home" / "user" / "projects" / "myrepo"
     project.mkdir(parents=True)
-    walkthrough = "## Solution\n\n" f"See file://{project}/src/main.py for the change."
+    walkthrough = f"## Solution\n\nSee file://{project}/src/main.py for the change."
     _make_session(
         tmp_path,
         "sess-proj",

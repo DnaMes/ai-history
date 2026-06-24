@@ -239,7 +239,10 @@ def test_add_memory_links_source_session(tmp_path):
     from ai_history.storage import list_memory_sources
 
     mid = add_memory(
-        tmp_path, "decision", "Provenance test", "body",
+        tmp_path,
+        "decision",
+        "Provenance test",
+        "body",
         source_session="sess-origin-1",
     )
     sources = list_memory_sources(tmp_path, mid)

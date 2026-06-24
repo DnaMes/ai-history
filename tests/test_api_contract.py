@@ -5,12 +5,12 @@ Each test verifies that a route returns the correct HTTP status code and
 response shape.  No real index data or extractors are required — load_index
 is monkeypatched to return an empty index so tests are fully isolated.
 """
+
 from __future__ import annotations
 
 import pytest
 
 from ai_history.interfaces import web
-
 
 # ---------------------------------------------------------------------------
 # Helpers

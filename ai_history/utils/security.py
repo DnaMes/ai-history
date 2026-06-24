@@ -220,9 +220,7 @@ def validate_tool_name(tool: str) -> bool:
 
 # Strict allowlist patterns for session IDs.
 # UUID format: Claude Code and similar tools
-_UUID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-)
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 # Alphanumeric/base58 IDs: OpenCode and other tools (8–64 chars)
 _ALPHANUM_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 # Claude Code subagent IDs: <parent-uuid>:<agent-name> where agent-name is
