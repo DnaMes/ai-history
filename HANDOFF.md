@@ -1,11 +1,36 @@
-# HANDOFF — Lore — 2026-05-26
+# HANDOFF — Lore — 2026-06-25
 
 > Claude: update this before session ends with /compact or on Stop.
 
+## Session 2026-06-24/25 — Professionalization push (Axis 1 + rename + render rebuild)
+
+All work landed on **master** via PRs. Branch each new piece off master.
+
+**Merged this session:**
+- **#58** Axis-1 data completeness — claude.py 500-char tool-result truncation removed (1326 results recovered), tool results attached to their tool_call as `output` (3999/4005), skip-count tracking (#1e), `LORE_MIN_USER_PROMPTS` env override, doc hygiene.
+- **#60** Full rename `ai_history` → `lore` (v2.4.0) — package/modules/env-vars (`LORE_*` with back-compat alias shim in `lore/__init__._alias_legacy_env`), metrics, Dockerfile, docs. `import ai_history` now fails by design. Legacy `~/.ai-history` refs in `utils/paths.py`+`web_data.py` kept on purpose (auto-migration path).
+- **CI fix** (in #58) — ci.yml had never run green: black→ruff, added pytest-cov, bandit skips (B310/B608 documented, SHA1 `usedforsecurity=False`).
+- **#61** #53 Phase 0 — `session_view_prep.py`: render from structured `tool_calls` (prose + paired tool cards), not regex re-parse. Verified: 295 call + 147 result pills, 0 `[Tool:` leaks, 23380-char result renders.
+- **#63** #53 Phase 1 — assistant model + token chips (conditional), slate card accent.
+- **#64** #53 Phase 2 — Edit/Write **diff rendering** (`format_diff`/`_diff_rows`, difflib), green/red rows, nh3-safe. Verified: 16 edits → 16 diff blocks.
+
+**Suite green throughout, coverage ~83.8%, ruff+bandit clean.**
+
+### NEXT (do on ai-workstation): #53 Phase 3 + open issues
+- **#53 Phase 3** — Sticky-TOC scroll-spy (TOC partly exists, `web_templates.py:1655`), Tool-Burst-Folding (≥3 consecutive calls), Duplicate-Folding (UMBAU §7). Build in `session_view_prep.py` (burst/dup grouping) + template + CSS.
+- **#62** per-message tokens dropped in served path → Phase-1 chips only show with `?live=1`. Fix: hydrate served messages from v2 store (`storage/reader.py`, `tokens_json` already persisted) instead of flat index.
+- Other open issues: #54 opencode 50k truncation, #55 parametrize contract test, #56 differentiation options (tags/hybrid-search/resume/cost), #57 raw-vs-import gap report.
+- UMBAU §6 Fidelity-Toggle intentionally skipped — existing Clean/Ultra toggles cover it.
+
+### Gotchas (this session)
+- `lore-web`/`lore-mcp` entry points are broken pre-existing (`lore/cli/{web,mcp}.py` are 0-byte stubs; `main`/`main_sync` undefined). Run the app via `lore.interfaces.web:app` (gunicorn) directly. Worth fixing.
+- Per-message tokens: only opencode/gemini populate them; claude/codex/cursor don't (chips stay absent, by design).
+- Force-push + permission-rule self-grant are hard-blocked by safety hook + auto-mode classifier — user must run those.
+
 ## Current State
 
-Product name is **Lore** (Python import package stays `lore`).
-Version **2.3.0**, 966 tests passing, **800 sessions** indexed across 7 tools.
+Product name is **Lore** (Python import package is now `lore` — renamed from `ai_history`).
+Version **2.4.0**. **853 sessions** indexed across 7 tools.
 
 - **Repo**: `~/projects/lab/ai/lore` (renamed from `ai-history` this session)
 - **GitHub**: `DnaMes/lore` — single remote, Forgejo deleted
