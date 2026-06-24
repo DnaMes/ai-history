@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote, urlparse
 
-import nh3
 import markdown
+import nh3
 from flask import Flask, Response, g, has_request_context, jsonify, redirect, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -27,6 +27,7 @@ from ai_history.utils.security import (
 from ai_history.utils.text_processing import format_thinking
 from ai_history.utils.tooling import normalize_tool_name
 
+from ..services.cache import threadsafe_lru_cache
 from .api_payloads import (
     serialize_index_session_summary,
     serialize_live_session,
@@ -34,7 +35,6 @@ from .api_payloads import (
     serialize_thread_messages,
     serialize_thread_overview,
 )
-from ..services.cache import threadsafe_lru_cache
 from .web_data import (
     DELETED_SESSIONS_PATH,
     INDEX_PATH,
@@ -49,13 +49,13 @@ from .web_data import (
     load_index_summary,
     load_sessions_for_tool,
     remember_deleted_session_id,
-    search_index,
     resolve_export_path,
+    search_index,
 )
 from .web_formatting import (
     SANITIZE_ATTRS,
-    SANITIZE_URL_SCHEMES,
     SANITIZE_TAGS,
+    SANITIZE_URL_SCHEMES,
     format_message_content,
     format_tool_calls,
     sanitize_rendered_html,

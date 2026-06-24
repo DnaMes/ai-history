@@ -38,7 +38,11 @@ def _minimal_session(session_id: str = "sess-001") -> dict:
         "lastUpdated": "2025-06-15T10:30:00",
         "messages": [
             {"type": "user", "content": "Hello Gemini", "timestamp": "2025-06-15T10:00:00"},
-            {"type": "gemini", "content": "Hello! How can I help?", "timestamp": "2025-06-15T10:01:00"},
+            {
+                "type": "gemini",
+                "content": "Hello! How can I help?",
+                "timestamp": "2025-06-15T10:01:00",
+            },
         ],
     }
 
@@ -128,7 +132,11 @@ def test_parse_session_with_thoughts(monkeypatch, tmp_path):
         "startTime": "2025-06-15T10:00:00",
         "lastUpdated": "2025-06-15T10:30:00",
         "messages": [
-            {"type": "user", "content": "Explain something complex", "timestamp": "2025-06-15T10:00:00"},
+            {
+                "type": "user",
+                "content": "Explain something complex",
+                "timestamp": "2025-06-15T10:00:00",
+            },
             {
                 "type": "gemini",
                 "content": "Here is the explanation.",
@@ -175,6 +183,7 @@ def test_parse_session_info_type(monkeypatch, tmp_path):
     # Should import: 1 user prompt qualifies
     s = sessions[0]
     from ai_history.core.models import Role as R
+
     roles = [m.role for m in s.messages]
     assert R.INFO in roles
 

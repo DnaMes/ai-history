@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
 from ai_history.exporters.markdown import MarkdownExporter
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -30,7 +29,7 @@ def _make_session(
     created = now + timedelta(minutes=created_offset_minutes)
     updated = now + timedelta(minutes=updated_offset_minutes)
     msgs = []
-    for role_str, content in (messages or [("user", "Hello"), ("assistant", "Hi there!")]):
+    for role_str, content in messages or [("user", "Hello"), ("assistant", "Hi there!")]:
         role = Role.USER if role_str == "user" else Role.ASSISTANT
         msgs.append(UnifiedMessage(role=role, content=content, timestamp=created))
     return UnifiedSession(
@@ -102,10 +101,12 @@ def test_export_session_no_project(tmp_path):
 
 def test_export_session_contains_messages(tmp_path):
     exporter = MarkdownExporter(tmp_path)
-    session = _make_session(messages=[
-        ("user", "How does quicksort work?"),
-        ("assistant", "Quicksort divides the array around a pivot."),
-    ])
+    session = _make_session(
+        messages=[
+            ("user", "How does quicksort work?"),
+            ("assistant", "Quicksort divides the array around a pivot."),
+        ]
+    )
     out_path = exporter.export_session(session)
     content = out_path.read_text(encoding="utf-8")
 
@@ -124,12 +125,14 @@ def test_export_session_user_messages_quoted(tmp_path):
 
 def test_export_session_statistics_section(tmp_path):
     exporter = MarkdownExporter(tmp_path)
-    session = _make_session(messages=[
-        ("user", "Question one"),
-        ("assistant", "Answer one"),
-        ("user", "Question two"),
-        ("assistant", "Answer two"),
-    ])
+    session = _make_session(
+        messages=[
+            ("user", "Question one"),
+            ("assistant", "Answer one"),
+            ("user", "Question two"),
+            ("assistant", "Answer two"),
+        ]
+    )
     out_path = exporter.export_session(session)
     content = out_path.read_text(encoding="utf-8")
 

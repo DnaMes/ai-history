@@ -8,8 +8,8 @@ import html
 import json
 import re
 
-import nh3
 import markdown
+import nh3
 
 from ai_history.utils.text_processing import strip_ansi
 

@@ -121,9 +121,7 @@ def test_throwing_extractor_is_collected_not_fatal(tmp_path, patched_extractors)
 def test_should_stop_raises_cancelled(tmp_path, patched_extractors):
     patched_extractors([_StubExtractor(Tool.CLAUDE_CODE, [_session("a")])])
     with pytest.raises(extraction.ActionJobCancelledError):
-        extraction.build_search_index(
-            tmp_path, tmp_path / "index.json", should_stop=lambda: True
-        )
+        extraction.build_search_index(tmp_path, tmp_path / "index.json", should_stop=lambda: True)
 
 
 # ---------------------------------------------------------------------------
@@ -189,11 +187,7 @@ def test_incremental_reextracts_changed_session(tmp_path, patched_extractors):
 
 
 def test_deleted_ids_are_filtered_out(tmp_path, patched_extractors):
-    patched_extractors(
-        [_StubExtractor(Tool.CLAUDE_CODE, [_session("keep"), _session("drop")])]
-    )
-    extraction.build_search_index(
-        tmp_path, tmp_path / "index.json", deleted_ids={"drop"}
-    )
+    patched_extractors([_StubExtractor(Tool.CLAUDE_CODE, [_session("keep"), _session("drop")])])
+    extraction.build_search_index(tmp_path, tmp_path / "index.json", deleted_ids={"drop"})
     payload = json.loads((tmp_path / "index.json").read_text())
     assert [s["id"] for s in payload["sessions"]] == ["keep"]

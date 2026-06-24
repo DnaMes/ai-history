@@ -13,7 +13,6 @@ import re
 
 from ai_history.interfaces import web
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -97,9 +96,9 @@ class TestCspHeader:
         script_src = next((d for d in csp.split(";") if "script-src" in d), "")
         style_src = next((d for d in csp.split(";") if "style-src" in d), "")
         assert f"'nonce-{nonce}'" in script_src, f"nonce missing from script-src: {script_src}"
-        assert (
-            "nonce-" not in style_src
-        ), f"style-src must NOT carry a nonce (would disable unsafe-inline): {style_src}"
+        assert "nonce-" not in style_src, (
+            f"style-src must NOT carry a nonce (would disable unsafe-inline): {style_src}"
+        )
 
     def test_hardened_directives_still_present(self):
         """Regression guard: existing strict directives must survive the nonce change."""
@@ -159,9 +158,9 @@ class TestInlineNonceAttributes:
         found = _inline_script_nonces(html)
         assert len(found) > 0, "No <script nonce=...> tags found in response"
         for tag_nonce in found:
-            assert (
-                tag_nonce == nonce
-            ), f"Inline script has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
+            assert tag_nonce == nonce, (
+                f"Inline script has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
+            )
 
     def test_all_inline_styles_carry_nonce(self):
         html, nonce = self._get_html_and_nonce("/")
@@ -169,9 +168,9 @@ class TestInlineNonceAttributes:
         found = _inline_style_nonces(html)
         assert len(found) > 0, "No <style nonce=...> tags found in response"
         for tag_nonce in found:
-            assert (
-                tag_nonce == nonce
-            ), f"Inline style has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
+            assert tag_nonce == nonce, (
+                f"Inline style has nonce {tag_nonce!r} but CSP nonce is {nonce!r}"
+            )
 
     def test_no_unnnonced_inline_scripts(self):
         """Ensure there are no bare <script> tags (without a nonce or src)."""

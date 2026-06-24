@@ -9,7 +9,6 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-
 _LEGACY_HOME_NAME = ".ai-history"
 _HOME_NAME = ".lore"
 _migration_done = False

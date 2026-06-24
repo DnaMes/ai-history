@@ -4,6 +4,7 @@ Parametrized contract tests for all extractors (issue #26).
 These tests verify that every extractor class correctly implements the
 BaseExtractor interface without requiring actual tool data on disk.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -142,8 +143,7 @@ def test_extract_sessions_returns_iterator_when_available(extractor_cls):
     result = instance.extract_sessions()
     # Generators and other lazy iterators all satisfy this check.
     assert hasattr(result, "__iter__") and hasattr(result, "__next__"), (
-        f"{extractor_cls.__name__}.extract_sessions() must return an iterator, "
-        f"got {type(result)!r}"
+        f"{extractor_cls.__name__}.extract_sessions() must return an iterator, got {type(result)!r}"
     )
 
 
@@ -167,9 +167,7 @@ def test_extract_sessions_not_available_yields_nothing(extractor_cls, monkeypatc
                 f"{extractor_cls.__name__} yielded non-UnifiedSession object: {type(s)!r}"
             )
     except Exception as exc:  # noqa: BLE001
-        pytest.fail(
-            f"{extractor_cls.__name__}.extract_sessions() raised when not available: {exc}"
-        )
+        pytest.fail(f"{extractor_cls.__name__}.extract_sessions() raised when not available: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -198,8 +196,7 @@ def test_all_tool_enum_values_have_at_least_one_extractor():
 
     uncovered = set(Tool) - claimed_tools
     assert not uncovered, (
-        f"The following Tool enum values have no extractor: "
-        f"{[t.value for t in uncovered]}"
+        f"The following Tool enum values have no extractor: {[t.value for t in uncovered]}"
     )
 
 

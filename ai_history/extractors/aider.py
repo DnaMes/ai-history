@@ -149,7 +149,10 @@ class AiderExtractor(BaseExtractor):
         # Aider has no native session IDs — derive a stable one from the
         # project path + this block's start time so re-imports are idempotent.
         seed = f"{project_path}|{started_raw or block_index}"
-        session_id = "aider-" + hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16]
+        # Not security-sensitive: just a stable, collision-tolerant id seed.
+        session_id = (
+            "aider-" + hashlib.sha1(seed.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
+        )
 
         return UnifiedSession(
             tool=Tool.AIDER,

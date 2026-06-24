@@ -297,7 +297,7 @@ def apply_migrations(conn: sqlite3.Connection) -> int:
             _run_migration_sql(conn, sql)
             conn.execute("BEGIN")
             conn.execute(
-                "INSERT INTO schema_version(version, description, applied_at) " "VALUES (?, ?, ?)",
+                "INSERT INTO schema_version(version, description, applied_at) VALUES (?, ?, ?)",
                 (
                     version,
                     description,

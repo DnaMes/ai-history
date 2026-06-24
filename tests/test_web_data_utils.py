@@ -67,9 +67,7 @@ def test_load_deleted_session_ids_missing_file(monkeypatch, tmp_path):
 
 def test_load_deleted_session_ids_dict_format(monkeypatch, tmp_path):
     deleted_file = tmp_path / "deleted.json"
-    deleted_file.write_text(
-        json.dumps({"session_ids": ["sess-aaa", "sess-bbb"]}), encoding="utf-8"
-    )
+    deleted_file.write_text(json.dumps({"session_ids": ["sess-aaa", "sess-bbb"]}), encoding="utf-8")
     monkeypatch.setattr(web_data, "DELETED_SESSIONS_PATH", deleted_file)
     # Clear cached version
     web_data._load_deleted_session_ids_cached.cache_clear()
@@ -141,9 +139,7 @@ def test_apply_deleted_filter_no_deleted(monkeypatch, tmp_path):
 
 def test_apply_deleted_filter_removes_deleted(monkeypatch, tmp_path):
     deleted_file = tmp_path / "deleted.json"
-    deleted_file.write_text(
-        json.dumps({"session_ids": ["sess-bad"]}), encoding="utf-8"
-    )
+    deleted_file.write_text(json.dumps({"session_ids": ["sess-bad"]}), encoding="utf-8")
     monkeypatch.setattr(web_data, "DELETED_SESSIONS_PATH", deleted_file)
     web_data._load_deleted_session_ids_cached.cache_clear()
 
@@ -163,9 +159,7 @@ def test_apply_deleted_filter_removes_deleted(monkeypatch, tmp_path):
 
 def test_apply_deleted_filter_updates_stats(monkeypatch, tmp_path):
     deleted_file = tmp_path / "deleted.json"
-    deleted_file.write_text(
-        json.dumps({"session_ids": ["sess-del"]}), encoding="utf-8"
-    )
+    deleted_file.write_text(json.dumps({"session_ids": ["sess-del"]}), encoding="utf-8")
     monkeypatch.setattr(web_data, "DELETED_SESSIONS_PATH", deleted_file)
     web_data._load_deleted_session_ids_cached.cache_clear()
 

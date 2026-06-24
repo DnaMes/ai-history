@@ -13,6 +13,7 @@ Usage:
 Run with ``--download`` only when bumping a pinned version; commit both the
 new file and the updated hash in this manifest.
 """
+
 from __future__ import annotations
 
 import argparse

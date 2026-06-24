@@ -22,10 +22,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e . pytest
+        # pytest-cov is required: pyproject [tool.pytest] addopts injects --cov
+        run: pip install -e . pytest pytest-cov
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/ --tb=short
 
   lint:
     runs-on: ubuntu-latest
@@ -37,19 +38,14 @@ jobs:
           python-version: "3.11"
 
       - name: Install lint tools
-        run: pip install black isort flake8 mypy bandit
+        # ruff replaces black + isort + flake8 (config lives in pyproject)
+        run: pip install ruff bandit[toml]
 
-      - name: black
-        run: black --check --line-length=100 ai_history/ tests/
+      - name: ruff format (check)
+        run: ruff format --check .
 
-      - name: isort
-        run: isort --check-only --profile black --line-length=100 ai_history/ tests/
-
-      - name: flake8
-        run: flake8 ai_history/ --max-line-length=100 --ignore=E501,W503,E203
-
-      - name: mypy
-        run: mypy ai_history/ --ignore-missing-imports
+      - name: ruff lint
+        run: ruff check .
 
       - name: bandit
-        run: bandit -r ai_history/ -ll
+        run: bandit -r ai_history/ -c pyproject.toml -ll

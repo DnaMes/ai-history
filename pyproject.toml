@@ -76,7 +76,14 @@ ignore = ["E501", "E203"]
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", ".claude"]
-skips = ["B101"]  # assert statements ok in tests
+# B101: assert statements ok in tests.
+# B310: urlopen lives only in interfaces/live_probe.py — a deliberate HTTP
+#   security-probe tool whose target URL is an operator CLI argument, not
+#   untrusted input.
+# B608: the three flagged f-string SQL builders (search/engine, storage/memory,
+#   storage/search) interpolate only constant column predicates and "?"
+#   placeholder runs; every value is bound via parameters, never interpolated.
+skips = ["B101", "B310", "B608"]
 
 [tool.ruff.lint.per-file-ignores]
 # Embedded JS/CSS strings legitimately contain blank-line whitespace
