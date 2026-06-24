@@ -262,6 +262,27 @@ BASE_TEMPLATE = """
         .action-code code, .action-output code { display: block; padding: 14px 16px; font-size: 13px; line-height: 1.6; font-family: "Source Code Pro", "SF Mono", Menlo, monospace; }
         .action-code code { white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
         .action-output code { white-space: pre; }
+        /* Diff rendering (Edit/Write tool calls) — UMBAU §5 */
+        .diff-block { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 4px 0; }
+        .diff-header { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: color-mix(in srgb, var(--card) 80%, var(--text) 8%); border-bottom: 1px solid var(--border); font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 12px; }
+        .diff-file { color: var(--text); font-weight: 600; }
+        .diff-stat { font-size: 11px; font-variant-numeric: tabular-nums; }
+        .diff-stat-add { color: #16a34a; }
+        .diff-stat-del { color: #dc2626; }
+        html.dark .diff-stat-add { color: #4ade80; }
+        html.dark .diff-stat-del { color: #f87171; }
+        .diff-body { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
+        .diff-row { display: flex; white-space: pre; }
+        .diff-lineno { flex: 0 0 auto; width: 38px; text-align: right; padding: 0 6px; color: var(--muted); opacity: 0.65; font-variant-numeric: tabular-nums; user-select: none; }
+        .diff-marker { flex: 0 0 auto; width: 16px; text-align: center; color: var(--muted); user-select: none; }
+        .diff-text { flex: 1 1 auto; padding-right: 12px; }
+        .diff-add { background: color-mix(in srgb, var(--card) 80%, #22c55e 20%); border-left: 2px solid #22c55e; }
+        .diff-del { background: color-mix(in srgb, var(--card) 80%, #ef4444 20%); border-left: 2px solid #ef4444; }
+        .diff-context { border-left: 2px solid transparent; }
+        html.dark .diff-add { background: color-mix(in srgb, var(--card) 70%, #14532d 30%); }
+        html.dark .diff-del { background: color-mix(in srgb, var(--card) 70%, #450a0a 30%); }
+        .diff-gap { padding: 2px 0; background: color-mix(in srgb, var(--card) 90%, var(--text) 6%); }
+        .diff-gap-label { display: block; text-align: center; font-size: 11px; color: var(--muted); opacity: 0.7; }
         body.session-view .prose pre { border-radius: 10px; border-color: var(--border); background: color-mix(in srgb, var(--card) 86%, var(--text) 5%) !important; margin: 1.1em 0; }
         body.session-view .prose pre code { padding: 14px 16px; font-size: 13px; line-height: 1.58; }
         body.session-view .prose code { background: color-mix(in srgb, var(--card) 78%, var(--text) 10%); color: var(--text); word-break: break-word; white-space: normal; }
