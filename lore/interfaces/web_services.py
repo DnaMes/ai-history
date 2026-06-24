@@ -3,6 +3,8 @@ from typing import Any, Dict, List
 
 from lore.utils.formatting import format_message as format_message_with_rules
 
+from .session_view_prep import render_message_body
+
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 LOCAL_COMMAND_TAG_RE = re.compile(r"</?local-command-[^>]+>", flags=re.IGNORECASE)
 GENERIC_XML_TAG_RE = re.compile(r"</?[a-z0-9_-]+(?:\s+[^>]*)?>", flags=re.IGNORECASE)
@@ -406,12 +408,14 @@ def enrich_session_for_detail(
                 pairs.append(current_pair)
             current_pair = {"user": message, "responses": []}
 
-        if message.content:
-            message.formatted_content = format_message_content_fn(message.content)
-        elif message.tool_calls:
-            message.formatted_content = format_tool_calls_fn(message.tool_calls)
-        else:
-            message.formatted_content = ""
+        # Render from STRUCTURED tool_calls when present (prose + paired tool
+        # cards) instead of re-parsing tool blocks out of the flattened string.
+        # See session_view_prep for the why (docs/UMBAU.md §0).
+        message.formatted_content = render_message_body(
+            message,
+            format_message_content_fn=format_message_content_fn,
+            format_tool_calls_fn=format_tool_calls_fn,
+        )
 
         if message.formatted_content:
             message.formatted_content = _clean_transcript_noise(message.formatted_content)
@@ -518,12 +522,11 @@ def build_thread_detail_payload(
             session_count += 1
             tool_set.add(session.tool.value)
             for message in session.messages:
-                if message.content:
-                    content = format_message_content_fn(message.content)
-                elif message.tool_calls:
-                    content = format_tool_calls_fn(message.tool_calls)
-                else:
-                    content = ""
+                content = render_message_body(
+                    message,
+                    format_message_content_fn=format_message_content_fn,
+                    format_tool_calls_fn=format_tool_calls_fn,
+                )
                 if sanitize_rendered_html_fn and content:
                     content = sanitize_rendered_html_fn(content)
                 label = (
