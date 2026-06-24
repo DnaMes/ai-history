@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from ai_history.storage import add_memory, recall_memory
-from ai_history.storage.embeddings import (
+from lore.storage import add_memory, recall_memory
+from lore.storage.embeddings import (
     cosine_similarity,
     embeddings_available,
     pack_vector,
@@ -59,7 +59,7 @@ def test_cosine_length_mismatch_is_safe():
 
 def test_recall_semantic_falls_back_without_backend(tmp_path, monkeypatch):
     """With embeddings forced unavailable, semantic recall falls back to FTS."""
-    import ai_history.storage.embeddings as emb
+    import lore.storage.embeddings as emb
 
     monkeypatch.setattr(emb, "embed_text", lambda _text: None)
 
@@ -71,7 +71,7 @@ def test_recall_semantic_falls_back_without_backend(tmp_path, monkeypatch):
 
 def test_add_memory_works_without_embeddings(tmp_path, monkeypatch):
     """A missing embedding backend must not block writing memory."""
-    import ai_history.storage.memory as mem
+    import lore.storage.memory as mem
 
     # Force the embedding store helper to behave as if the backend is absent.
     monkeypatch.setattr(mem, "_store_embedding", lambda *a, **k: None)
@@ -109,7 +109,7 @@ def test_semantic_recall_ranks_by_meaning(tmp_path):
 def test_embedding_stored_on_add(tmp_path):
     import sqlite3
 
-    from ai_history.storage import v2_db_path
+    from lore.storage import v2_db_path
 
     mid = add_memory(tmp_path, "fact", "Embedded memory", "this gets a vector")
     conn = sqlite3.connect(v2_db_path(tmp_path))

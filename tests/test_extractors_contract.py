@@ -1,9 +1,9 @@
 import json
 
-from ai_history.core.models import Role, Tool
-from ai_history.extractors.claude import ClaudeCodeExtractor
-from ai_history.extractors.codex import CodexExtractor
-from ai_history.extractors.gemini import GeminiCLIExtractor
+from lore.core.models import Role, Tool
+from lore.extractors.claude import ClaudeCodeExtractor
+from lore.extractors.codex import CodexExtractor
+from lore.extractors.gemini import GeminiCLIExtractor
 
 
 def test_claude_parse_session_contract(tmp_path):

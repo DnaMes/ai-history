@@ -1,4 +1,4 @@
-from ai_history.extractors.opencode import OpenCodeExtractor
+from lore.extractors.opencode import OpenCodeExtractor
 
 
 def test_opencode_discovers_dot_opencode_storage(monkeypatch, tmp_path):

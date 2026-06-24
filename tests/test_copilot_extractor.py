@@ -1,4 +1,4 @@
-"""Tests for ai_history/extractors/copilot.py.
+"""Tests for lore/extractors/copilot.py.
 
 GitHub Copilot CLI writes one ``.jsonl`` file per session under
 ``~/.copilot/session-state/``. Each line is a record with a ``type``
@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ai_history.core.models import Role, Tool
-from ai_history.extractors.copilot import CopilotCLIExtractor
+from lore.core.models import Role, Tool
+from lore.extractors.copilot import CopilotCLIExtractor
 
 
 def _session_state_dir(home: Path) -> Path:

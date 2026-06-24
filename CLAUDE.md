@@ -4,11 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Naming
 
-The **product** and its **CLI binaries** are called **Lore** (`lore`,
-`lore-session`, `lore-web`, `lore-mcp`). The **Python import package** is still
-`ai_history` — the import name was deliberately **not** renamed, and the
-`ai_history/` directory must not be renamed. So: product/CLI = Lore, code
-package = `ai_history`. The persistent data directory is `~/.lore`.
+Everything is **Lore**: the product, the CLI binaries (`lore`, `lore-session`,
+`lore-web`, `lore-mcp`), the Python import package (`lore`), and the package
+directory (`lore/`). The top-level CLI entry modules are `lore_cli.py` and
+`lore_session_cli.py`. Config env vars use the `LORE_*` prefix (legacy
+`AI_HISTORY_*` names are still read as deprecated aliases — see
+`lore/__init__.py:_alias_legacy_env`). The persistent data directory is
+`~/.lore` (auto-migrated from the legacy `~/.ai-history` on first run; that
+migration path is the only place the old `ai-history` name legitimately survives).
 
 ## Commands
 
@@ -19,7 +22,7 @@ pip install -e . && pre-commit install
 # Lint & format (run before committing) — ruff replaces black/isort/flake8
 ruff format .
 ruff check --fix .
-mypy ai_history/ --ignore-missing-imports
+mypy lore/ --ignore-missing-imports
 
 # Tests
 .venv/bin/python -m pytest tests/                       # all
@@ -46,22 +49,22 @@ Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.
 
 ### Package Layout
 
-- **`ai_history/core/models.py`** — `UnifiedSession`, `UnifiedMessage`, `Tool` (enum), `Role` (enum). The canonical data model everything else converges to.
-- **`ai_history/extractors/`** — One class per AI tool, all inherit `BaseExtractor`. Implement `tool` property + `extract_sessions() -> Iterator[UnifiedSession]` + `is_available()`. Use `safe_copy_db()` from `utils/paths` when reading SQLite files (avoids lock contention; callers must clean up the temp copy in a `finally`).
-- **`ai_history/interfaces/web.py`** — Flask app + all routes. Heavy: imports from the 5 sibling modules below.
-- **`ai_history/interfaces/web_data.py`** — `load_index()`, `_build_index_from_extractors()`, `OUTPUT_DIR`, `INDEX_PATH`. All index I/O lives here. Uses file-stat-keyed LRU cache (`threadsafe_lru_cache`) — call `clear_index_cache()` after writes.
-- **`ai_history/interfaces/web_jobs.py`** — In-memory `RELOAD_JOBS` dict + threading logic for async reload/audit. TTL=3600s, max=256 jobs. Job state: `queued → running → done/error/cancelled`.
-- **`ai_history/interfaces/web_utils.py`** — `NOISE_RULES_PATH`, `RATE_LIMIT_STATE`, `METRICS`, `METRICS_LOCK`, rate-limiting, request IDs, metrics counters.
-- **`ai_history/interfaces/web_templates.py`** — All HTML/CSS/JS as Python strings (Tailwind + highlight.js, no build step). Tailwind/highlight.js are vendored under `ai_history/interfaces/static/` and served by Flask (no CDN — offline-safe); re-vendor via `scripts/vendor_assets.py --download`.
-- **`ai_history/interfaces/web_services.py`** — Session enrichment, thread building, project payload assembly.
+- **`lore/core/models.py`** — `UnifiedSession`, `UnifiedMessage`, `Tool` (enum), `Role` (enum). The canonical data model everything else converges to.
+- **`lore/extractors/`** — One class per AI tool, all inherit `BaseExtractor`. Implement `tool` property + `extract_sessions() -> Iterator[UnifiedSession]` + `is_available()`. Use `safe_copy_db()` from `utils/paths` when reading SQLite files (avoids lock contention; callers must clean up the temp copy in a `finally`).
+- **`lore/interfaces/web.py`** — Flask app + all routes. Heavy: imports from the 5 sibling modules below.
+- **`lore/interfaces/web_data.py`** — `load_index()`, `_build_index_from_extractors()`, `OUTPUT_DIR`, `INDEX_PATH`. All index I/O lives here. Uses file-stat-keyed LRU cache (`threadsafe_lru_cache`) — call `clear_index_cache()` after writes.
+- **`lore/interfaces/web_jobs.py`** — In-memory `RELOAD_JOBS` dict + threading logic for async reload/audit. TTL=3600s, max=256 jobs. Job state: `queued → running → done/error/cancelled`.
+- **`lore/interfaces/web_utils.py`** — `NOISE_RULES_PATH`, `RATE_LIMIT_STATE`, `METRICS`, `METRICS_LOCK`, rate-limiting, request IDs, metrics counters.
+- **`lore/interfaces/web_templates.py`** — All HTML/CSS/JS as Python strings (Tailwind + highlight.js, no build step). Tailwind/highlight.js are vendored under `lore/interfaces/static/` and served by Flask (no CDN — offline-safe); re-vendor via `scripts/vendor_assets.py --download`.
+- **`lore/interfaces/web_services.py`** — Session enrichment, thread building, project payload assembly.
 
 ### Entry Points
 
 | Command | File | Notes |
 |---|---|---|
-| `lore` | `ai_history_cli.py` | Full CLI (list, search, export, check…) |
-| `lore-session` | `ai_session_cli.py` | Session switching between tools |
-| `lore-web` | `ai_history_web_new.py` | Thin wrapper → `ai_history.interfaces.web:app` |
+| `lore` | `lore_cli.py` | Full CLI (list, search, export, check…) |
+| `lore-session` | `lore_session_cli.py` | Session switching between tools |
+| `lore-web` | `lore/cli/web.py` | Entry point → `lore.interfaces.web:app` |
 | `lore-mcp` | MCP server entry point | MCP server for Claude Code / OpenCode |
 | Docker | `Dockerfile` | `gunicorn --workers 1 --threads 8` — must stay at 1 worker; `RELOAD_JOBS` is in-memory |
 
@@ -83,7 +86,7 @@ Tests patch symbols via `monkeypatch.setattr`. Because `web.py` re-exports from 
 
 ## Code Style
 
-- **100 char line limit**, black + isort enforced via pre-commit
+- **100 char line limit**, ruff (format + check) enforced via pre-commit
 - Type hints on all function signatures
 - `Path.expanduser()` / `Path.home()` for all filesystem paths — never hardcode `/home/...`
 - stdout for data output, stderr for errors; exit codes 0/1

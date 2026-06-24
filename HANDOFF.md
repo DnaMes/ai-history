@@ -4,7 +4,7 @@
 
 ## Current State
 
-Product name is **Lore** (Python import package stays `ai_history`).
+Product name is **Lore** (Python import package stays `lore`).
 Version **2.3.0**, 966 tests passing, **800 sessions** indexed across 7 tools.
 
 - **Repo**: `~/projects/lab/ai/lore` (renamed from `ai-history` this session)
@@ -26,7 +26,7 @@ Branch `feat/data-completeness-prep-layer` (off `master`). Commit `87d0107`. Sui
 - **warp.py** silent `except: pass` → logged OSError.
 - **Doc hygiene**: CLAUDE.md / AGENTS.md / README / docs/ROADMAP — ruff (not black/isort/flake8), single `app` Docker service + `lore-app` (no postgres/redis), `lore-*` CLI names, Lore naming.
 
-**Verified-already-done (prompt assumed open):** CODE_OF_CONDUCT ✓, 3-cmd quickstart ✓, `_new` module rename ✓ (`lore-web`=`ai_history.cli.web`), ruff in pre-commit ✓, v2 schema (10 migrations incl. memory_embeddings + memory_tags) ✓, MCP 10 tools ✓, all 10 extractors have test files ✓. **safe_copy_db /tmp leak: NOT a leak** — both callers (cursor/warp) already clean up in `finally`; 0 leaked files on disk.
+**Verified-already-done (prompt assumed open):** CODE_OF_CONDUCT ✓, 3-cmd quickstart ✓, `_new` module rename ✓ (`lore-web`=`lore.cli.web`), ruff in pre-commit ✓, v2 schema (10 migrations incl. memory_embeddings + memory_tags) ✓, MCP 10 tools ✓, all 10 extractors have test files ✓. **safe_copy_db /tmp leak: NOT a leak** — both callers (cursor/warp) already clean up in `finally`; 0 leaked files on disk.
 
 **Deferred → GitHub issues:** #53 render-rebuild + prep-layer (Axis 2 / UMBAU.md), #54 opencode 50k truncation, #55 parametrize contract test, #56 differentiation options (tags/hybrid-search/resume/cost), #57 raw-vs-import gap report.
 
@@ -76,15 +76,15 @@ Branch `feat/data-completeness-prep-layer` (off `master`). Commit `87d0107`. Sui
 
 ## Files Changed (key ones)
 
-- `ai_history/extractors/claude.py` — subagent walk, dedup, `_add_or_replace_newer`
-- `ai_history/extractors/base.py` — `MIN_USER_PROMPTS=3`
-- `ai_history/utils/security.py` — `_SUBAGENT_RE` pattern in validator
-- `ai_history/storage/writer.py` — `INSERT OR REPLACE`
-- `ai_history/services/index.py` — v2 staleness check + empty-result fallback
-- `ai_history/services/extraction.py` — per-second progress callbacks in sync loop
-- `ai_history/interfaces/web_templates.py` — themes, TOC scroll, pagination, CSS
-- `ai_history/interfaces/web.py` — session cache, pagination, fragment route
-- `ai_history_cli.py` — `lore_home()` default, single-pass export
+- `lore/extractors/claude.py` — subagent walk, dedup, `_add_or_replace_newer`
+- `lore/extractors/base.py` — `MIN_USER_PROMPTS=3`
+- `lore/utils/security.py` — `_SUBAGENT_RE` pattern in validator
+- `lore/storage/writer.py` — `INSERT OR REPLACE`
+- `lore/services/index.py` — v2 staleness check + empty-result fallback
+- `lore/services/extraction.py` — per-second progress callbacks in sync loop
+- `lore/interfaces/web_templates.py` — themes, TOC scroll, pagination, CSS
+- `lore/interfaces/web.py` — session cache, pagination, fragment route
+- `lore_cli.py` — `lore_home()` default, single-pass export
 - `tests/conftest.py` — `MIN_USER_PROMPTS=1` autouse fixture
 - `~/.config/systemd/user/lore-sync.{service,timer}` — new timer-based sync
 - `docker-compose.yml`, `Dockerfile` — lore-app branding

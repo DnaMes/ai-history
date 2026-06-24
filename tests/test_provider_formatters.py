@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.interfaces.web_services import (
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.interfaces.web_services import (
     enrich_session_for_detail,
     normalize_session_messages_for_display,
 )

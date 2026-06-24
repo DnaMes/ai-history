@@ -1,9 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 
-from ai_history.core.models import Role, TitleSource, Tool, UnifiedMessage, UnifiedSession
-from ai_history.extractors.base import BaseExtractor
-from ai_history.extractors.opencode import OpenCodeExtractor
+from lore.core.models import Role, TitleSource, Tool, UnifiedMessage, UnifiedSession
+from lore.extractors.base import BaseExtractor
+from lore.extractors.opencode import OpenCodeExtractor
 
 
 class DummyExtractor(BaseExtractor):

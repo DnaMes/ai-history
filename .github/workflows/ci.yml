@@ -48,4 +48,4 @@ jobs:
         run: ruff check .
 
       - name: bandit
-        run: bandit -r ai_history/ -c pyproject.toml -ll
+        run: bandit -r lore/ -c pyproject.toml -ll

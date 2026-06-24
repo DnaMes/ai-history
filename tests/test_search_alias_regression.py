@@ -1,6 +1,6 @@
 import json
 
-from ai_history.search.engine import SearchEngine
+from lore.search.engine import SearchEngine
 
 
 def test_search_tool_alias_filters_to_canonical_tool(tmp_path):

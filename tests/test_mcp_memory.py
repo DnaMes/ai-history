@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from ai_history.interfaces import mcp
+from lore.interfaces import mcp
 
 
 def _server(tmp_path):

@@ -26,8 +26,8 @@ Updated after the second session of 2026-05-06.
 
 ### MCP expansion (`f012270`)
 
-- `ai_history/interfaces/api_payloads.py` — new shared serializer module used by both MCP and HTTP API
-- `ai_history/interfaces/mcp.py` — refactored to use api_payloads + web_data/web_services; 5 new tools: `get_session`, `get_session_messages`, `list_projects`, `get_thread`, `list_recent_sessions`
+- `lore/interfaces/api_payloads.py` — new shared serializer module used by both MCP and HTTP API
+- `lore/interfaces/mcp.py` — refactored to use api_payloads + web_data/web_services; 5 new tools: `get_session`, `get_session_messages`, `list_projects`, `get_thread`, `list_recent_sessions`
 - `ai_history_mcp_new.py` — added `main_sync()` entry point
 - `pyproject.toml` — added `ai-history-mcp` console script
 - `README.md` — expanded with OpenCode MCP config + new tools list
@@ -57,7 +57,7 @@ Updated after the second session of 2026-05-06.
 ### Must ship before public release
 
 - [ ] **#3** Remove `@csrf.exempt` from POST routes (`web.py:677,699,726,1110,1250,1265`). May need API client updates. (4h+)
-- [ ] **#1b** Rename `_new` suffix: `ai_history_mcp_new.py` → `ai_history.cli.mcp`, `ai_history_web_new.py` → `ai_history.cli.web`. Update `pyproject.toml:42-47`. (1h)
+- [ ] **#1b** Rename `_new` suffix: `ai_history_mcp_new.py` → `lore.cli.mcp`, `ai_history_web_new.py` → `lore.cli.web`. Update `pyproject.toml:42-47`. (1h)
 - [ ] **#1d** `safe_copy_db` cleanup of `/tmp/*.vscdb*` via context manager. (`utils/paths.py:64`) (30m)
 - [ ] **#1e** Surface extractor exceptions to job result metadata instead of silent `logger.debug`. (`web_data.py:213`, `web.py:870`) (2h)
 
@@ -81,7 +81,7 @@ Updated after the second session of 2026-05-06.
 
 - [ ] **#21** Stop re-exporting from `web.py`; delete `_TEST_EXPORTS`.
 - [ ] **#25b** Split `mcp.create_server()` (445 LOC) into sub-functions.
-- [ ] **#25c** Move HTML out of `web_templates.py` (2,036 LOC) to `ai_history/templates/*.html`.
+- [ ] **#25c** Move HTML out of `web_templates.py` (2,036 LOC) to `lore/templates/*.html`.
 
 ### Features
 
@@ -117,11 +117,11 @@ Updated after the second session of 2026-05-06.
 | `docs/REVIEW.md` | Multi-agent review synthesis |
 | `docs/API_REFERENCE.md` | MCP + HTTP API docs |
 | `tools/create_issues.sh` | Bulk issue creator |
-| `ai_history/interfaces/web_formatting.py` | XSS fix location |
-| `ai_history/interfaces/mcp.py` | MCP server (445 LOC, needs decomposition #25b) |
-| `ai_history/interfaces/api_payloads.py` | Shared serializers (new) |
-| `ai_history/interfaces/web.py:677` | CSRF hotspot (#3) |
-| `ai_history/utils/paths.py:64` | safe_copy_db leak (#1d) |
+| `lore/interfaces/web_formatting.py` | XSS fix location |
+| `lore/interfaces/mcp.py` | MCP server (445 LOC, needs decomposition #25b) |
+| `lore/interfaces/api_payloads.py` | Shared serializers (new) |
+| `lore/interfaces/web.py:677` | CSRF hotspot (#3) |
+| `lore/utils/paths.py:64` | safe_copy_db leak (#1d) |
 
 ---
 

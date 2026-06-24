@@ -4,52 +4,52 @@ This module provides LLM-powered features for analyzing and processing your AI c
 
 ## Features
 
-### 1. `ai-history analyze` - Statistics & Insights
+### 1. `lore analyze` - Statistics & Insights
 
 Generate AI-powered statistics and insights about your coding sessions.
 
 ```bash
 # Basic stats (no LLM required)
-ai-history analyze --no-llm
+lore analyze --no-llm
 
 # AI-powered insights (requires Gemini API key)
-ai-history analyze
+lore analyze
 
 # Use specific model
-ai-history analyze --model gemini-2.0-flash
+lore analyze --model gemini-2.0-flash
 
 # Save to specific file
-ai-history analyze --output ~/my-stats.json
+lore analyze --output ~/my-stats.json
 ```
 
-### 2. `ai-history knowledge` - Knowledge Extraction
+### 2. `lore knowledge` - Knowledge Extraction
 
 Extract structured knowledge from your sessions using LLM.
 
 ```bash
 # Extract knowledge from last 50 sessions
-ai-history knowledge
+lore knowledge
 
 # Extract from specific tool
-ai-history knowledge --tool opencode
+lore knowledge --tool opencode
 
 # Limit to 20 sessions
-ai-history knowledge --limit 20
+lore knowledge --limit 20
 ```
 
-### 3. `ai-history format` - Session Formatting
+### 3. `lore format` - Session Formatting
 
 Format sessions with AI-generated summaries and tags.
 
 ```bash
 # Format last 10 sessions
-ai-history format
+lore format
 
 # Format specific session
-ai-history format --session-id abc123
+lore format --session-id abc123
 
 # Format sessions from specific tool
-ai-history format --tool claude-code --limit 20
+lore format --tool claude-code --limit 20
 ```
 
 ## Setup
@@ -110,7 +110,7 @@ gcloud auth application-default login
 3. Use with `--provider ollama`:
 
 ```bash
-ai-history analyze --provider ollama --model llama3.2
+lore analyze --provider ollama --model llama3.2
 ```
 
 #### Method 2: OAuth2 (Google AI Pro Subscription)
@@ -152,7 +152,7 @@ gcloud auth application-default login
 3. Use with `--provider ollama`:
 
 ```bash
-ai-history analyze --provider ollama --model llama3.2
+lore analyze --provider ollama --model llama3.2
 ```
 
 ## Configuration

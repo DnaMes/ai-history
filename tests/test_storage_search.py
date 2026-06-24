@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder
-from ai_history.storage import search_sessions
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.index import IndexBuilder
+from lore.storage import search_sessions
 
 
 def _session(sid, tool=Tool.CLAUDE_CODE, title="T", project="/p", body="hello world"):
@@ -113,10 +113,10 @@ def test_search_no_match_returns_empty(tmp_path):
 
 
 def test_web_search_index_uses_v2_when_enabled(tmp_path, monkeypatch):
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "1")
+    monkeypatch.setenv("LORE_USE_V2", "1")
     web_data.clear_index_cache()
 
     IndexBuilder(tmp_path).build_index(
@@ -127,10 +127,10 @@ def test_web_search_index_uses_v2_when_enabled(tmp_path, monkeypatch):
 
 
 def test_web_search_index_falls_back_to_legacy(tmp_path, monkeypatch):
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     monkeypatch.setattr(web_data, "INDEX_PATH", tmp_path / "index.json")
-    monkeypatch.setenv("AI_HISTORY_USE_V2", "0")
+    monkeypatch.setenv("LORE_USE_V2", "0")
     web_data.clear_index_cache()
 
     IndexBuilder(tmp_path).build_index(

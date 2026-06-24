@@ -9,18 +9,18 @@ from __future__ import annotations
 
 import pytest
 
-from ai_history.core.models import Tool, UnifiedSession
-from ai_history.extractors.aider import AiderExtractor
-from ai_history.extractors.antigravity import AntigravityExtractor
-from ai_history.extractors.base import BaseExtractor
-from ai_history.extractors.claude import ClaudeCodeExtractor
-from ai_history.extractors.codex import CodexExtractor
-from ai_history.extractors.copilot import CopilotCLIExtractor
-from ai_history.extractors.cursor import CursorExtractor
-from ai_history.extractors.gemini import GeminiCLIExtractor
-from ai_history.extractors.opencode import OpenCodeExtractor
-from ai_history.extractors.vscode import VSCodeCopilotExtractor
-from ai_history.extractors.warp import WarpExtractor
+from lore.core.models import Tool, UnifiedSession
+from lore.extractors.aider import AiderExtractor
+from lore.extractors.antigravity import AntigravityExtractor
+from lore.extractors.base import BaseExtractor
+from lore.extractors.claude import ClaudeCodeExtractor
+from lore.extractors.codex import CodexExtractor
+from lore.extractors.copilot import CopilotCLIExtractor
+from lore.extractors.cursor import CursorExtractor
+from lore.extractors.gemini import GeminiCLIExtractor
+from lore.extractors.opencode import OpenCodeExtractor
+from lore.extractors.vscode import VSCodeCopilotExtractor
+from lore.extractors.warp import WarpExtractor
 
 # ---------------------------------------------------------------------------
 # All concrete extractor classes under test

@@ -1,12 +1,12 @@
-"""Tests for ai_history/extractors/codex.py."""
+"""Tests for lore/extractors/codex.py."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from ai_history.core.models import Role, Tool
-from ai_history.extractors.codex import CodexExtractor
+from lore.core.models import Role, Tool
+from lore.extractors.codex import CodexExtractor
 
 
 def _write_jsonl(path: Path, records: list[dict]) -> None:

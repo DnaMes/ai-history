@@ -2,8 +2,8 @@ import asyncio
 import json
 from datetime import datetime
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.interfaces import mcp, web
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.interfaces import mcp, web
 
 
 def _build_live_session(session_id: str = "session-1", thread_id: str = "thread-1"):
@@ -219,7 +219,7 @@ def test_api_v1_index_summary_returns_metadata(monkeypatch):
 def test_load_index_summary_derives_counts_from_cached_index(monkeypatch, tmp_path):
     import json
 
-    from ai_history.interfaces import web_data
+    from lore.interfaces import web_data
 
     # Write a minimal index.json into a temp dir
     index_file = tmp_path / "index.json"

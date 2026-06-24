@@ -13,8 +13,8 @@ from datetime import datetime
 
 import pytest
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.interfaces import web
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.interfaces import web
 
 
 def _make_session(session_id: str, pair_count: int) -> UnifiedSession:

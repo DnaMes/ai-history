@@ -1,9 +1,9 @@
 # API Reference
 
-`ai-history` exposes two integration surfaces for agents and tools:
+`lore` exposes two integration surfaces for agents and tools:
 
-1. MCP over stdio via `ai-history-mcp`
-2. HTTP JSON endpoints via `ai-history-web`
+1. MCP over stdio via `lore-mcp`
+2. HTTP JSON endpoints via `lore-web`
 
 Use MCP when the client already supports tool calling. Use HTTP when you are wiring a custom tool, service, plugin, or skill.
 
@@ -18,13 +18,13 @@ pip install -e .
 Start the web API locally:
 
 ```bash
-ai-history-web
+lore-web
 ```
 
 Start the MCP server manually:
 
 ```bash
-ai-history-mcp
+lore-mcp
 ```
 
 ## Claude Code
@@ -34,15 +34,15 @@ Add this to `~/.claude/settings.json`:
 ```json
 {
   "mcpServers": {
-    "ai-history": {
-      "command": "ai-history-mcp",
+    "lore": {
+      "command": "lore-mcp",
       "args": []
     }
   }
 }
 ```
 
-If `ai-history-mcp` is not on `PATH`, use the full executable path.
+If `lore-mcp` is not on `PATH`, use the full executable path.
 
 Example prompts in Claude Code:
 
@@ -59,15 +59,15 @@ Add this to `opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "ai-history": {
+    "lore": {
       "type": "local",
-      "command": ["ai-history-mcp"]
+      "command": ["lore-mcp"]
     }
   }
 }
 ```
 
-If needed, replace `ai-history-mcp` with an absolute path.
+If needed, replace `lore-mcp` with an absolute path.
 
 ## MCP Tools
 

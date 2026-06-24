@@ -44,26 +44,26 @@ Repository = "https://github.com/DnaMes/lore"
 Issues = "https://github.com/DnaMes/lore/issues"
 
 [project.scripts]
-lore = "ai_history_cli:main"
-lore-session = "ai_session_cli:main"
-lore-web = "ai_history.cli.web:main"
-lore-mcp = "ai_history.cli.mcp:main_sync"
-lore-web-probe = "ai_history.interfaces.live_probe:main"
+lore = "lore_cli:main"
+lore-session = "lore_session_cli:main"
+lore-web = "lore.cli.web:main"
+lore-mcp = "lore.cli.mcp:main_sync"
+lore-web-probe = "lore.interfaces.live_probe:main"
 
 [tool.setuptools]
-py-modules = ["ai_history_cli", "ai_session_cli"]
+py-modules = ["lore_cli", "lore_session_cli"]
 
 [tool.setuptools.dynamic]
-# Single source of truth — the version lives in ai_history/__init__.py.
-version = {attr = "ai_history.__version__"}
+# Single source of truth — the version lives in lore/__init__.py.
+version = {attr = "lore.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ai_history*"]
+include = ["lore*"]
 
 [tool.setuptools.package-data]
 # Vendored web assets (Tailwind, highlight.js) must ship in the wheel.
-"ai_history.interfaces" = ["static/*.js", "static/*.css"]
+"lore.interfaces" = ["static/*.js", "static/*.css"]
 
 [tool.ruff]
 line-length = 100
@@ -87,26 +87,26 @@ skips = ["B101", "B310", "B608"]
 
 [tool.ruff.lint.per-file-ignores]
 # Embedded JS/CSS strings legitimately contain blank-line whitespace
-"ai_history/utils/themes.py" = ["W293"]
+"lore/utils/themes.py" = ["W293"]
 # Lazy imports gated on optional dependency availability
-"ai_history/interfaces/mcp.py" = ["E402"]
-"ai_history/titles/generator.py" = ["E402"]
+"lore/interfaces/mcp.py" = ["E402"]
+"lore/titles/generator.py" = ["E402"]
 # Pre-existing unused-locals slated for separate cleanup
-"ai_history/extractors/claude.py" = ["F841"]
-"ai_session_cli.py" = ["F841"]
+"lore/extractors/claude.py" = ["F841"]
+"lore_session_cli.py" = ["F841"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=ai_history --cov-config=pyproject.toml --cov-report=term-missing -q"
+addopts = "--cov=lore --cov-config=pyproject.toml --cov-report=term-missing -q"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["ai_history"]
+source = ["lore"]
 omit = [
-    "ai_history/llm/*",
-    "ai_history/titles/*",
-    "ai_history/watcher.py",
-    "ai_history/cli/mcp.py",
-    "ai_history/cli/web.py",
+    "lore/llm/*",
+    "lore/titles/*",
+    "lore/watcher.py",
+    "lore/cli/mcp.py",
+    "lore/cli/web.py",
 ]
 
 [tool.coverage.report]

@@ -1,6 +1,6 @@
 """Tests for POST /api/sessions/<session_id>/resume endpoint."""
 
-from ai_history.interfaces import web
+from lore.interfaces import web
 
 
 def _index_with_session(session_id: str, tool: str, project: str = "/repo/demo") -> dict:
@@ -120,7 +120,7 @@ def test_resume_invalid_session_id(monkeypatch):
 
 def test_resume_button_present_in_session_template():
     """The Resume button must be rendered in the session detail page HTML."""
-    from ai_history.interfaces.web_templates import SESSION_TEMPLATE
+    from lore.interfaces.web_templates import SESSION_TEMPLATE
 
     assert "resumeSession" in SESSION_TEMPLATE
     assert "Resume" in SESSION_TEMPLATE
@@ -128,7 +128,7 @@ def test_resume_button_present_in_session_template():
 
 def test_resume_modal_js_present_in_session_template():
     """The modal and copy helper JS must be embedded in the session template."""
-    from ai_history.interfaces.web_templates import SESSION_TEMPLATE
+    from lore.interfaces.web_templates import SESSION_TEMPLATE
 
     assert "resume-modal" in SESSION_TEMPLATE
     assert "closeResumeModal" in SESSION_TEMPLATE

@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder
-from ai_history.extractors.base import BaseExtractor
-from ai_history_cli import _is_low_value_index_entry
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.index import IndexBuilder
+from lore.extractors.base import BaseExtractor
+from lore_cli import _is_low_value_index_entry
 
 
 class _DummyExtractor(BaseExtractor):
@@ -93,7 +93,7 @@ def _thin_session():
 
 def test_skip_counts_tracks_dropped_sessions(monkeypatch):
     """Dropped sessions are tallied per reason, not silently discarded (#1e)."""
-    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "3")
+    monkeypatch.setenv("LORE_MIN_USER_PROMPTS", "3")
     extractor = _DummyExtractor()
 
     assert extractor.should_import_session(_thin_session()) is False
@@ -102,7 +102,7 @@ def test_skip_counts_tracks_dropped_sessions(monkeypatch):
 
 
 def test_min_user_prompts_env_override(monkeypatch):
-    """AI_HISTORY_MIN_USER_PROMPTS lowers the threshold without a profile flip."""
+    """LORE_MIN_USER_PROMPTS lowers the threshold without a profile flip."""
     extractor = _DummyExtractor()
     session = _session(
         [
@@ -114,17 +114,17 @@ def test_min_user_prompts_env_override(monkeypatch):
         ]
     )
 
-    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "3")
+    monkeypatch.setenv("LORE_MIN_USER_PROMPTS", "3")
     assert extractor.should_import_session(session) is False
 
-    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "1")
+    monkeypatch.setenv("LORE_MIN_USER_PROMPTS", "1")
     assert extractor.should_import_session(session) is True
 
 
 def test_min_user_prompts_invalid_override_falls_back(monkeypatch):
     """A garbage override is ignored, falling back to the class/profile default."""
-    monkeypatch.setenv("AI_HISTORY_MIN_USER_PROMPTS", "not-a-number")
-    monkeypatch.setenv("AI_HISTORY_IMPORT_PROFILE", "relaxed")
+    monkeypatch.setenv("LORE_MIN_USER_PROMPTS", "not-a-number")
+    monkeypatch.setenv("LORE_IMPORT_PROFILE", "relaxed")
     # Pin the relaxed default to 3 so the single-prompt session must be dropped
     # (conftest pins it to 1 for the rest of the suite).
     monkeypatch.setattr(BaseExtractor, "MIN_USER_PROMPTS", 3, raising=True)

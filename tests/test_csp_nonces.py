@@ -11,7 +11,7 @@ Verifies that:
 
 import re
 
-from ai_history.interfaces import web
+from lore.interfaces import web
 
 # ---------------------------------------------------------------------------
 # Helpers

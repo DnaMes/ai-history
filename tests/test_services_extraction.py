@@ -13,8 +13,8 @@ from datetime import datetime
 
 import pytest
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.services import extraction
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.services import extraction
 
 
 def _session(sid, source_path=None, n=2):

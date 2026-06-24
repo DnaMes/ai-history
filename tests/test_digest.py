@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from ai_history.digest import Digest, build_digest, format_digest
+from lore.digest import Digest, build_digest, format_digest
 
 NOW = datetime(2026, 5, 17, 12, 0, 0)
 

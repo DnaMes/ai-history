@@ -9,11 +9,11 @@ from __future__ import annotations
 import stat
 from datetime import datetime
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.index import IndexBuilder
-from ai_history.interfaces import web
-from ai_history.storage import v2_db_path
-from ai_history.utils.paths import restrict_file, secure_dir
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.index import IndexBuilder
+from lore.interfaces import web
+from lore.storage import v2_db_path
+from lore.utils.paths import restrict_file, secure_dir
 
 
 def _session(sid="s1"):

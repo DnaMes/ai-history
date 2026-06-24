@@ -1,4 +1,4 @@
-"""Tests for ai_history/extractors/antigravity.py.
+"""Tests for lore/extractors/antigravity.py.
 
 Antigravity stores each session as a directory under
 ``~/.gemini/antigravity/brain/<session-id>/`` containing:
@@ -13,8 +13,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ai_history.core.models import Role, Tool
-from ai_history.extractors.antigravity import AntigravityExtractor
+from lore.core.models import Role, Tool
+from lore.extractors.antigravity import AntigravityExtractor
 
 
 def _brain_dir(home: Path) -> Path:

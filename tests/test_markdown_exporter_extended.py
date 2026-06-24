@@ -1,12 +1,12 @@
-"""Extended tests for ai_history/exporters/markdown.py."""
+"""Extended tests for lore/exporters/markdown.py."""
 
 from __future__ import annotations
 
 import time
 from datetime import datetime, timedelta
 
-from ai_history.core.models import Role, Tool, UnifiedMessage, UnifiedSession
-from ai_history.exporters.markdown import MarkdownExporter
+from lore.core.models import Role, Tool, UnifiedMessage, UnifiedSession
+from lore.exporters.markdown import MarkdownExporter
 
 # ---------------------------------------------------------------------------
 # Helpers

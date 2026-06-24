@@ -25,8 +25,8 @@ docker compose ps
 
 ### Important Notes
 
-1. **The container name is `ai-history-app`** (defined in docker-compose.yml)
-2. **The image tag is `ai-history-app:latest`**
+1. **The container name is `lore-app`** (defined in docker-compose.yml)
+2. **The image tag is `lore-app:latest`**
 3. **Container is healthy** if `docker compose ps` shows `(healthy)` status
 
 ### Version Mismatch Warning

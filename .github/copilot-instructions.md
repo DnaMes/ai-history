@@ -1,12 +1,12 @@
-# GitHub Copilot Instructions — ai-history
+# GitHub Copilot Instructions — lore
 
 Local-first AI chat history manager. See AGENTS.md for full developer guidelines.
 
 ## Architecture
 
-- `ai_history/extractors/` — one class per AI tool, all inherit `BaseExtractor`
-- `ai_history/interfaces/web.py` — Flask routes; data layer in `web_data.py`; jobs in `web_jobs.py`
-- `ai_history/interfaces/web_templates.py` — all HTML/CSS/JS as Python strings (Tailwind CDN, no build step)
+- `lore/extractors/` — one class per AI tool, all inherit `BaseExtractor`
+- `lore/interfaces/web.py` — Flask routes; data layer in `web_data.py`; jobs in `web_jobs.py`
+- `lore/interfaces/web_templates.py` — all HTML/CSS/JS as Python strings (Tailwind CDN, no build step)
 - `~/.ai-history/` — all persistent output (index.json, SQLite FTS, exported markdown)
 
 ## Critical Constraints
@@ -19,7 +19,7 @@ Local-first AI chat history manager. See AGENTS.md for full developer guidelines
 
 ## Adding a New Extractor
 
-1. `ai_history/extractors/<name>.py` — class inheriting `BaseExtractor`
+1. `lore/extractors/<name>.py` — class inheriting `BaseExtractor`
 2. Implement `tool` (returns `Tool` enum), `extract_sessions()` (returns `Iterator[UnifiedSession]`), `is_available()`
-3. Register in `ai_history/extractors/factory.py`
+3. Register in `lore/extractors/factory.py`
 4. Add contract test in `tests/test_extractors_contract.py`

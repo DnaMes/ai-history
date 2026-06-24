@@ -304,13 +304,13 @@ Exit codes:
 
 ## 🏗️ Architecture
 
-The product is **Lore**, but the Python import package is `ai_history` (the
+The product is **Lore**, but the Python import package is `lore` (the
 import name was deliberately not renamed).
 
-- `ai_history/core`: Data models and unified session logic.
-- `ai_history/extractors`: Tool-specific logic for parsing histories.
-- `ai_history/exporters`: Markdown and Context formatting.
-- `ai_history/interfaces`: CLI, Web, and MCP entry points.
+- `lore/core`: Data models and unified session logic.
+- `lore/extractors`: Tool-specific logic for parsing histories.
+- `lore/exporters`: Markdown and Context formatting.
+- `lore/interfaces`: CLI, Web, and MCP entry points.
 
 ---
 
@@ -391,7 +391,7 @@ When enabled, API/error requests are logged as JSON objects with method, path, s
 
 ### Docker Compose production defaults
 
-Container runtime uses Gunicorn (`ai_history.interfaces.web:app`) instead of Flask development server.
+Container runtime uses Gunicorn (`lore.interfaces.web:app`) instead of Flask development server.
 
 `docker-compose.yml` defines a single `app` service with a health check. There is no `db`/`redis` — the store is local SQLite (+WAL); Gunicorn runs `--workers 1` because the reload-job state is in-memory.
 

@@ -3,7 +3,7 @@
 #
 # Usage:
 #   tools/create_issues.sh forgejo                        # Forgejo (Tailscale only)
-#   tools/create_issues.sh github <owner> <repo>          # e.g. github DnaMes ai-history
+#   tools/create_issues.sh github <owner> <repo>          # e.g. github DnaMes lore
 #
 # Requirements:
 #   - Forgejo: token at ~/.config/forgejo/token, Tailscale connected
@@ -121,8 +121,8 @@ create_issue "[#1b] Rename _new suffix entry-point modules" \
 \`ai_history_mcp_new.py\` and \`ai_history_web_new.py\` are root-level legacy artifacts that will appear on PyPI as top-level modules.
 
 ## Action
-- Move \`ai_history_mcp_new.py\` → \`ai_history/cli/mcp.py\`
-- Move \`ai_history_web_new.py\` → \`ai_history/cli/web.py\`
+- Move \`ai_history_mcp_new.py\` → \`lore/cli/mcp.py\`
+- Move \`ai_history_web_new.py\` → \`lore/cli/web.py\`
 - Update \`pyproject.toml\` console scripts and \`py-modules\` list
 - Update \`Dockerfile CMD\`
 
@@ -167,7 +167,7 @@ create_issue "[#PyPI] Publish to PyPI + pyproject.toml cleanup" \
 - [ ] Add \`[project.urls]\` (Homepage, Source, Tracker, Changelog)
 - [ ] Add \`CHANGELOG.md\` (Keep-a-Changelog format)
 - [ ] Test: \`python -m build && twine upload --repository testpypi dist/*\`
-- [ ] Verify \`pip install ai-history\` works in a clean venv
+- [ ] Verify \`pip install lore\` works in a clean venv
 - [ ] Create GitHub release tagged \`v2.0.0\`
 
 **Estimated effort:** 2h" "p0,docs"
@@ -217,7 +217,7 @@ create_issue "[#10] Add pip-audit + bandit to CI" \
 "Add dependency vulnerability scanning and code security scanning to \`.github/workflows/ci.yml\`:
 \`\`\`yaml
 - run: pip-audit
-- run: bandit -r ai_history/ -ll
+- run: bandit -r lore/ -ll
 \`\`\`
 
 **Estimated effort:** 1h" "p1,security,qa"
@@ -292,7 +292,7 @@ create_issue "[#28] API v1 route contract tests" \
 **Estimated effort:** 3h" "p1,qa"
 
 create_issue "[#29] pytest-cov + 80% coverage gate" \
-"Add \`pytest --cov=ai_history --cov-report=html --cov-fail-under=80\` to CI. Publish HTML artifact. Current estimated coverage: ~45%.
+"Add \`pytest --cov=lore --cov-report=html --cov-fail-under=80\` to CI. Publish HTML artifact. Current estimated coverage: ~45%.
 
 **Estimated effort:** 1h setup + work to reach 80%" "p1,qa"
 
@@ -320,7 +320,7 @@ No competitor has shipped local semantic search. 'Find sessions where I debugged
 - Hybrid BM25 + cosine via Reciprocal Rank Fusion
 
 ## Action
-- \`ai-history embed\` CLI command to build embeddings
+- \`lore embed\` CLI command to build embeddings
 - Hybrid mode on \`/search\` when embeddings available
 - MCP \`search_history\` gains \`semantic=true\` param
 
@@ -332,7 +332,7 @@ create_issue "[#51] Aider extractor" \
 \`jhlee0409/CCHV\` already supports Aider. Aider stores sessions as Markdown in \`~/.aider/\`.
 
 ## Action
-- Add \`ai_history/extractors/aider.py\`
+- Add \`lore/extractors/aider.py\`
 - Parse Aider Markdown conversation format
 - Add to \`get_all_extractors()\` factory
 - Contract test
@@ -344,7 +344,7 @@ create_issue "[#52] File watcher / auto-sync daemon" \
 SpecStory ships \`specstory watch\` — indexes sessions on JSONL append. Users currently must click Sync manually.
 
 ## Action
-- \`ai-history watch\` CLI command using \`watchdog\` library
+- \`lore watch\` CLI command using \`watchdog\` library
 - Watch Claude/Cursor/etc. dirs for JSONL changes
 - On change: trigger incremental index update (#16) for affected session only
 - Optional systemd user service template
@@ -383,8 +383,8 @@ create_issue "[#55] Git commit linking — tag sessions with active branch/SHA" 
 
 **Estimated effort:** 1 day" "p2,enhancement,competitor"
 
-create_issue "[#43] ai-history digest — weekly summary command" \
-"A \`ai-history digest\` CLI command printing a weekly summary: sessions by day, breakdown by tool, top 5 projects, total tokens/cost.
+create_issue "[#43] lore digest — weekly summary command" \
+"A \`lore digest\` CLI command printing a weekly summary: sessions by day, breakdown by tool, top 5 projects, total tokens/cost.
 
 Low effort, high habit-forming value.
 
@@ -395,7 +395,7 @@ Low effort, high habit-forming value.
 create_issue "[#36] Shareable static HTML export per session" \
 "Export a session as a self-contained HTML file (no external deps) for sharing via email/Slack/GitHub. SpecStory does cloud links — we do offline-first.
 
-**Action:** \`ai-history export --format html <session_id>\`. Inline CSS + transcript. Web UI 'Export as HTML' button.
+**Action:** \`lore export --format html <session_id>\`. Inline CSS + transcript. Web UI 'Export as HTML' button.
 
 **Estimated effort:** 1 day" "p2,enhancement"
 
@@ -410,7 +410,7 @@ create_issue "[#41] MCP-over-HTTP transport (streamable-http)" \
 create_issue "[#25c] Move HTML from web_templates.py to Jinja2 template files" \
 "\`web_templates.py\` is 2,036 LOC of HTML/JS/CSS in Python strings. \`web.py:142\` already sets \`template_folder=\` but it's unused.
 
-**Action:** Extract each template to \`ai_history/templates/*.html\`. Use \`render_template()\`. Build Jinja2 \`Environment\` once at startup.
+**Action:** Extract each template to \`lore/templates/*.html\`. Use \`render_template()\`. Build Jinja2 \`Environment\` once at startup.
 
 **Estimated effort:** 1 day (mechanical, needs good test coverage first)" "p2,architecture"
 

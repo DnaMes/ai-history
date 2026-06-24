@@ -2,7 +2,7 @@
 
 Date: 2026-05-06
 Reviewers (parallel subagents): code-reviewer, security-auditor, architect-reviewer, performance-engineer, qa-expert, researcher.
-Source: 1672 sessions in `~/.ai-history/index.json` (19 MB), 78 MB SQLite, ~12 K LOC across `ai_history/`.
+Source: 1672 sessions in `~/.ai-history/index.json` (19 MB), 78 MB SQLite, ~12 K LOC across `lore/`.
 
 This document summarizes the findings. The actionable backlog is in `docs/ROADMAP.md`. The issue creation script is in `tools/create_issues.sh`.
 
