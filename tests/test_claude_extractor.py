@@ -38,7 +38,9 @@ def _minimal_records(session_id: str = "sess-abc123") -> list[dict]:
     ]
 
 
-def _make_project_dir(tmp_path: Path, project_dir_name: str = "-home-user-projects-app") -> tuple[Path, Path]:
+def _make_project_dir(
+    tmp_path: Path, project_dir_name: str = "-home-user-projects-app"
+) -> tuple[Path, Path]:
     """Create .claude/projects/<project_dir>/ and return (projects_dir, project_dir)."""
     projects = tmp_path / ".claude" / "projects"
     project = projects / project_dir_name
@@ -114,11 +116,14 @@ def test_parse_session_message_roles(monkeypatch, tmp_path):
 def test_parse_session_with_summary(monkeypatch, tmp_path):
     _, project = _make_project_dir(tmp_path)
     records = _minimal_records("sess-summary")
-    records.insert(0, {
-        "type": "summary",
-        "timestamp": _ts(),
-        "summary": "Session about implementing sorting algorithms",
-    })
+    records.insert(
+        0,
+        {
+            "type": "summary",
+            "timestamp": _ts(),
+            "summary": "Session about implementing sorting algorithms",
+        },
+    )
     jsonl = project / "sess-summary.jsonl"
     _write_jsonl(jsonl, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -134,11 +139,14 @@ def test_parse_session_bad_summary_filtered(monkeypatch, tmp_path):
     """Bad summary is filtered; title falls back to first user message via _normalize_session."""
     _, project = _make_project_dir(tmp_path)
     records = _minimal_records("sess-badsummary")
-    records.insert(0, {
-        "type": "summary",
-        "timestamp": _ts(),
-        "summary": "agents.md instructions for this session",
-    })
+    records.insert(
+        0,
+        {
+            "type": "summary",
+            "timestamp": _ts(),
+            "summary": "agents.md instructions for this session",
+        },
+    )
     jsonl = project / "sess-badsummary.jsonl"
     _write_jsonl(jsonl, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -155,11 +163,14 @@ def test_parse_session_summary_with_bad_markers(monkeypatch, tmp_path):
     _, project = _make_project_dir(tmp_path)
     records = _minimal_records("sess-markers")
     # Add a bad summary record
-    records.insert(0, {
-        "type": "summary",
-        "timestamp": _ts(),
-        "summary": "<command-name>some name</command-name>",
-    })
+    records.insert(
+        0,
+        {
+            "type": "summary",
+            "timestamp": _ts(),
+            "summary": "<command-name>some name</command-name>",
+        },
+    )
     jsonl = project / "sess-markers.jsonl"
     _write_jsonl(jsonl, records)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -399,7 +410,12 @@ def test_parse_content_list_tool_result(monkeypatch, tmp_path):
     assert any("[Tool Result]" in m.content for m in user_msgs)
 
 
-def test_parse_content_list_long_tool_result_truncated(monkeypatch, tmp_path):
+def test_parse_content_list_long_tool_result_kept_full(monkeypatch, tmp_path):
+    """Long tool results are stored in full — no 500-char truncation.
+
+    The source must stay complete for search and forensics; the web view
+    collapses long output behind an expand toggle instead.
+    """
     _, project = _make_project_dir(tmp_path)
     long_content = "x" * 600  # > 500 chars
     records = [
@@ -431,7 +447,107 @@ def test_parse_content_list_long_tool_result_truncated(monkeypatch, tmp_path):
     sessions = list(extractor.extract_sessions())
     user_msgs = [m for m in sessions[0].messages if m.role == Role.USER]
     combined = " ".join(m.content for m in user_msgs)
-    assert "..." in combined
+    assert long_content in combined  # full 600 chars present
+    assert "x...x" not in combined  # not truncated mid-string
+
+
+def test_parse_tool_result_attached_to_tool_call(monkeypatch, tmp_path):
+    """A tool_result is attached to its originating tool_use dict as ``output``.
+
+    tool_use (assistant) and tool_result (next user msg) live in separate
+    JSONL records; the extractor threads them by tool_use_id.
+    """
+    _, project = _make_project_dir(tmp_path)
+    records = [
+        {
+            "type": "assistant",
+            "timestamp": _ts(),
+            "sessionId": "sess-attach",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "tool-42",
+                        "name": "Read",
+                        "input": {"file_path": "/x/auth.py"},
+                    },
+                ],
+            },
+            "uuid": "a-001",
+        },
+        {
+            "type": "user",
+            "timestamp": _ts("2025-06-15T10:01:00"),
+            "sessionId": "sess-attach",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "tool-42",
+                        "content": "line1\nline2\nline3",
+                    },
+                ],
+            },
+            "uuid": "u-001",
+        },
+    ]
+    jsonl = project / "sess-attach.jsonl"
+    _write_jsonl(jsonl, records)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    extractor = ClaudeCodeExtractor()
+    sessions = list(extractor.extract_sessions())
+    calls = [tc for m in sessions[0].messages for tc in m.tool_calls]
+    read_call = next(tc for tc in calls if tc.get("id") == "tool-42")
+    assert read_call.get("output") == "line1\nline2\nline3"
+
+
+def test_parse_tool_result_error_status(monkeypatch, tmp_path):
+    """is_error on a tool_result marks the parent tool_call status=error."""
+    _, project = _make_project_dir(tmp_path)
+    records = [
+        {
+            "type": "assistant",
+            "timestamp": _ts(),
+            "sessionId": "sess-err",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": "t-err", "name": "Bash", "input": {"command": "x"}},
+                ],
+            },
+            "uuid": "a-001",
+        },
+        {
+            "type": "user",
+            "timestamp": _ts("2025-06-15T10:01:00"),
+            "sessionId": "sess-err",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "t-err",
+                        "content": "command not found",
+                        "is_error": True,
+                    },
+                ],
+            },
+            "uuid": "u-001",
+        },
+    ]
+    jsonl = project / "sess-err.jsonl"
+    _write_jsonl(jsonl, records)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    extractor = ClaudeCodeExtractor()
+    sessions = list(extractor.extract_sessions())
+    calls = [tc for m in sessions[0].messages for tc in m.tool_calls]
+    err_call = next(tc for tc in calls if tc.get("id") == "t-err")
+    assert err_call.get("status") == "error"
+    assert err_call.get("output") == "command not found"
 
 
 def test_parse_content_list_string_items(monkeypatch, tmp_path):
@@ -470,21 +586,27 @@ def test_parse_invalid_json_lines_skipped(monkeypatch, tmp_path):
     _, project = _make_project_dir(tmp_path)
     jsonl = project / "sess-corrupt.jsonl"
     jsonl.write_text(
-        json.dumps({
-            "type": "user",
-            "timestamp": "2025-06-15T10:00:00",
-            "sessionId": "sess-corrupt",
-            "message": {"role": "user", "content": "Valid message"},
-            "uuid": "u-001",
-        }) + "\n"
+        json.dumps(
+            {
+                "type": "user",
+                "timestamp": "2025-06-15T10:00:00",
+                "sessionId": "sess-corrupt",
+                "message": {"role": "user", "content": "Valid message"},
+                "uuid": "u-001",
+            }
+        )
+        + "\n"
         "NOT VALID JSON\n"
-        + json.dumps({
-            "type": "assistant",
-            "timestamp": "2025-06-15T10:01:00",
-            "sessionId": "sess-corrupt",
-            "message": {"role": "assistant", "content": "Valid reply"},
-            "uuid": "a-001",
-        }) + "\n",
+        + json.dumps(
+            {
+                "type": "assistant",
+                "timestamp": "2025-06-15T10:01:00",
+                "sessionId": "sess-corrupt",
+                "message": {"role": "assistant", "content": "Valid reply"},
+                "uuid": "a-001",
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -501,8 +623,18 @@ def test_parse_fallback_timestamps_from_mtime(monkeypatch, tmp_path):
     jsonl = project / "sess-notime.jsonl"
     # Records without timestamp
     records = [
-        {"type": "user", "sessionId": "sess-notime", "message": {"role": "user", "content": "Hello"}, "uuid": "u1"},
-        {"type": "assistant", "sessionId": "sess-notime", "message": {"role": "assistant", "content": "Hi"}, "uuid": "a1"},
+        {
+            "type": "user",
+            "sessionId": "sess-notime",
+            "message": {"role": "user", "content": "Hello"},
+            "uuid": "u1",
+        },
+        {
+            "type": "assistant",
+            "sessionId": "sess-notime",
+            "message": {"role": "assistant", "content": "Hi"},
+            "uuid": "a1",
+        },
     ]
     _write_jsonl(jsonl, records)
     monkeypatch.setenv("HOME", str(tmp_path))

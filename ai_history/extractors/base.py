@@ -21,6 +21,24 @@ class BaseExtractor(ABC):
     def tool(self) -> Tool:
         pass
 
+    @property
+    def skip_counts(self) -> dict[str, int]:
+        """Per-extractor tally of sessions the quality filter dropped.
+
+        Keyed by reason (``too_few_user_prompts`` / ``too_little_content``).
+        Lets the sync job surface "imported X, skipped Y" instead of silently
+        dropping sessions inside the generator (#1e). Lazily created so
+        subclasses need no __init__ cooperation.
+        """
+        counts = getattr(self, "_skip_counts", None)
+        if counts is None:
+            counts = {}
+            self._skip_counts = counts
+        return counts
+
+    def _record_skip(self, reason: str) -> None:
+        self.skip_counts[reason] = self.skip_counts.get(reason, 0) + 1
+
     @abstractmethod
     def extract_sessions(self) -> Iterator[UnifiedSession]:
         pass
@@ -71,8 +89,23 @@ class BaseExtractor(ABC):
     def _effective_thresholds(self) -> tuple[int, int, int]:
         profile = os.environ.get("AI_HISTORY_IMPORT_PROFILE", "relaxed").strip().lower()
         if profile == "strict":
-            return (3, 2048, 5)
-        return (self.MIN_MESSAGES, self.MIN_CONTENT_SIZE, self.MIN_USER_PROMPTS)
+            min_messages, min_content, min_prompts = (3, 2048, 5)
+        else:
+            min_messages, min_content, min_prompts = (
+                self.MIN_MESSAGES,
+                self.MIN_CONTENT_SIZE,
+                self.MIN_USER_PROMPTS,
+            )
+        # Explicit override wins over the profile so users can keep more
+        # short sessions (e.g. AI_HISTORY_MIN_USER_PROMPTS=2) without flipping
+        # the whole profile. Invalid values fall back to the profile default.
+        override = os.environ.get("AI_HISTORY_MIN_USER_PROMPTS", "").strip()
+        if override:
+            try:
+                min_prompts = max(0, int(override))
+            except ValueError:
+                logger.warning("Ignoring invalid AI_HISTORY_MIN_USER_PROMPTS=%r", override)
+        return (min_messages, min_content, min_prompts)
 
     def should_import_session(self, session: UnifiedSession) -> bool:
         """
@@ -93,6 +126,7 @@ class BaseExtractor(ABC):
         user_prompt_count = session.user_prompt_count
 
         if user_prompt_count < min_user_prompts:
+            self._record_skip("too_few_user_prompts")
             return False
 
         # Always import if enough messages
@@ -102,4 +136,7 @@ class BaseExtractor(ABC):
         # For short sessions, check content size
         total_content_size = sum(len(msg.content or "") for msg in session.messages)
 
-        return total_content_size >= min_content_size
+        if total_content_size >= min_content_size:
+            return True
+        self._record_skip("too_little_content")
+        return False

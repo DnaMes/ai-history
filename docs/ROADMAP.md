@@ -1,4 +1,4 @@
-# ai-history — Product Roadmap
+# Lore — Product Roadmap
 
 Date: 2026-05-06 (updated after session 2)
 Source: multi-agent review + competitive research (7 tools surveyed) + user feedback.

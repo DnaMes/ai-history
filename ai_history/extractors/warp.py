@@ -112,8 +112,8 @@ class WarpExtractor(BaseExtractor):
                         work_db_path.unlink(missing_ok=True)
                         Path(str(work_db_path) + "-wal").unlink(missing_ok=True)
                         Path(str(work_db_path) + "-shm").unlink(missing_ok=True)
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.debug("Failed to cleanup temp db files: %s", e)
         self.db_path = original_db_path
 
     def _load_assistant_messages(self, conn) -> Dict[str, List[UnifiedMessage]]:

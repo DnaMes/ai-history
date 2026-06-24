@@ -16,10 +16,9 @@ package = `ai_history`. The persistent data directory is `~/.lore`.
 # Install
 pip install -e . && pre-commit install
 
-# Lint & format (run before committing)
-black . --line-length=100
-isort . --profile black --line-length=100
-flake8 . --max-line-length=100 --ignore=E501,W503,E203
+# Lint & format (run before committing) — ruff replaces black/isort/flake8
+ruff format .
+ruff check --fix .
 mypy ai_history/ --ignore-missing-imports
 
 # Tests
@@ -28,10 +27,10 @@ mypy ai_history/ --ignore-missing-imports
 .venv/bin/python -m pytest tests/ -k "gemini"           # pattern
 .venv/bin/python -m pytest tests/ -v --tb=short         # verbose
 
-# Docker (production stack: app + postgres + redis)
+# Docker (single service: app — no postgres/redis; SQLite+WAL is the store)
 docker compose build app && docker compose up -d app
 docker compose logs -f app
-docker exec -it ai-history-app bash   # container name from docker-compose.yml
+docker exec -it lore-app bash   # container name from docker-compose.yml
 ```
 
 ## Architecture
@@ -48,7 +47,7 @@ Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.
 ### Package Layout
 
 - **`ai_history/core/models.py`** — `UnifiedSession`, `UnifiedMessage`, `Tool` (enum), `Role` (enum). The canonical data model everything else converges to.
-- **`ai_history/extractors/`** — One class per AI tool, all inherit `BaseExtractor`. Implement `tool` property + `extract_sessions() -> Iterator[UnifiedSession]` + `is_available()`. Use `safe_copy_db()` from base when reading SQLite files (avoids lock contention).
+- **`ai_history/extractors/`** — One class per AI tool, all inherit `BaseExtractor`. Implement `tool` property + `extract_sessions() -> Iterator[UnifiedSession]` + `is_available()`. Use `safe_copy_db()` from `utils/paths` when reading SQLite files (avoids lock contention; callers must clean up the temp copy in a `finally`).
 - **`ai_history/interfaces/web.py`** — Flask app + all routes. Heavy: imports from the 5 sibling modules below.
 - **`ai_history/interfaces/web_data.py`** — `load_index()`, `_build_index_from_extractors()`, `OUTPUT_DIR`, `INDEX_PATH`. All index I/O lives here. Uses file-stat-keyed LRU cache (`threadsafe_lru_cache`) — call `clear_index_cache()` after writes.
 - **`ai_history/interfaces/web_jobs.py`** — In-memory `RELOAD_JOBS` dict + threading logic for async reload/audit. TTL=3600s, max=256 jobs. Job state: `queued → running → done/error/cancelled`.
