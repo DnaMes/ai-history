@@ -18,6 +18,23 @@ build/
 web_ui.log
 test_write_access
 *.log
+*-this-session-is-being-continued-from-a-previous-c.txt
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Agent/tool local state (machine-specific, not source)
+.serena/
+.obsidian-doc
+
+# Auto-generated night-shift maintenance reports (throwaway)
+MAINT-night-*.md
+
+# Ad-hoc local verification scripts (scratch)
+toc-verify.js
+.playwright-mcp/
 
 # Media/screenshots (generated, not source)
 *.png
