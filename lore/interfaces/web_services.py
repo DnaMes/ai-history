@@ -140,6 +140,27 @@ def _clean_transcript_noise(text: str) -> str:
     return cleaned
 
 
+_COMMAND_NOISE_LINE_RE = re.compile(
+    r"^(?:\[command:[^\]]*\]|\[/?[a-z0-9_-]+\]|\(\s*\))$",
+    flags=re.IGNORECASE,
+)
+
+
+def _is_command_only_noise(text: str) -> bool:
+    """True if every non-empty line is command bookkeeping, e.g.::
+
+        [command: /exit]
+        [exit]
+        ()
+
+    Such a message carries no conversational content (#68).
+    """
+    lines = [line.strip() for line in (text or "").split("\n") if line.strip()]
+    if not lines:
+        return False
+    return all(_COMMAND_NOISE_LINE_RE.match(line) for line in lines)
+
+
 def _is_toc_noise(text: str) -> bool:
     normalized = (text or "").strip().lower()
     if not normalized:
@@ -265,9 +286,17 @@ def _format_message_for_tool(
         )
         text = re.sub(r"<command-args>(.*?)</command-args>", repl_cmd_args, text, flags=re.DOTALL)
         text = _normalize_message_text(text)
+        # The XML→[command:] rewrite can leave a message that is *only* command
+        # bookkeeping — e.g. "[command: /exit]\n[exit]\n()". Such a message has
+        # no conversational content; fold it away so it doesn't render as a
+        # standalone prompt card (#68).
+        if _is_command_only_noise(text):
+            text = ""
 
+    # Claude Code prepends the same "Caveat: the messages below…" boilerplate to
+    # local-command user messages as OpenCode does; strip it for both (#68).
     if (
-        tool == "opencode"
+        tool in ("opencode", "claude-code")
         and role == "user"
         and _rule_enabled(noise_rules, "opencode_strip_user_caveat", True)
     ):
