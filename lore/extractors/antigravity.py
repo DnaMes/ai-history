@@ -58,11 +58,18 @@ class AntigravityExtractor(BaseExtractor):
 
                 try:
                     session = self._parse_session(session_dir)
-                    if session and self.should_import_session(session):
-                        yield session
                 except Exception as e:
-                    logger.debug(f"Failed to parse Antigravity session {session_dir}: {e}")
+                    # Don't drop silently — surface as a skip reason (#69, Axis-1d).
+                    logger.warning("Failed to parse Antigravity session %s: %s", session_dir, e)
+                    self._record_skip("parse_error")
                     continue
+
+                if session is None:
+                    # A brain dir with no task.md is not a conversation we can import.
+                    self._record_skip("no_task_md")
+                    continue
+                if self.should_import_session(session):
+                    yield session
 
     def _parse_session(self, session_dir: Path) -> Optional[UnifiedSession]:
         session_id = session_dir.name

@@ -46,7 +46,9 @@ class CopilotCLIExtractor(BaseExtractor):
                     if self.should_import_session(session):
                         yield session
                 except Exception as e:
+                    # Surface as a skip reason instead of just logging (#69, Axis-1d).
                     logger.warning("Failed to parse Copilot CLI session %s: %s", session_file, e)
+                    self._record_skip("parse_error")
 
     def _parse_session(self, path: Path) -> UnifiedSession:
         """Parse a Copilot CLI session file."""

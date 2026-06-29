@@ -232,3 +232,30 @@ def test_extract_multiple_sessions(monkeypatch, tmp_path):
     sessions = list(AntigravityExtractor().extract_sessions())
     assert len(sessions) == 3
     assert {s.session_id for s in sessions} == {"sess-0", "sess-1", "sess-2"}
+
+
+def test_no_task_md_dir_is_recorded_as_skip_not_silent(monkeypatch, tmp_path):
+    """#69 — a brain dir without task.md must surface as a skip, not vanish."""
+    brain = _brain_dir(tmp_path)
+    (brain / "empty-session").mkdir(parents=True)  # no task.md
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LORE_MIN_USER_PROMPTS", "3")
+
+    extractor = AntigravityExtractor()
+    imported = list(extractor.extract_sessions())
+
+    assert imported == []
+    assert extractor.skip_counts.get("no_task_md") == 1
+
+
+def test_short_session_recorded_as_too_few_prompts(monkeypatch, tmp_path):
+    """#69 — a real but too-short session is filtered and counted, not a silent 0."""
+    _make_session(tmp_path, "short-session")  # single user prompt
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LORE_MIN_USER_PROMPTS", "3")
+
+    extractor = AntigravityExtractor()
+    imported = list(extractor.extract_sessions())
+
+    assert imported == []
+    assert extractor.skip_counts.get("too_few_user_prompts", 0) >= 1
