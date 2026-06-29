@@ -1348,6 +1348,12 @@ def session_detail(session_id):
     if not session_meta:
         return "Not found", 404
 
+    # Use the index-computed display_title (which already drops low-quality
+    # titles like the <local-command-caveat> leak) for the page-title / headline,
+    # never the raw, possibly-noisy session.title (#68). A good live title is
+    # preferred over this below, when the live extractor provides one.
+    clean_title = session_meta.get("display_title") or session_meta.get("title") or "Session"
+
     back_target = _sanitize_next_url(request.args.get("back", "")) or "/sessions"
     export_path = resolve_export_path(session_meta.get("export_path"))
     if not export_path and _export_fallback_scan_enabled():
@@ -1372,12 +1378,12 @@ def session_detail(session_id):
             "rules",
             active="sessions",
             rules=html_content,
-            title=session_meta.get("title") or "Session",
+            title=clean_title,
         )
 
     def _render_summary():
         summary = f"""
-<h2>{html.escape(session_meta.get("title") or session_id)}</h2>
+<h2>{html.escape(clean_title)}</h2>
 <p><strong>Tool:</strong> {html.escape(str(session_meta.get("tool") or "n/a"))}</p>
 <p><strong>Created:</strong> {html.escape(str(session_meta.get("created") or "n/a"))}</p>
 <p><strong>Updated:</strong> {html.escape(str(session_meta.get("updated") or "n/a"))}</p>
@@ -1391,7 +1397,7 @@ def session_detail(session_id):
             "rules",
             active="sessions",
             rules=summary,
-            title=session_meta.get("title") or "Session",
+            title=clean_title,
         )
 
     force_live = (request.args.get("live") or "").strip() == "1"
@@ -1399,6 +1405,14 @@ def session_detail(session_id):
     resolved = _enriched_session_for_detail(session_id, force_live=force_live)
     if resolved:
         session_obj, toc = resolved
+        # The <h1> headline reads session.title directly. Only replace it with the
+        # cleaned title when the object's own title is missing or low-quality (e.g.
+        # the <local-command-caveat> leak) — a good live-extractor title wins (#68).
+        from ..exporters.index import is_low_quality_title
+
+        obj_title = (session_obj.title or "").strip()
+        if not obj_title or is_low_quality_title(obj_title):
+            session_obj.title = clean_title
         pairs = getattr(session_obj, "pairs", []) or []
         total_pairs = len(pairs)
         message_pages = max(1, math.ceil(total_pairs / MESSAGES_PER_PAGE))
@@ -1412,7 +1426,7 @@ def session_detail(session_id):
             message_pages=message_pages,
             messages_per_page=MESSAGES_PER_PAGE,
             style=get_style(session_obj.tool.value),
-            title=session_obj.title or "Session",
+            title=session_obj.title or clean_title,
             toc_items=toc,
             back_target=back_target,
         )

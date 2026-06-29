@@ -20,6 +20,63 @@ def _stat_mtime_ns(path_value: Optional[str]) -> Optional[int]:
         return None
 
 
+def is_low_quality_title(text: str) -> bool:
+    """True if ``text`` is noise that should not be used as a session title.
+
+    Catches command/caveat boilerplate, sandbox/approval chatter, and too-short or
+    non-alphabetic strings. Used both when building the index and when rendering a
+    live session, so the two paths agree (#68).
+    """
+    lowered = (text or "").lower().strip()
+    if not lowered:
+        return True
+
+    # Drop any leading XML-ish tag wrapper (e.g. "<local-command-caveat>") so the
+    # boilerplate it wraps is still recognised below (#68).
+    lowered = re.sub(r"^<[^>]*>", "", lowered).strip()
+    if not lowered:
+        return True
+
+    normalized = re.sub(r"^[^a-z0-9]+", "", lowered)
+
+    low_quality_prefixes = (
+        "local-command-",
+        "caveat: the messages below were generated",
+        "user exited claude code session",
+        "conversation started",
+        "session ",
+        "agents.md instructions",
+        "instructions for /home",
+        "command-name",
+        "command-message",
+        "command-args",
+        "login successful",
+        "invalid api key",
+        "api error",
+        "generate a file named agents.md",
+    )
+    if any(normalized.startswith(prefix) for prefix in low_quality_prefixes):
+        return True
+
+    low_quality_fragments = (
+        "on-request workspace-write",
+        "workspace-write restricted",
+        "sandbox",
+        "approval",
+    )
+    if any(fragment in normalized for fragment in low_quality_fragments):
+        return True
+
+    if len(lowered) < 8:
+        return True
+
+    alpha_chars = sum(1 for ch in lowered if ch.isalpha())
+    if alpha_chars < max(3, len(lowered) // 6):
+        return True
+
+    return False
+
+
 class IndexBuilder:
     """Build search index for sessions."""
 
@@ -268,47 +325,7 @@ class IndexBuilder:
         return cleaned
 
     def _is_low_quality_title(self, text: str) -> bool:
-        lowered = (text or "").lower().strip()
-        if not lowered:
-            return True
-
-        normalized = re.sub(r"^[^a-z0-9]+", "", lowered)
-
-        low_quality_prefixes = (
-            "caveat: the messages below were generated",
-            "user exited claude code session",
-            "conversation started",
-            "session ",
-            "agents.md instructions",
-            "instructions for /home",
-            "command-name",
-            "command-message",
-            "command-args",
-            "login successful",
-            "invalid api key",
-            "api error",
-            "generate a file named agents.md",
-        )
-        if any(normalized.startswith(prefix) for prefix in low_quality_prefixes):
-            return True
-
-        low_quality_fragments = (
-            "on-request workspace-write",
-            "workspace-write restricted",
-            "sandbox",
-            "approval",
-        )
-        if any(fragment in normalized for fragment in low_quality_fragments):
-            return True
-
-        if len(lowered) < 8:
-            return True
-
-        alpha_chars = sum(1 for ch in lowered if ch.isalpha())
-        if alpha_chars < max(3, len(lowered) // 6):
-            return True
-
-        return False
+        return is_low_quality_title(text)
 
     def _extract_keywords(self, session: UnifiedSession) -> List[str]:
         """Extract searchable keywords from session."""
