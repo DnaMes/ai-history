@@ -1,27 +1,39 @@
-# HANDOFF — Lore — 2026-06-29 (QA + all 4 issues fixed)
+# HANDOFF — Lore — 2026-06-29 (QA + 4 issues + 3 follow-ups, all merged)
 
 > Continue on **ai-workstation** (`ssh ai-workstation`, VM 300 on pve-awow, tmux session `ai`).
-> ✅ Workstation prepared + synced to latest master (cca6def). venv built, tests green, HTTPS+gh remote.
+> ✅ Workstation synced to latest master (b9b3dc4). venv built, tests green, HTTPS+gh remote.
 > Update this before session ends.
 
-## TL;DR — all four QA bugs fixed, merged, closed
+## TL;DR — all 4 QA bugs + 3 follow-ups shipped, master clean
 
-Production-readiness QA + full fix pass done autonomously on the laptop. UI render quality is
-genuinely good (Axis-2 paid off) — NOT "billig". Found four real bugs in live QA, fixed all four,
-each as its own PR with CI green (lint + bandit + pip-audit + tests 3.11/3.12) and squash-merged
-to master. **Suite now 1002 passed, coverage 83.58%.**
+Production-readiness QA + full fix pass done autonomously. UI render quality is genuinely good
+(Axis-2 paid off) — NOT "billig". Seven PRs (#70–#75 + docs), each CI-green (lint + bandit +
+pip-audit + tests 3.11/3.12), squash-merged to master. **Suite 1004 passed, coverage ~83.9%.**
 
 | # | Fix | PR | Status |
 |---|---|---|---|
-| [#66](https://github.com/DnaMes/lore/issues/66) | `lore-web`/`lore-mcp` CLI entry points (were 0-byte modules) implemented | [#70](https://github.com/DnaMes/lore/pull/70) | ✅ merged/closed |
-| [#68](https://github.com/DnaMes/lore/issues/68) | Strip `<local-command-caveat>` title leak + `[command:/exit]` render noise | [#71](https://github.com/DnaMes/lore/pull/71) | ✅ merged/closed |
-| [#67](https://github.com/DnaMes/lore/issues/67) | Cost dashboard: persist per-session token total (migration 11 + all layers) | [#72](https://github.com/DnaMes/lore/pull/72) | ✅ merged/closed |
-| [#69](https://github.com/DnaMes/lore/issues/69) | antigravity/copilot drops surfaced as skip reasons (not silent 0) | [#73](https://github.com/DnaMes/lore/pull/73) | ✅ merged/closed |
+| [#66](https://github.com/DnaMes/lore/issues/66) | `lore-web`/`lore-mcp` CLI entry points (were 0-byte modules) | [#70](https://github.com/DnaMes/lore/pull/70) | ✅ closed |
+| [#68](https://github.com/DnaMes/lore/issues/68) | Strip `<local-command-caveat>` title leak + `[command:/exit]` render noise | [#71](https://github.com/DnaMes/lore/pull/71) | ✅ closed |
+| [#67](https://github.com/DnaMes/lore/issues/67) | Cost dashboard: persist per-session token total (migration 11 + all layers) | [#72](https://github.com/DnaMes/lore/pull/72) | ✅ closed |
+| [#69](https://github.com/DnaMes/lore/issues/69) | antigravity/copilot drops surfaced as skip reasons (not silent 0) | [#73](https://github.com/DnaMes/lore/pull/73) | ✅ closed |
+| — | `[dev]` extra in pyproject + MCP serverInfo version → `lore.__version__` | [#74](https://github.com/DnaMes/lore/pull/74) | ✅ merged |
+| — | Cost dashboard: `untokened_count` (sessions without token data, not dropped) | [#75](https://github.com/DnaMes/lore/pull/75) | ✅ merged |
 
-- **Version** 2.4.0 · **Repo** `~/projects/lab/ai/lore` · **GitHub** `DnaMes/lore` (default branch = `master`, HEAD cca6def)
+- **Version** 2.4.0 · **Repo** `~/projects/lab/ai/lore` · **GitHub** `DnaMes/lore` (default `master`, HEAD **b9b3dc4**)
 - **Data** `~/.lore` · **Docker** `lore-app` :5000 (`gunicorn --workers 1`)
-- `lore-web --port 5057` now works locally (no more `python -c` workaround).
-- Cost dashboard now real: `/api/stats/costs` → 5.57B tokens across 719 sessions, by_tool/by_project populated.
+- `lore-web --port 5057` works locally; `pip install -e ".[dev]"` sets up the full dev env.
+- Cost dashboard real: `/api/stats/costs` → 5.57B tokens / 719 tokened + 191 untokened sessions.
+- Planning docs (`docs/EXECUTION-PROMPT.md`, `docs/UMBAU.md`) are now committed (were churning untracked).
+
+## ⚠️ repo-autosync gotcha (cost me a near-miss this session)
+
+`~/bin/repo-autosync.sh` runs `git add -A` then commits to `autosync/<host>` and `reset --soft`s —
+so it **leaves everything staged** in the working tree, and Syncthing can create
+`*.sync-conflict-*` branches. Twice this session that pulled `docs/` (untracked) and an old branch's
+changes into a feature commit; I had to soft-reset and re-stage explicitly. **Before any commit on
+this repo, run `git diff --cached --name-only` and stage only your intended files** — don't trust a
+clean-looking `git add <file>`; the autosync may have pre-staged other things. The autosync branches
+(`autosync/fedora`, `autosync/ai-workstation`) are user infra, left untouched.
 
 ## Verified outcomes (real, not "should work")
 
