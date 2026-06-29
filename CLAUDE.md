@@ -64,8 +64,8 @@ Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.
 |---|---|---|
 | `lore` | `lore_cli.py` | Full CLI (list, search, export, check…) |
 | `lore-session` | `lore_session_cli.py` | Session switching between tools |
-| `lore-web` | `lore/cli/web.py` | Entry point → `lore.interfaces.web:app` |
-| `lore-mcp` | MCP server entry point | MCP server for Claude Code / OpenCode |
+| `lore-web` | `lore/cli/web.py` | `main()` → `start_web_ui` (Flask dev server, `--host/--port/--debug`, `LORE_WEB_*` env). Prod = gunicorn `lore.interfaces.web:app` |
+| `lore-mcp` | `lore/cli/mcp.py` | `main_sync()` → `create_server().run()` over stdio (Claude Code / OpenCode) |
 | Docker | `Dockerfile` | `gunicorn --workers 1 --threads 8` — must stay at 1 worker; `RELOAD_JOBS` is in-memory |
 
 ### Web UI — Reload/Async Jobs
