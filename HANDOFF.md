@@ -1,6 +1,8 @@
 # HANDOFF — Lore — 2026-06-29 (QA + Issue triage)
 
 > Continue on **ai-workstation** (`ssh ai-workstation`, VM 300 on pve-awow, tmux session `ai`).
+> ✅ Workstation is already prepared (venv built, tests green, HTTPS+gh remote) — see
+> "ai-workstation — PREPARED" below. Just `git pull` and start on #66.
 > Update this before session ends.
 
 ## TL;DR — where things stand
@@ -80,12 +82,29 @@ for m in (claude,codex,opencode,cursor,gemini,antigravity,vscode,warp):
 - Subagent sessions have `project_path: None` in the index (cosmetic, affects project filter).
 - Syncthing mirrors this repo to ai-workstation incl. `.git` — but **sync via git** (push/pull), don't rely on Syncthing for `.git` consistency.
 
-## Next session start
+## ai-workstation — PREPARED 2026-06-29 (ready to go)
+
+Already set up on `ai-workstation` so you can start immediately:
+- Repo synced to `master` HEAD **e0d64e1** (Syncthing + git agree).
+- Git remote switched to **HTTPS** (`https://github.com/DnaMes/lore.git`) because the
+  `github-personal` SSH alias only exists on the laptop and the workstation key isn't on
+  GitHub. `gh` is logged in as DnaMes → `gh auth setup-git` wired as credential helper, so
+  `git pull`/`git push` work over HTTPS without SSH keys.
+- **`.venv` created** (python 3.12.3), `pip install -e .` done, test deps installed
+  (pytest 9.1, pytest-cov 7.1, coverage 7.14, fastembed 0.8).
+- **Full suite verified GREEN on the workstation: coverage 83.17%, gate met, exit 0.**
+
+⚠️ Setup finding (worth fixing): test deps are NOT declared in `pyproject.toml` — only
+`watch` + `semantic` extras exist, no `[dev]`. Fresh setups must `pip install pytest
+pytest-cov coverage fastembed` by hand. Consider adding a `[project.optional-dependencies]
+dev = [...]` so `pip install -e ".[dev]"` works. (Not done here — out of scope for the prep.)
+
+## Next session start (on ai-workstation)
 
 1. `ssh ai-workstation`, `tmux attach -t ai` (or new), `cd ~/projects/lab/ai/lore`.
-2. `git fetch github && git checkout master && git pull` (get 53cd488 + this handoff).
-3. `pip install -e . && .venv/bin/python -m pytest tests/` — confirm green baseline.
-4. Start on **#66** (execution prompt is in the issue body).
+2. `git pull` (HTTPS remote, gh credential helper — already wired).
+3. `.venv/bin/python -m pytest tests/ -q` — confirm green baseline (already passes).
+4. Start on **#66** (execution prompt is in the issue body). `git checkout -b fix/cli-entry-points`.
 
 ---
 
