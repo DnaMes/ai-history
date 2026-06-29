@@ -16,8 +16,10 @@ migration path is the only place the old `ai-history` name legitimately survives
 ## Commands
 
 ```bash
-# Install
+# Install (runtime only)
 pip install -e . && pre-commit install
+# Install with test/lint/type tooling (pytest, pytest-cov, ruff, mypy, fastembed)
+pip install -e ".[dev]"
 
 # Lint & format (run before committing) — ruff replaces black/isort/flake8
 ruff format .
