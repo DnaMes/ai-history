@@ -304,3 +304,37 @@ def test_mcp_server_returns_structured_json_for_new_tools(monkeypatch):
     thread_payload = json.loads(thread_response["result"]["content"][0]["text"])
     assert thread_payload["thread"]["id"] == "thread-1"
     assert len(thread_payload["messages"]) == 2
+
+
+def test_mcp_initialize_reports_package_version():
+    """serverInfo.version must track lore.__version__, not a hardcoded literal."""
+    import lore
+    from lore.interfaces import mcp
+
+    server = mcp.create_server()
+    response = asyncio.run(
+        server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
+            }
+        )
+    )
+    info = response["result"]["serverInfo"]
+    assert info["name"] == "lore"
+    assert info["version"] == lore.__version__
+
+
+def test_dev_extra_declares_test_tooling():
+    """The [dev] extra must exist and carry the test runner (#setup)."""
+    import tomllib
+    from pathlib import Path
+
+    data = tomllib.loads((Path(__file__).resolve().parent.parent / "pyproject.toml").read_text())
+    dev = data["project"]["optional-dependencies"]["dev"]
+    joined = " ".join(dev)
+    assert "pytest" in joined
+    assert "pytest-cov" in joined
+    assert "ruff" in joined

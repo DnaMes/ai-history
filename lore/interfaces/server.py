@@ -13,6 +13,7 @@ import logging
 import sys
 from typing import Optional
 
+from .. import __version__
 from ..utils.paths import lore_home
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class MCPServer:
                 },
                 "serverInfo": {
                     "name": "lore",
-                    "version": "2.0.0",
+                    "version": __version__,
                 },
             },
         }

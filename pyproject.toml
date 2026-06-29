@@ -37,6 +37,17 @@ dependencies = [
 watch = ["watchdog>=3.0"]
 # Local semantic memory search — a small CPU-only ONNX model, no torch.
 semantic = ["fastembed>=0.3"]
+# Everything needed to run the test suite, lint, and type-check locally.
+# Mirrors what CI installs; fastembed is included so the semantic tests run for
+# real instead of being skipped. `pip install -e ".[dev]"`.
+dev = [
+    "pytest>=8,<10",
+    "pytest-cov>=5",
+    "coverage>=7",
+    "ruff>=0.6",
+    "mypy>=1.8",
+    "fastembed>=0.3",
+]
 
 [project.urls]
 Homepage = "https://github.com/DnaMes/lore"
