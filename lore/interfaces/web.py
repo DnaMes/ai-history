@@ -1017,6 +1017,7 @@ def _build_costs_payload() -> dict:
 
     total_tokens = 0
     session_count = 0
+    untokened_count = 0
     by_tool: dict[str, int] = {}
     by_day_map: dict[str, int] = {}
     by_project_map: dict[str, int] = {}
@@ -1025,13 +1026,17 @@ def _build_costs_payload() -> dict:
 
     for session in sessions:
         raw_tokens = session.get("tokens")
-        if raw_tokens is None:
-            continue
-        try:
-            tokens = int(raw_tokens)
-        except (TypeError, ValueError):
-            continue
+        tokens = 0
+        if raw_tokens is not None:
+            try:
+                tokens = int(raw_tokens)
+            except (TypeError, ValueError):
+                tokens = 0
         if tokens <= 0:
+            # Session exists but carries no usage data (e.g. codex today, or a
+            # tool that never reports tokens). Count it so the dashboard can say
+            # "N without token data" instead of silently dropping it (#67 follow-up).
+            untokened_count += 1
             continue
 
         total_tokens += tokens
@@ -1073,6 +1078,7 @@ def _build_costs_payload() -> dict:
         "by_day": by_day_list,
         "by_project": by_project_list,
         "session_count": session_count,
+        "untokened_count": untokened_count,
     }
 
 

@@ -125,7 +125,14 @@ def test_api_stats_costs_returns_200_with_expected_keys(client):
     assert r.status_code == 200
     payload = r.get_json()
     assert payload is not None
-    for key in ("total_tokens", "by_tool", "by_day", "by_project", "session_count"):
+    for key in (
+        "total_tokens",
+        "by_tool",
+        "by_day",
+        "by_project",
+        "session_count",
+        "untokened_count",
+    ):
         assert key in payload, f"missing key: {key}"
 
 
@@ -272,3 +279,27 @@ def test_api_audit_index_scope_returns_200(client):
 def test_api_audit_invalid_provider_returns_400(client):
     r = client.get("/api/audit?scope=index&provider=bad;provider")
     assert r.status_code == 400
+
+
+def test_api_stats_costs_counts_untokened_sessions(monkeypatch, client):
+    """#67 follow-up — sessions without token data are counted, not silently dropped."""
+    index = {
+        "sessions": [
+            {
+                "id": "a",
+                "tool": "claude-code",
+                "project": "/p",
+                "created": "2026-06-01",
+                "tokens": 100,
+            },
+            {"id": "b", "tool": "codex", "project": "/p", "created": "2026-06-01", "tokens": None},
+            {"id": "c", "tool": "codex", "project": "/p", "created": "2026-06-01"},  # no tokens key
+            {"id": "d", "tool": "opencode", "project": "/p", "created": "2026-06-01", "tokens": 0},
+        ]
+    }
+    monkeypatch.setattr(web, "load_index", lambda: index)
+
+    payload = client.get("/api/stats/costs").get_json()
+    assert payload["total_tokens"] == 100
+    assert payload["session_count"] == 1  # only "a" has usable tokens
+    assert payload["untokened_count"] == 3  # b (None), c (missing), d (0)
