@@ -101,6 +101,7 @@ def _row_to_session_dict(row: sqlite3.Row) -> Dict[str, Any]:
         "updated": row["updated"],
         "messages": int(row["messages_count"] or 0),
         "prompts": int(row["prompt_count"] or 0),
+        "tokens": int(row["total_tokens"] or 0) or None,
         "prompt_outline": row["prompt_outline"],
         "export_path": row["export_path"],
         "git_branch": row["git_branch"],
@@ -157,7 +158,7 @@ def load_index_v2(output_dir: Path) -> Dict[str, Any]:
             SELECT id, tool, project, thread_id, title, created, updated,
                    source_path, source_mtime_ns, git_branch, git_commit,
                    metadata_json, messages_count, prompt_count,
-                   prompt_outline, export_path
+                   prompt_outline, export_path, total_tokens
             FROM sessions
             ORDER BY updated DESC
             """
