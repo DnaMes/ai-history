@@ -87,7 +87,7 @@ def search_sessions(
                    s.created, s.updated, s.source_path, s.source_mtime_ns,
                    s.git_branch, s.git_commit, s.metadata_json,
                    s.messages_count, s.prompt_count, s.prompt_outline,
-                   s.export_path,
+                   s.export_path, s.total_tokens,
                    bm25(search_index) AS score
             FROM search_index
             JOIN sessions s ON s.id = search_index.entity_id

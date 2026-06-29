@@ -199,6 +199,15 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         );
         """,
     ),
+    (
+        11,
+        "per-session total token count, for the cost dashboard (#67)",
+        # Aggregated input+output tokens for the session. Defaults to 0 so old
+        # rows and tools without usage data report no cost rather than NULL.
+        """
+        ALTER TABLE sessions ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 

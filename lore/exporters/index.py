@@ -158,6 +158,7 @@ class IndexBuilder:
                 "updated": session.last_updated.isoformat(),
                 "messages": session.message_count,
                 "prompts": prompt_count,
+                "tokens": session.total_tokens,
                 "prompt_outline": prompt_outline,
                 "export_path": str(export_path) if export_path else None,
                 "git_branch": getattr(session, "git_branch", None),

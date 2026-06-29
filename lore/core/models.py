@@ -4,6 +4,30 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 
+def _message_token_total(tokens: Optional[Dict[str, Any]]) -> int:
+    """Best-effort token count for a single message, robust to extractor formats.
+
+    Different tools store usage differently: some provide a precomputed ``total``,
+    others only ``input``/``output`` (e.g. OpenCode's raw payload), Claude uses
+    ``input_tokens``/``output_tokens``. Prefer an explicit ``total``; otherwise sum
+    the input + output variants. Cache/reasoning counts are ignored to keep the
+    headline number comparable across tools.
+    """
+    if not isinstance(tokens, dict):
+        return 0
+
+    explicit = tokens.get("total")
+    if isinstance(explicit, (int, float)) and explicit > 0:
+        return int(explicit)
+
+    total = 0
+    for key in ("input", "output", "input_tokens", "output_tokens"):
+        value = tokens.get(key)
+        if isinstance(value, (int, float)):
+            total += int(value)
+    return total
+
+
 class Tool(Enum):
     CLAUDE_CODE = "claude-code"
     CURSOR = "cursor"
@@ -92,6 +116,5 @@ class UnifiedSession:
     def total_tokens(self) -> Optional[int]:
         total = 0
         for msg in self.messages:
-            if msg.tokens and "total" in msg.tokens:
-                total += msg.tokens["total"]
+            total += _message_token_total(msg.tokens)
         return total if total > 0 else None

@@ -72,8 +72,8 @@ _SESSION_INSERT = """
         source_path, source_mtime_ns, git_branch, git_commit,
         cli_version, metadata_json,
         messages_count, prompt_count, prompt_outline, export_path,
-        messages_synced
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        total_tokens, messages_synced
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -110,6 +110,7 @@ def _write_reused_entry(conn: sqlite3.Connection, entry: Dict) -> None:
             int(entry.get("prompts") or 0),
             entry.get("prompt_outline"),
             entry.get("export_path"),
+            int(entry.get("tokens") or 0),
             0,  # messages_synced — metadata-only, no message rows
         ),
     )
@@ -193,6 +194,7 @@ def write_sessions(
                     session.user_prompt_count,
                     session_extras.get("prompt_outline"),
                     session_extras.get("export_path"),
+                    session.total_tokens or 0,
                     1,  # messages_synced — full session, message rows written
                 ),
             )

@@ -14,6 +14,25 @@ from .base import BaseExtractor
 logger = logging.getLogger(__name__)
 
 
+def _parse_usage_tokens(usage) -> dict | None:
+    """Map a Claude ``message.usage`` block to a UnifiedMessage tokens dict.
+
+    Claude reports ``input_tokens`` / ``output_tokens`` (plus cache counters). We
+    keep input/output/total so total_tokens can aggregate them (#67).
+    """
+    if not isinstance(usage, dict):
+        return None
+    inp = usage.get("input_tokens")
+    out = usage.get("output_tokens")
+    if not isinstance(inp, (int, float)) and not isinstance(out, (int, float)):
+        return None
+    inp = int(inp) if isinstance(inp, (int, float)) else 0
+    out = int(out) if isinstance(out, (int, float)) else 0
+    if inp == 0 and out == 0:
+        return None
+    return {"input": inp, "output": out, "total": inp + out}
+
+
 def _stringify_tool_result(content) -> str:
     """Flatten a Claude tool_result ``content`` to text.
 
@@ -285,6 +304,7 @@ class ClaudeCodeExtractor(BaseExtractor):
                             timestamp=timestamp,
                             message_id=record.get("uuid"),
                             tool_calls=tool_calls if tool_calls else [],
+                            tokens=_parse_usage_tokens(msg_data.get("usage")),
                         )
                     )
 
