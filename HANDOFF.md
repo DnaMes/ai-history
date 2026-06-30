@@ -6,9 +6,13 @@
 
 ## TL;DR — every easily-fixable issue is shipped; only big features/architecture remain
 
-Autonomous QA + fix sweep across two sessions. **12 PRs merged** (#70–#81), each CI-green
-(lint + bandit + pip-audit + tests 3.11/3.12), squash-merged to master. Suite ~1046 passed,
-coverage ~83.9%. master HEAD **5c77393**.
+Autonomous QA + fix sweep across three sessions. **16 PRs merged** (#70–#84), each CI-green
+(lint + bandit + pip-audit + tests 3.11/3.12), squash-merged to master. Suite **1051 passed**,
+coverage ~83.9%. master HEAD **340833e**.
+
+Latest round (this session): #62, #54, #55, #57 (diagnosed), then #79 (canonical tool_call
+shape — fixed silently-dropped codex/copilot args), #53 (session-render rebuild closed as done),
+#83 (tool-burst ×N folding). All open issues are now genuinely strategic.
 
 | # | Fix | PR |
 |---|---|---|
@@ -29,14 +33,18 @@ coverage ~83.9%. master HEAD **5c77393**.
 - `lore-web --port 5057` works; `pip install -e ".[dev]"` sets up the dev env.
 - Cost dashboard real; token/model chips render without `?live=1`; templates are files now.
 
-## Open issues — all big/strategic, NOT autonomous-fixable (need product/design calls)
+## Open issues — all genuinely strategic, need a product/design conversation first
 
-- **[#79](https://github.com/DnaMes/lore/issues/79)** tool_call dict keys inconsistent (claude `name` vs opencode `tool`) — normalize all 10 extractors to a canonical shape; touches prep/UI/MCP. **New, filed during #55.** Mid-size refactor, do with a contract-test pass.
-- **[#53](https://github.com/DnaMes/lore/issues/53)** session-render rebuild — phases 0–2 done (#61/#63/#64); phase 3 (sticky TOC scroll-spy, burst/dup folding) open. Design-heavy; the regex re-parse (`web_formatting.py:149/161`) still lives parallel to the structured path. Do with the snapshot net (`tests/test_template_render_snapshots.py`) as the guard.
-- **[#56](https://github.com/DnaMes/lore/issues/56)** tags/bookmarks/hybrid-search/resume — new feature, schema+UI+MCP, product decision.
-- **[#33](https://github.com/DnaMes/lore/issues/33)** shared-memory vision, **[#48](https://github.com/DnaMes/lore/issues/48)** JSON-retirement, **[#29](https://github.com/DnaMes/lore/issues/29)** MCP-over-HTTP — architecture/roadmap.
+Only 4 left, none autonomous-fixable:
 
-Recommended next: **#79** (bounded refactor, has a contract test ready) or **#53 phase 3** (snapshot-guarded). The rest want a product/design conversation first.
+- **[#56](https://github.com/DnaMes/lore/issues/56)** — umbrella. **2 of its 4 items already shipped**: Resume button (`/api/sessions/<id>/resume`) + token/cost dashboard (#67/#72/#75). Remaining: (a) **user-editable session tags/bookmarks** — partial infra exists (LLM-gen tags, `compute_top_tags`, `filter_sessions(tag=)`), but user-edit needs a `session_tags` table (mirror `memory_tags` migration), write API, MCP expose, and a tag-editor UI with real UX decisions; (b) **hybrid search over the archive** — extend `memory_embeddings` (migration 10) semantic retrieval to sessions. Both want a product pass; split each into its own issue when picked up.
+- **[#48](https://github.com/DnaMes/lore/issues/48)** JSON-retirement exit criteria — architecture decision (when the legacy index.json path is fully retired in favour of v2).
+- **[#33](https://github.com/DnaMes/lore/issues/33)** shared-memory vision — architecture.
+- **[#29](https://github.com/DnaMes/lore/issues/29)** MCP-over-HTTP transport — feature.
+
+Also open as a tracked split-out: none — #83 (burst folding) and #79 (tool_call shape) both shipped this session.
+
+These four need you to decide direction (build user-tags? when to drop JSON? HTTP transport priority?) before code. Not loop-fixable.
 
 ## ⚠️ repo-autosync gotcha (cost me a near-miss this session)
 
