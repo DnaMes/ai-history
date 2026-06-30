@@ -208,6 +208,24 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         ALTER TABLE sessions ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        12,
+        "user-editable session tags / bookmarks (#56)",
+        # session_id is a LOOSE reference, NOT a foreign key: a user may tag a
+        # session before it is synced into the v2 store (or one extracted on a
+        # different machine), so an FK would reject valid tags. The tags survive
+        # index rebuilds (unlike the LLM-generated tags in the flat index).
+        # "bookmark" is just a reserved tag value the UI can treat specially.
+        """
+        CREATE TABLE IF NOT EXISTS session_tags (
+            session_id TEXT NOT NULL,
+            tag        TEXT NOT NULL,
+            created    TEXT NOT NULL,
+            PRIMARY KEY (session_id, tag)
+        );
+        CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag);
+        """,
+    ),
 ]
 
 
