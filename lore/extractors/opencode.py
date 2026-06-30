@@ -213,8 +213,21 @@ class LoadStats:
 class OpenCodeExtractor(BaseExtractor):
     """Extract chat history from OpenCode."""
 
-    # Maximum characters per tool part to prevent memory issues
-    MAX_TOOL_PART_CHARS = 50000
+    # Sanity cap per tool output — only guards against pathological multi-MB dumps;
+    # raised from 50k so normal tool results are kept in full, matching the claude
+    # extractor's full-result behaviour (#54). When the cap does fire, the tool_call
+    # carries truncated=True so the UI can badge it.
+    MAX_TOOL_PART_CHARS = 2_000_000
+
+    def _clamp_tool_output(self, tool_output):
+        """Return (output, truncated) — clamp only pathological outputs (#54)."""
+        if isinstance(tool_output, str) and len(tool_output) > self.MAX_TOOL_PART_CHARS:
+            clamped = (
+                tool_output[: self.MAX_TOOL_PART_CHARS]
+                + f"\n... (truncated, {len(tool_output)} chars total)"
+            )
+            return clamped, True
+        return tool_output, False
 
     def __init__(self, force_full=True):
         self.storage_path = Path.home() / ".local" / "share" / "opencode" / "storage"
@@ -596,11 +609,7 @@ class OpenCodeExtractor(BaseExtractor):
                 tool_output = state.get("output", "") if isinstance(state, dict) else ""
                 status = state.get("status", "unknown") if isinstance(state, dict) else "unknown"
 
-                if isinstance(tool_output, str) and len(tool_output) > self.MAX_TOOL_PART_CHARS:
-                    tool_output = (
-                        tool_output[: self.MAX_TOOL_PART_CHARS]
-                        + f"\n... (truncated, {len(tool_output)} chars total)"
-                    )
+                tool_output, was_truncated = self._clamp_tool_output(tool_output)
 
                 tool_calls.append(
                     {
@@ -609,6 +618,7 @@ class OpenCodeExtractor(BaseExtractor):
                         "status": status,
                         "input": tool_input,
                         "output": tool_output,
+                        "truncated": was_truncated,
                     }
                 )
 
@@ -811,12 +821,8 @@ class OpenCodeExtractor(BaseExtractor):
                 tool_output = state.get("output", "")
                 status = state.get("status", "unknown")
 
-                # Truncate large tool outputs
-                if isinstance(tool_output, str) and len(tool_output) > self.MAX_TOOL_PART_CHARS:
-                    tool_output = (
-                        tool_output[: self.MAX_TOOL_PART_CHARS]
-                        + f"\n... (truncated, {len(tool_output)} chars total)"
-                    )
+                # Clamp only pathological multi-MB dumps (#54).
+                tool_output, was_truncated = self._clamp_tool_output(tool_output)
 
                 # Add to tool_calls list
                 tool_calls.append(
@@ -826,6 +832,7 @@ class OpenCodeExtractor(BaseExtractor):
                         "status": status,
                         "input": tool_input,
                         "output": tool_output,
+                        "truncated": was_truncated,
                     }
                 )
 

@@ -134,6 +134,7 @@ def test_opencode_sqlite_batches_parts_per_session(tmp_path, monkeypatch):
             "status": "completed",
             "input": {"filePath": "/tmp/demo.py"},
             "output": "ok",
+            "truncated": False,
         }
     ]
     assert messages[1].model == "openai/gpt-test"
