@@ -56,6 +56,37 @@ def has_structured_tool_calls(message) -> bool:
     return bool(calls)
 
 
+def fold_tool_bursts(tool_calls):
+    """Collapse runs of identical consecutive tool calls into one ``×N`` card (#83).
+
+    Long tool-heavy sessions often repeat the exact same call (same tool, same
+    args, same output) many times in a row. Folding those into a single card with
+    a count keeps the transcript scannable. Only *exactly identical consecutive*
+    calls fold — anything that differs renders normally, so no information is lost.
+    """
+    from lore.core.models import normalize_tool_call
+
+    if not tool_calls:
+        return []
+
+    folded = []
+    for raw in tool_calls:
+        call = normalize_tool_call(raw)
+        if folded:
+            prev = folded[-1]
+            same = (
+                prev["tool"] == call["tool"]
+                and prev.get("input") == call.get("input")
+                and prev.get("output") == call.get("output")
+            )
+            if same:
+                prev["_burst_count"] = prev.get("_burst_count", 1) + 1
+                continue
+        call["_burst_count"] = 1
+        folded.append(call)
+    return folded
+
+
 def render_message_body(
     message,
     *,
@@ -80,7 +111,7 @@ def render_message_body(
         prose_source = strip_tool_blocks(content)
         if prose_source:
             prose_html = format_message_content_fn(prose_source)
-        tools_html = format_tool_calls_fn(message.tool_calls)
+        tools_html = format_tool_calls_fn(fold_tool_bursts(message.tool_calls))
         return "\n".join(part for part in (prose_html, tools_html) if part)
 
     if content:
