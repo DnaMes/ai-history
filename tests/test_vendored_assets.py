@@ -44,8 +44,12 @@ def test_static_route_serves_asset(client, name):
 
 
 def test_templates_reference_no_cdn():
-    """No CDN host may appear in any rendered HTML template string."""
-    from lore.interfaces import web_templates
+    """No CDN host may appear in any template file (#30 — templates are now files)."""
+    from pathlib import Path
+
+    templates_dir = Path(__file__).resolve().parent.parent / "lore" / "templates"
+    template_files = sorted(templates_dir.glob("*.html"))
+    assert template_files, "no template files found under lore/templates/"
 
     cdn_hosts = (
         "cdn.tailwindcss.com",
@@ -54,14 +58,10 @@ def test_templates_reference_no_cdn():
         "fonts.googleapis.com",
         "fonts.gstatic.com",
     )
-    for attr in dir(web_templates):
-        if not attr.endswith("_TEMPLATE"):
-            continue
-        value = getattr(web_templates, attr)
-        if not isinstance(value, str):
-            continue
+    for tpl in template_files:
+        value = tpl.read_text(encoding="utf-8")
         for host in cdn_hosts:
-            assert host not in value, f"{attr} still references CDN host {host}"
+            assert host not in value, f"{tpl.name} still references CDN host {host}"
 
 
 def test_dashboard_links_local_assets(client):

@@ -1,12 +1,13 @@
-BASE_TEMPLATE = """
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
+    <title>Noise Rules</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='system-ui' font-size='16' font-weight='bold' fill='white'%3EH%3C/text%3E%3C/svg%3E">
-    <script nonce="{{ nonce }}">
+    <script nonce="NONCE">
         (() => {
             try {
                 const saved = localStorage.getItem('aihistory-theme') || 'light';
@@ -19,7 +20,7 @@ BASE_TEMPLATE = """
     </script>
     <script src="/static/tailwind-3.4.16.min.js"></script>
     <link rel="stylesheet" href="/static/highlight-github-11.9.0.min.css">
-    <script nonce="{{ nonce }}">
+    <script nonce="NONCE">
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -34,7 +35,7 @@ BASE_TEMPLATE = """
             }
         }
     </script>
-    <style nonce="{{ nonce }}">
+    <style nonce="NONCE">
         :root {
             --bg: #f6f7fb;
             --text: #0f172a;
@@ -615,7 +616,7 @@ BASE_TEMPLATE = """
             #appSidebar { transform: none !important; position: static; }
         }
     </style>
-    <script nonce="{{ nonce }}">
+    <script nonce="NONCE">
         /* Theme Switcher */
         (function() {
             const THEME_KEY = 'aihistory-theme';
@@ -667,7 +668,7 @@ BASE_TEMPLATE = """
 
                     const lang = document.createElement('span');
                     lang.className = 'code-block-lang';
-                    lang.textContent = pre.className.match(/language-(\\w+)/)?.[1] || 'code';
+                    lang.textContent = pre.className.match(/language-(\w+)/)?.[1] || 'code';
 
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'code-block-copy';
@@ -699,28 +700,28 @@ BASE_TEMPLATE = """
                 <span class="text-slate-900 title-font">Lore</span>
             </a>
             <div class="flex-1 px-3 min-h-0 overflow-y-auto space-y-1 pb-4">
-                <a href="/" class="sidebar-link {{ 'active' if active=='dashboard' else '' }}">Dashboard</a>
-                <a href="/sessions" class="sidebar-link {{ 'active' if active=='sessions' else '' }}">Sessions</a>
-                <a href="/projects" class="sidebar-link {{ 'active' if active=='projects' else '' }}">Projects</a>
-                <a href="/threads" class="sidebar-link {{ 'active' if active=='threads' else '' }}">Threads</a>
-                <a href="/memory" class="sidebar-link {{ 'active' if active=='memory' else '' }}">Memory</a>
-                <a href="/stats" class="sidebar-link {{ 'active' if active=='stats' else '' }}">Stats</a>
-                <a href="/rules" class="sidebar-link {{ 'active' if active=='rules' else '' }}">Rules</a>
-                <a href="/noise-rules" class="sidebar-link {{ 'active' if active=='noise-rules' else '' }}">Noise Rules</a>
+                <a href="/" class="sidebar-link ">Dashboard</a>
+                <a href="/sessions" class="sidebar-link ">Sessions</a>
+                <a href="/projects" class="sidebar-link ">Projects</a>
+                <a href="/threads" class="sidebar-link ">Threads</a>
+                <a href="/memory" class="sidebar-link ">Memory</a>
+                <a href="/stats" class="sidebar-link ">Stats</a>
+                <a href="/rules" class="sidebar-link ">Rules</a>
+                <a href="/noise-rules" class="sidebar-link active">Noise Rules</a>
                 <div class="mt-8 mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Recent Activity</div>
                 <div class="space-y-1">
-                    {% for s in recent %}
-    <a href="/session/{{ s.id|urlpath }}?back={{ nav_back|urlpath }}" class="sidebar-link text-xs" title="{{ s.display_title or s.title }}">
+                    
+    <a href="/session/session-1?back=%2Fnoise-rules" class="sidebar-link text-xs" title="Claude debugging session">
                         <span class="flex items-center gap-2 min-w-0">
-                            <span class="w-6 h-6 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-[10px]" style="color: {{ get_style(s.tool).color }}">{{ get_style(s.tool).icon }}</span>
-                            <span class="truncate">{{ s.display_title or s.title or s.id[:12] }}</span>
+                            <span class="w-6 h-6 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-[10px]" style="color: #C084FC">C</span>
+                            <span class="truncate">Claude debugging session</span>
                         </span>
                     </a>
-                    {% endfor %}
+                    
                 </div>
             </div>
             <div class="mt-auto px-5 py-3 border-t border-slate-200/70 text-[10px] text-slate-500 flex items-center justify-between">
-                <span class="font-mono">lore v{{ app_version }}</span>
+                <span class="font-mono">lore v2.4.0</span>
                 <a href="/api/build-info" class="hover:text-slate-700" aria-label="Build info">build</a>
             </div>
         </aside>
@@ -747,9 +748,27 @@ BASE_TEMPLATE = """
                             <button onclick="runSync('reload', '')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-blue-400"></span>All providers
                             </button>
-                            {% for provider in provider_tools %}<button onclick="runSync('reload', '{{ provider }}')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full" style="background:{{ get_style(provider).color }}"></span>{{ get_style(provider).name }}
-                            </button>{% endfor %}
+                            <button onclick="runSync('reload', 'claude-code')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#C084FC"></span>Claude
+                            </button><button onclick="runSync('reload', 'cursor')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#3B82F6"></span>Cursor
+                            </button><button onclick="runSync('reload', 'gemini-cli')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#60A5FA"></span>Gemini
+                            </button><button onclick="runSync('reload', 'warp')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#2DD4BF"></span>Warp
+                            </button><button onclick="runSync('reload', 'codex')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#22C55E"></span>Codex
+                            </button><button onclick="runSync('reload', 'vscode-copilot')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#0ea5e9"></span>VSCode Copilot
+                            </button><button onclick="runSync('reload', 'copilot-cli')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#0284c7"></span>Copilot CLI
+                            </button><button onclick="runSync('reload', 'opencode')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#F97316"></span>OpenCode
+                            </button><button onclick="runSync('reload', 'antigravity')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#8B5CF6"></span>Antigravity
+                            </button><button onclick="runSync('reload', 'aider')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full" style="background:#14B8A6"></span>Aider
+                            </button>
                             <button onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
                                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>Full rebuild (slow)
                             </button>
@@ -763,18 +782,7 @@ BASE_TEMPLATE = """
                         </div>
                     </div>
                     <button id="cancelActionBtn" type="button" aria-label="Cancel" onclick="cancelActiveAction()" class="cancel-toggle border rounded-lg px-3 py-1.5 text-xs" disabled hidden>Cancel</button>
-                    {% if show_session_controls %}
-                    <details id="viewMenu" class="relative">
-                        <summary class="density-toggle border rounded-lg px-3 py-1.5 text-xs list-none cursor-pointer" aria-label="View options">View</summary>
-                        <div class="absolute right-0 mt-2 w-40 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 flex flex-col gap-0.5 z-30">
-                            <button id="cleanToggle" type="button" onclick="toggleCleanMode()" class="density-toggle border text-left rounded-lg px-2 py-1.5 text-xs" aria-pressed="false">Clean</button>
-                            <button id="ultraCleanToggle" type="button" onclick="toggleUltraClean()" class="density-toggle border text-left rounded-lg px-2 py-1.5 text-xs" aria-pressed="false">Ultra</button>
-                            <button id="readabilityToggle" type="button" onclick="toggleReadability()" class="density-toggle border text-left rounded-lg px-2 py-1.5 text-xs" aria-pressed="false">Readable</button>
-                            <button id="presenterToggle" type="button" onclick="togglePresenterMode()" class="density-toggle border text-left rounded-lg px-2 py-1.5 text-xs" aria-pressed="false">Present</button>
-                            <button id="densityToggle" type="button" onclick="toggleDensity()" class="density-toggle border text-left rounded-lg px-2 py-1.5 text-xs" aria-pressed="false">Compact</button>
-                        </div>
-                    </details>
-                    {% endif %}
+                    
                     <div class="theme-dropdown" id="themeDropdown">
                         <button id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false" aria-haspopup="menu" aria-expanded="false" class="theme-toggle w-9 h-9 rounded-full border text-slate-500 flex items-center justify-center" title="Select theme">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
@@ -784,7 +792,7 @@ BASE_TEMPLATE = """
                             <button type="button" role="menuitemradio" aria-checked="false" class="theme-option" data-theme="dark" onclick="selectTheme('dark')"><span class="theme-swatch" style="background:#0f172a"></span><span class="theme-option-label">Dark</span><svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></button>
                         </div>
                     </div>
-                    <script nonce="{{ nonce }}">
+                    <script nonce="NONCE">
                     (function(){
                       function syncExpanded(dropdownId, btnId){
                         var dd=document.getElementById(dropdownId);
@@ -842,7 +850,465 @@ BASE_TEMPLATE = """
                 <div id="actionStatus" role="status" aria-live="polite" aria-atomic="true" class="text-[11px] text-slate-500 min-h-[16px]"></div>
             </div>
             <div class="flex-1 min-h-0 overflow-y-auto">
-                {% block content %}{% endblock %}
+                
+<section class="max-w-4xl mx-auto px-8 py-10">
+    <div class="surface-card p-6">
+        <div class="flex items-center justify-between gap-4 mb-6">
+            <div>
+                <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Readability</div>
+                <h1 class="title-font page-headline text-slate-900 mt-2">Noise Rules</h1>
+                <p class="text-sm text-slate-500 mt-2">Configure provider-specific cleanup rules for session rendering.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="noiseRulesResetBtn" class="density-toggle border">Reset to Saved</button>
+                <button type="button" id="noiseRulesSaveBtn" class="density-toggle border">Save</button>
+            </div>
+        </div>
+
+        <div class="list-row p-4 mb-4">
+            <div class="text-xs font-semibold text-slate-900 mb-3">Presets</div>
+            <div class="flex flex-wrap gap-2" id="noisePresetBar">
+                
+                <button
+                    type="button"
+                    class="density-toggle border"
+                    data-preset="balanced"
+                    title="Recommended default cleanup"
+                >Balanced</button>
+                
+                <button
+                    type="button"
+                    class="density-toggle border"
+                    data-preset="aggressive"
+                    title="Hide most repetitive operational noise"
+                >Aggressive Cleanup</button>
+                
+                <button
+                    type="button"
+                    class="density-toggle border"
+                    data-preset="minimal"
+                    title="Keep transcript mostly raw"
+                >Minimal Cleanup</button>
+                
+            </div>
+        </div>
+
+        <div class="space-y-4" id="noiseRulesForm">
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">default</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">strip_ansi_sequences</span>
+                        <input
+                            type="checkbox"
+                            data-provider="default"
+                            data-key="strip_ansi_sequences"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Claude</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">claude_strip_command_xml</span>
+                        <input
+                            type="checkbox"
+                            data-provider="claude-code"
+                            data-key="claude_strip_command_xml"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">claude_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="claude-code"
+                            data-key="claude_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Cursor</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">cursor_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="cursor"
+                            data-key="cursor_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Gemini</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">gemini_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="gemini-cli"
+                            data-key="gemini_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Codex</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">codex_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="codex"
+                            data-key="codex_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Copilot CLI</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">copilot_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="copilot-cli"
+                            data-key="copilot_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">VSCode Copilot</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">vscode_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="vscode-copilot"
+                            data-key="vscode_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">OpenCode</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">opencode_strip_user_caveat</span>
+                        <input
+                            type="checkbox"
+                            data-provider="opencode"
+                            data-key="opencode_strip_user_caveat"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">opencode_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="opencode"
+                            data-key="opencode_summarize_file_operations"
+                            
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">opencode_summarize_unset_env_vars</span>
+                        <input
+                            type="checkbox"
+                            data-provider="opencode"
+                            data-key="opencode_summarize_unset_env_vars"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Antigravity</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">antigravity_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="antigravity"
+                            data-key="antigravity_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+            <div class="list-row p-4">
+                <div class="text-xs font-semibold text-slate-900 mb-3">Warp</div>
+                <div class="space-y-2">
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">warp_drop_toolu_noise</span>
+                        <input
+                            type="checkbox"
+                            data-provider="warp"
+                            data-key="warp_drop_toolu_noise"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
+                        <span class="font-mono text-[12px]">warp_summarize_file_operations</span>
+                        <input
+                            type="checkbox"
+                            data-provider="warp"
+                            data-key="warp_summarize_file_operations"
+                            checked
+                            class="w-4 h-4"
+                        >
+                    </label>
+                    
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="mt-8 list-row p-4" id="noiseRulesPreview">
+            <div class="text-xs font-semibold text-slate-900 mb-3">Preview (before save)</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <select id="noisePreviewProvider" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
+                    
+                    <option value="claude-code">Claude</option>
+                    
+                    <option value="cursor">Cursor</option>
+                    
+                    <option value="gemini-cli">Gemini</option>
+                    
+                    <option value="warp">Warp</option>
+                    
+                    <option value="codex">Codex</option>
+                    
+                    <option value="vscode-copilot">VSCode Copilot</option>
+                    
+                    <option value="copilot-cli">Copilot CLI</option>
+                    
+                    <option value="opencode">OpenCode</option>
+                    
+                    <option value="antigravity">Antigravity</option>
+                    
+                    <option value="aider">Aider</option>
+                    
+                </select>
+                <select id="noisePreviewRole" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
+                    <option value="assistant">assistant</option>
+                    <option value="user">user</option>
+                </select>
+            </div>
+            <textarea id="noisePreviewInput" class="w-full min-h-[140px] bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-700" placeholder="Paste a noisy message here..."></textarea>
+            <div class="flex items-center gap-2 mt-3">
+                <button type="button" id="noiseRulesPreviewBtn" class="density-toggle border">Preview</button>
+                <span class="text-xs text-slate-500">Uses your current checkbox state, even before Save.</span>
+            </div>
+            <pre id="noisePreviewOutput" class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-700 whitespace-pre-wrap"></pre>
+        </div>
+    </div>
+</section>
+<script nonce="NONCE">
+    document.addEventListener('DOMContentLoaded', () => {
+        const saveBtn = document.getElementById('noiseRulesSaveBtn');
+        const resetBtn = document.getElementById('noiseRulesResetBtn');
+        const previewBtn = document.getElementById('noiseRulesPreviewBtn');
+        const presetBar = document.getElementById('noisePresetBar');
+        const presets = {"aggressive": {"description": "Hide most repetitive operational noise", "label": "Aggressive Cleanup", "rules": {"antigravity": {"antigravity_summarize_file_operations": true}, "claude-code": {"claude_strip_command_xml": true, "claude_summarize_file_operations": true}, "codex": {"codex_summarize_file_operations": true}, "copilot-cli": {"copilot_summarize_file_operations": true}, "cursor": {"cursor_summarize_file_operations": true}, "default": {"strip_ansi_sequences": true}, "gemini-cli": {"gemini_summarize_file_operations": true}, "opencode": {"opencode_strip_user_caveat": true, "opencode_summarize_file_operations": true, "opencode_summarize_unset_env_vars": true}, "vscode-copilot": {"vscode_summarize_file_operations": true}, "warp": {"warp_drop_toolu_noise": true, "warp_summarize_file_operations": true}}}, "balanced": {"description": "Recommended default cleanup", "label": "Balanced", "rules": {"antigravity": {"antigravity_summarize_file_operations": true}, "claude-code": {"claude_strip_command_xml": true, "claude_summarize_file_operations": true}, "codex": {"codex_summarize_file_operations": true}, "copilot-cli": {"copilot_summarize_file_operations": true}, "cursor": {"cursor_summarize_file_operations": true}, "default": {"strip_ansi_sequences": true}, "gemini-cli": {"gemini_summarize_file_operations": true}, "opencode": {"opencode_strip_user_caveat": true, "opencode_summarize_file_operations": true, "opencode_summarize_unset_env_vars": true}, "vscode-copilot": {"vscode_summarize_file_operations": true}, "warp": {"warp_drop_toolu_noise": true, "warp_summarize_file_operations": true}}}, "minimal": {"description": "Keep transcript mostly raw", "label": "Minimal Cleanup", "rules": {"antigravity": {"antigravity_summarize_file_operations": false}, "claude-code": {"claude_strip_command_xml": false, "claude_summarize_file_operations": false}, "codex": {"codex_summarize_file_operations": false}, "copilot-cli": {"copilot_summarize_file_operations": false}, "cursor": {"cursor_summarize_file_operations": false}, "default": {"strip_ansi_sequences": true}, "gemini-cli": {"gemini_summarize_file_operations": false}, "opencode": {"opencode_strip_user_caveat": false, "opencode_summarize_file_operations": false, "opencode_summarize_unset_env_vars": false}, "vscode-copilot": {"vscode_summarize_file_operations": false}, "warp": {"warp_drop_toolu_noise": false, "warp_summarize_file_operations": false}}}};
+
+        function collectRulesPayload() {
+            const inputs = Array.from(document.querySelectorAll('#noiseRulesForm input[type="checkbox"]'));
+            const payload = {};
+            for (const input of inputs) {
+                const provider = String(input.getAttribute('data-provider') || '').trim();
+                const key = String(input.getAttribute('data-key') || '').trim();
+                if (!provider || !key) continue;
+                if (!payload[provider]) payload[provider] = {};
+                payload[provider][key] = Boolean(input.checked);
+            }
+            return payload;
+        }
+
+        function applyRulesToInputs(rulesPayload) {
+            const rules = (rulesPayload && typeof rulesPayload === 'object') ? rulesPayload : {};
+            const inputs = Array.from(document.querySelectorAll('#noiseRulesForm input[type="checkbox"]'));
+            for (const input of inputs) {
+                const provider = String(input.getAttribute('data-provider') || '').trim();
+                const key = String(input.getAttribute('data-key') || '').trim();
+                if (!provider || !key) continue;
+                const providerRules = (rules[provider] && typeof rules[provider] === 'object') ? rules[provider] : {};
+                if (Object.prototype.hasOwnProperty.call(providerRules, key)) {
+                    input.checked = Boolean(providerRules[key]);
+                }
+            }
+        }
+
+        function applyPreset(presetKey) {
+            const preset = presets[presetKey];
+            if (!preset || !preset.rules) return;
+            const inputs = Array.from(document.querySelectorAll('#noiseRulesForm input[type="checkbox"]'));
+            for (const input of inputs) {
+                const provider = String(input.getAttribute('data-provider') || '').trim();
+                const key = String(input.getAttribute('data-key') || '').trim();
+                const providerRules = (preset.rules[provider] || {});
+                if (Object.prototype.hasOwnProperty.call(providerRules, key)) {
+                    input.checked = Boolean(providerRules[key]);
+                }
+            }
+        }
+
+        if (presetBar) {
+            presetBar.addEventListener('click', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                const presetKey = String(target.getAttribute('data-preset') || '').trim();
+                if (!presetKey) return;
+                applyPreset(presetKey);
+            });
+        }
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async () => {
+                const payload = collectRulesPayload();
+
+                const original = saveBtn.textContent;
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+                try {
+                    const response = await fetch('/api/noise-rules', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Save failed');
+                    saveBtn.textContent = 'Saved';
+                    setTimeout(() => { saveBtn.textContent = original || 'Save'; }, 1200);
+                } catch (error) {
+                    saveBtn.textContent = 'Save failed';
+                    setTimeout(() => { saveBtn.textContent = original || 'Save'; }, 1800);
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            });
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', async () => {
+                const original = resetBtn.textContent;
+                resetBtn.disabled = true;
+                resetBtn.textContent = 'Resetting...';
+                try {
+                    const response = await fetch('/api/noise-rules', {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Reset failed');
+                    applyRulesToInputs(data);
+                    resetBtn.textContent = 'Reset';
+                    setTimeout(() => { resetBtn.textContent = original || 'Reset to Saved'; }, 900);
+                } catch (error) {
+                    resetBtn.textContent = 'Reset failed';
+                    setTimeout(() => { resetBtn.textContent = original || 'Reset to Saved'; }, 1500);
+                } finally {
+                    resetBtn.disabled = false;
+                }
+            });
+        }
+
+        if (previewBtn) {
+            previewBtn.addEventListener('click', async () => {
+                const provider = String(document.getElementById('noisePreviewProvider')?.value || '').trim();
+                const role = String(document.getElementById('noisePreviewRole')?.value || 'assistant').trim();
+                const content = String(document.getElementById('noisePreviewInput')?.value || '');
+                const output = document.getElementById('noisePreviewOutput');
+                const payload = {
+                    tool: provider,
+                    role,
+                    content,
+                    noise_rules: collectRulesPayload(),
+                };
+
+                const original = previewBtn.textContent;
+                previewBtn.disabled = true;
+                previewBtn.textContent = 'Rendering...';
+                if (output) output.textContent = '';
+                try {
+                    const response = await fetch('/api/noise-rules/preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Preview failed');
+                    if (output) output.textContent = String(data.content || '');
+                } catch (error) {
+                    if (output) output.textContent = `Preview failed: ${error.message}`;
+                } finally {
+                    previewBtn.disabled = false;
+                    previewBtn.textContent = original || 'Preview';
+                }
+            });
+        }
+    });
+</script>
+
             </div>
         </main>
     </div>
@@ -855,7 +1321,7 @@ BASE_TEMPLATE = """
         </div>
     </div>
     <script src="/static/highlight-11.9.0.min.js"></script>
-    <script nonce="{{ nonce }}">
+    <script nonce="NONCE">
         if (typeof window.hljs !== 'undefined') {
             window.hljs.configure({ ignoreUnescapedHTML: true });
         }
@@ -868,7 +1334,7 @@ BASE_TEMPLATE = """
                     hljs.highlightElement(el);
                     el.dataset.highlighted = "true";
                     const pre = el.parentElement;
-                    const lines = el.innerText.split('\\n').length;
+                    const lines = el.innerText.split('\n').length;
                     const isLong = pre.scrollHeight > 400 || lines > 20;
 
                     if (isLong) {
@@ -909,12 +1375,12 @@ BASE_TEMPLATE = """
                         header.className = 'code-card-header';
                         let title = 'Code Block';
                         const classText = String(el.className || '');
-                        const langMatch = classText.match(/language-([\\w-]+)/i);
+                        const langMatch = classText.match(/language-([\w-]+)/i);
                         const language = langMatch ? langMatch[1].toLowerCase() : '';
-                        const firstLine = (el.innerText.split('\\n').find((line) => line.trim()) || '').trim();
+                        const firstLine = (el.innerText.split('\n').find((line) => line.trim()) || '').trim();
                         const prev = pre.previousElementSibling;
                         if (prev && /Update:/.test(prev.textContent || "")) {
-                            const match = prev.textContent.match(/Update:\\s*`([^`]+)`/);
+                            const match = prev.textContent.match(/Update:\s*`([^`]+)`/);
                             if (match) title = `Update: ${match[1]}`;
                         } else if (language === 'bash' || language === 'sh' || language === 'zsh') {
                             title = 'Shell Command';
@@ -1602,7 +2068,7 @@ BASE_TEMPLATE = """
         }
         document.addEventListener('DOMContentLoaded', initTocSpy);
     </script>
-    <script nonce="{{ nonce }}">
+    <script nonce="NONCE">
         (function () {
             const toggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('appSidebar');
@@ -1636,1127 +2102,3 @@ BASE_TEMPLATE = """
     </script>
 </body>
 </html>
-"""
-
-SESSION_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<div data-transcript-view="1" hidden></div>
-<section class="max-w-[90rem] mx-auto px-6 pt-6 pb-4">
-    <div class="surface-card flex flex-wrap items-center justify-between gap-4 px-5 py-4 backdrop-blur-xl">
-        <div class="min-w-0">
-            <h1 class="session-headline truncate">{{ session.title or 'Untitled Session' }}</h1>
-            <div class="session-meta mt-2">
-                <span>{{ session.created_at.strftime('%b %d') }}</span>
-                <span class="session-meta-dot"></span>
-                <span>via {{ style.name }}</span>
-                <span class="session-meta-dot"></span>
-                <span>{{ session.prompt_count }} prompts</span>
-                <span class="session-meta-dot"></span>
-                <span>{{ project_label(session.project_path) }}</span>
-            </div>
-            {% if session.thread_id %}
-            <div class="flex flex-wrap gap-2 mt-3">
-                <a href="/thread/{{ session.thread_id|urlpath }}" class="pill bg-white border border-slate-200 text-slate-500 font-mono hover:text-slate-900 transition-colors">{{ session.thread_id[-10:] }}</a>
-            </div>
-            {% endif %}
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-            {% if session.thread_id %}
-            <button onclick='copyCommand({{ ("ai-session switch gemini --thread-id " ~ session.thread_id)|tojson }})' class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Continue</button>
-            {% endif %}
-            <button onclick="copyLink(window.location.href)" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Link</button>
-            <button onclick="resumeSession({{ session.session_id|tojson }})" class="text-[11px] text-blue-600 hover:text-blue-900 border border-blue-200 px-3 py-1.5 rounded-xl transition-all bg-white">Resume</button>
-            <a href="/" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Dashboard</a>
-            <a href="/export/{{ session.session_id|urlpath }}" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Export MD</a>
-            <form action="/session/{{ session.session_id|urlpath }}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this session? This action cannot be undone.');" style="display:inline;">
-                <input type="hidden" name="next" value="{{ back_target or '/sessions' }}">
-                <button type="submit" class="text-[11px] text-red-600 hover:text-red-900 border border-red-200 px-3 py-1.5 rounded-xl transition-all bg-white">Delete</button>
-            </form>
-        </div>
-    </div>
-</section>
-
-<section class="max-w-[90rem] mx-auto px-6 pb-24">
-    <div class="flex flex-col lg:flex-row w-full">
-    <aside class="hidden lg:block lg:flex-grow lg:flex-shrink-[100] lg:basis-[550px] lg:min-w-[350px] lg:max-w-[550px] lg:pr-6">
-        <div class="toc-card sticky top-24 h-[calc(100vh-12rem)]">
-            <div class="toc-card-head">On this page</div>
-            <nav aria-label="Table of contents">
-            <ol class="toc-stepper toc-list space-y-0.5">
-                {% for item in toc_items %}
-                <li>
-                <a href="#msg-{{ item.index }}" class="toc-item" data-toc="msg-{{ item.index }}" title="{{ item.text }}">
-                    <span class="toc-badge">{{ loop.index }}</span>
-                    <span class="toc-item-text">{{ item.text }}</span>
-                    <span class="toc-item-meta">{{ item.time }}</span>
-                </a>
-                </li>
-                {% endfor %}
-                {% if toc_items|length == 0 %}
-                <li class="text-[11px] text-slate-500 px-3 py-2">No prompts detected.</li>
-                {% endif %}
-            </ol>
-            </nav>
-            <div class="toc-card-foot">{{ session.prompt_count }} prompts</div>
-        </div>
-    </aside>
-        {% set _messages_per_page = messages_per_page | default(40, true) %}
-        {% set _visible_pairs = visible_pairs if (visible_pairs is defined and visible_pairs is not none) else session.pairs %}
-        {% set _total_pairs = total_pairs | default(_visible_pairs | length, true) %}
-        {% set _message_pages = message_pages | default(1, true) %}
-        <div class="lg:flex-grow-0 lg:flex-shrink-1 lg:basis-[850px] lg:min-w-[500px] lg:px-8 space-y-6"
-             id="messageStream"
-             data-session-id="{{ session.session_id }}"
-             data-per-page="{{ _messages_per_page }}"
-             data-total-pairs="{{ _total_pairs }}"
-             data-pages="{{ _message_pages }}">
-        {% with pairs=_visible_pairs, pair_offset=0 %}{% include "session_pairs" %}{% endwith %}
-        {% if session.visible_count == 0 %}
-        <div class="text-sm text-slate-500 border border-slate-200 bg-white rounded-2xl p-4">
-            No messages were parsed for this session. Try `lore export --all` to rebuild the index.
-        </div>
-        {% endif %}
-        {% if _message_pages > 1 %}
-        <div class="flex justify-center mt-2">
-            <button type="button" id="loadMoreMessages" data-next-page="2"
-                    class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-5 py-2.5 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">
-                Load more messages
-            </button>
-        </div>
-        {% endif %}
-    </div>
-    </div>
-</section>
-
-<script nonce="{{ nonce }}">
-(function () {
-    const btn = document.getElementById('loadMoreMessages');
-    const stream = document.getElementById('messageStream');
-    if (!btn || !stream) return;
-    const totalPages = parseInt(stream.dataset.pages || '1', 10);
-    const perPage = parseInt(stream.dataset.perPage || '40', 10);
-    const sessionId = stream.dataset.sessionId || '';
-    btn.addEventListener('click', async function () {
-        const page = parseInt(btn.dataset.nextPage || '2', 10);
-        btn.disabled = true;
-        btn.textContent = 'Loading…';
-        const params = new URLSearchParams({ page: String(page) });
-        const live = new URLSearchParams(window.location.search).get('live');
-        if (live) params.set('live', live);
-        try {
-            const resp = await fetch(
-                '/session/' + encodeURIComponent(sessionId) + '/messages?' + params.toString(),
-                { credentials: 'same-origin' }
-            );
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const html = await resp.text();
-            btn.insertAdjacentHTML('beforebegin', html);
-            if (typeof hljs !== 'undefined') {
-                stream.querySelectorAll('pre code:not(.hljs)').forEach(function (el) {
-                    hljs.highlightElement(el);
-                });
-            }
-            // Tell the TOC spy to observe the freshly added #msg-N anchors.
-            window.dispatchEvent(new CustomEvent('lore:messages-appended'));
-            if (page + 1 > totalPages) {
-                btn.remove();
-            } else {
-                btn.dataset.nextPage = String(page + 1);
-                btn.disabled = false;
-                btn.textContent = 'Load more messages';
-            }
-        } catch (err) {
-            btn.disabled = false;
-            btn.textContent = 'Load more messages (retry)';
-        }
-    });
-})();
-</script>
-
-<!-- Resume session modal -->
-<div id="resume-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm hidden" aria-modal="true" role="dialog" aria-labelledby="resume-modal-title">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg mx-4 p-6">
-        <div class="flex items-start justify-between mb-4">
-            <h2 id="resume-modal-title" class="text-sm font-semibold text-slate-800 dark:text-slate-100">Resume Session</h2>
-            <button onclick="closeResumeModal()" class="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 ml-4" aria-label="Close">&times;</button>
-        </div>
-        <div id="resume-modal-body" class="text-sm text-slate-600 dark:text-slate-300"></div>
-    </div>
-</div>
-
-<script nonce="{{ nonce }}">
-let resumeTrapRelease = null;
-function resumeSession(sessionId) {
-    const modal = document.getElementById('resume-modal');
-    const body = document.getElementById('resume-modal-body');
-    body.innerHTML = '<span class="text-slate-500">Loading&hellip;</span>';
-    modal.classList.remove('hidden');
-    const dialog = modal.firstElementChild || modal;
-    if (resumeTrapRelease) { resumeTrapRelease(); resumeTrapRelease = null; }
-    if (window.FocusTrap) {
-        resumeTrapRelease = window.FocusTrap.activate(dialog);
-    }
-
-    fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-        if (data.error) {
-            body.innerHTML = '<p class="text-red-600">' + escHtml(data.error) + '</p>';
-            return;
-        }
-        if (!data.supported) {
-            body.innerHTML =
-                '<p class="text-amber-600 mb-2">' + escHtml(data.reason || 'Resume not supported for this tool.') + '</p>' +
-                (data.tool ? '<p class="text-xs text-slate-500">Tool: ' + escHtml(data.tool) + '</p>' : '');
-            return;
-        }
-        body.innerHTML =
-            '<p class="text-slate-500 text-xs mb-2">Run this command in your terminal:</p>' +
-            '<div class="relative group">' +
-              '<pre class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs font-mono text-slate-800 dark:text-slate-100 overflow-x-auto whitespace-pre-wrap break-all" id="resume-cmd-text">' + escHtml(data.command) + '</pre>' +
-              '<button onclick="copyResumeCmd()" class="absolute top-2 right-2 text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity" id="resume-copy-btn">Copy</button>' +
-            '</div>';
-    })
-    .catch(function(err) {
-        body.innerHTML = '<p class="text-red-600">Request failed: ' + escHtml(String(err)) + '</p>';
-    });
-}
-
-function closeResumeModal() {
-    const modal = document.getElementById('resume-modal');
-    if (!modal || modal.classList.contains('hidden')) return;
-    modal.classList.add('hidden');
-    if (resumeTrapRelease) { resumeTrapRelease(); resumeTrapRelease = null; }
-}
-
-function copyResumeCmd() {
-    const text = document.getElementById('resume-cmd-text').textContent || '';
-    navigator.clipboard.writeText(text.trim()).then(function() {
-        const btn = document.getElementById('resume-copy-btn');
-        btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
-    });
-}
-
-function escHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-document.getElementById('resume-modal').addEventListener('click', function(e) {
-    if (e.target === this) { closeResumeModal(); }
-});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { closeResumeModal(); }
-});
-</script>
-{% endblock %}
-"""
-
-# --- Simplified Dashboard and List ---
-DASHBOARD_TEMPLATE = """
-{# TODO(perf): Load summary stats from GET /api/v1/index/summary first (fast, no session data),
-   then populate the Recent Activity list lazily via GET /api/v1/sessions?page=1&per_page=10.
-   This avoids shipping the full index.json (can be 19MB+) on the initial page load.
-   Wire up with fetch() on DOMContentLoaded and replace the static Jinja blocks below. #}
-{% extends "base" %}
-{% block content %}
-<section class="max-w-6xl mx-auto px-8 py-10">
-    <div class="flex flex-wrap items-center justify-between gap-6 mb-10">
-        <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</div>
-            <h1 class="title-font page-headline text-slate-900 mt-2">Overview</h1>
-            <p class="text-sm text-slate-500 mt-2">All sessions, tools, and projects in one place.</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <a href="/export/index" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-2 rounded-xl bg-white">Export Index</a>
-            <button type="button" onclick="openSearch()" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-2 rounded-xl bg-white">New Session</button>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Sessions</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ stats.total_sessions }}</div>
-        </div>
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Messages</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ stats.total_messages }}</div>
-        </div>
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Tools</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ stats.by_tool|length }}</div>
-        </div>
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Projects</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ stats.by_project|length }}</div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div class="lg:col-span-2">
-            <div class="flex items-center justify-between mb-5">
-                <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Recent Activity</h2>
-                <a href="/sessions" class="text-xs text-slate-500 hover:text-slate-900">View all</a>
-            </div>
-            <div class="compact-list">
-                {% for s in recent_sessions %}
-                <a href="/session/{{ s.id|urlpath }}" class="compact-row flex items-center gap-3 group">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200" style="color: {{ get_style(s.tool).color }}">
-                        {{ get_style(s.tool).icon }}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="compact-title text-slate-900 group-hover:text-slate-900 truncate">{{ s.display_title or s.title or 'Untitled Session' }}</div>
-                        <div class="text-[10px] text-slate-500 mt-1 uppercase tracking-tight">via {{ get_style(s.tool).name }} • {{ s.created[:10] }}</div>
-                    </div>
-                    <div class="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-full">{{ s.prompts or s.messages }} prompts</div>
-                </a>
-                {% else %}
-                <div class="compact-row text-sm text-slate-500">No sessions yet. Run <code>lore sync --all</code> and refresh to import your AI conversations.</div>
-                {% endfor %}
-            </div>
-        </div>
-        <div>
-            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Tools</h2>
-            <div class="space-y-2">
-                {% for tool in all_tools %}
-                {% set count = stats.by_tool.get(tool, 0) %}
-                <a href="/sessions?tool={{ tool }}" class="list-row flex items-center justify-between p-3 group">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full" style="background: {{ get_style(tool).color }}"></div>
-                        <span class="text-sm text-slate-600 group-hover:text-slate-900">{{ get_style(tool).name }}</span>
-                    </div>
-                    <span class="text-[10px] font-mono text-slate-500 group-hover:text-slate-700">{{ count }}</span>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</section>
-{% endblock %}
-"""
-
-# Just the message-cluster loop, shared by the full session page and the
-# lazy-load "Load more messages" fragment. ``pair_offset`` keeps the turn
-# index badges continuous across pages.
-SESSION_PAIRS_TEMPLATE = """
-{% for pair in pairs %}
-<div class="message-cluster">
-    {% if pair.user %}
-    <div id="msg-{{ pair.user.index }}" class="turn-row user group">
-        <div class="turn-gutter">
-            <span class="turn-index user">{{ loop.index + pair_offset }}</span>
-        </div>
-        <div class="turn-content user-content">
-            <div class="flex items-center justify-between mb-2">
-                <div class="role-badge">
-                    <span class="prompt-icon" title="You">You</span>
-                    <span>Prompt</span>
-                </div>
-                <div class="text-[10px] text-slate-500 font-mono opacity-60">{{ pair.user.timestamp.strftime('%H:%M') }}</div>
-            </div>
-            <div class="message-card user-card p-4">
-                <div class="prose max-w-none antialiased">
-                    {% if pair.user.formatted_reasoning %} {{ pair.user.formatted_reasoning | safe }} {% endif %}
-                    {{ pair.user.formatted_content | safe }}
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    <div class="assistant-stream">
-    {% for resp in pair.responses %}
-    <div class="assistant-entry turn-row assistant group">
-        <div class="turn-gutter">
-            <span class="turn-index assistant">A</span>
-        </div>
-        <div class="turn-content assistant-content">
-            <div class="flex items-center justify-between mb-2">
-                <div class="role-badge">
-                    <span class="response-icon" title="{{ style.name }}">AI</span>
-                    <span>{{ style.name }}</span>
-                    {% if resp.model %}<span class="model-chip" title="model">{{ resp.model }}</span>{% endif %}
-                    {% if resp.tokens %}
-                        {% if resp.tokens.get('input') %}<span class="token-chip" title="input tokens">↑{{ resp.tokens.get('input') }}</span>{% endif %}
-                        {% if resp.tokens.get('output') %}<span class="token-chip" title="output tokens">↓{{ resp.tokens.get('output') }}</span>{% endif %}
-                    {% endif %}
-                </div>
-                <div class="message-time">{{ resp.timestamp.strftime('%H:%M') }}</div>
-            </div>
-            <div class="message-card assistant-card p-4">
-                <div class="prose max-w-none antialiased">
-                    {% if resp.formatted_reasoning %} {{ resp.formatted_reasoning | safe }} {% endif %}
-                    {{ resp.formatted_content | safe }}
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-    </div>
-</div>
-{% endfor %}
-"""
-
-# Just the <a>...row markup, shared by the full page and the lazy-load fragment.
-SESSION_ROWS_TEMPLATE = """
-{% for s in sessions %}
-<div class="compact-row flex items-start gap-3 group">
-    <a href="/session/{{ s.id|urlpath }}?back={{ (back_to or '/sessions')|urlpath }}" class="flex items-center gap-3 flex-1">
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200" style="color: {{ get_style(s.tool).color }}">
-            {{ get_style(s.tool).icon }}
-        </div>
-        <div class="flex-1 min-w-0">
-            <div class="compact-title text-slate-900 group-hover:text-slate-900 truncate">{{ s.display_title or s.title or s.id }}</div>
-            {% if s.prompt_outline %}
-            <div class="text-xs text-slate-500 mt-2">{{ s.prompt_outline }}</div>
-            {% endif %}
-            <div class="flex flex-wrap gap-2 mt-3 text-[10px]">
-                <span class="tag-chip">via {{ get_style(s.tool).name }}</span>
-                <span class="tag-chip">{{ project_label(s.project) }}</span>
-                <span class="tag-chip">{{ s.prompts or s.messages }} prompts</span>
-            </div>
-        </div>
-        <div class="text-[10px] font-mono text-slate-500 group-hover:text-slate-700">{{ s.created[:10] }}</div>
-    </a>
-    <form action="/session/{{ s.id|urlpath }}/delete" method="POST" onsubmit="return confirm('Delete this session?');" class="ml-2">
-        <input type="hidden" name="next" value="{{ back_to or '/sessions' }}">
-        <button type="submit" aria-label="Delete session {{ s.display_title or s.title or s.id }}" class="text-red-600 hover:text-red-900 border border-red-200 p-1.5 rounded-lg transition-all bg-white"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </form>
-</div>
-{% endfor %}
-"""
-
-SESSIONS_LIST_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<section class="max-w-5xl mx-auto px-8 py-10">
-    <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
-        <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Archive</div>
-            <h1 class="title-font page-headline text-slate-900 mt-2">Sessions</h1>
-            <p class="text-sm text-slate-500 mt-2">{{ total }} session{{ '' if total == 1 else 's' }}</p>
-        </div>
-    </div>
-    <form method="get" data-autosubmit="true" class="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-8">
-        <select name="tool" onchange="this.form.submit()" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-            <option value="">All Tools</option>
-            {% for t in tools %}<option value="{{ t }}" {{ 'selected' if tool==t else '' }}>{{ get_style(t).name }}</option>{% endfor %}
-        </select>
-        <select name="tag" onchange="this.form.submit()" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-            <option value="">All Tags</option>
-            {% for t in tags %}<option value="{{ t }}" {{ 'selected' if tag==t else '' }}>{{ t }}</option>{% endfor %}
-        </select>
-        <input type="date" name="start" onchange="this.form.submit()" value="{{ start or '' }}" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-        <input type="date" name="end" onchange="this.form.submit()" value="{{ end or '' }}" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-        <button type="submit" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">Apply</button>
-    </form>
-    <div class="compact-list" id="sessionRows"
-         data-tool="{{ tool }}" data-tag="{{ tag }}" data-start="{{ start or '' }}"
-         data-end="{{ end or '' }}" data-back="{{ back_to or '/sessions' }}"
-         data-per-page="{{ per_page }}" data-pages="{{ pages }}">
-        {% include "session_rows" %}
-    </div>
-    {% if pages > 1 %}
-    <div class="flex justify-center mt-8">
-        <button type="button" id="loadMoreSessions" data-next-page="2"
-                class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-5 py-2.5 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">
-            Load more
-        </button>
-    </div>
-    {% endif %}
-</section>
-<script nonce="{{ nonce }}">
-(function () {
-    const btn = document.getElementById('loadMoreSessions');
-    const rows = document.getElementById('sessionRows');
-    if (!btn || !rows) return;
-    const totalPages = parseInt(rows.dataset.pages || '1', 10);
-    btn.addEventListener('click', async function () {
-        const page = parseInt(btn.dataset.nextPage || '2', 10);
-        btn.disabled = true;
-        btn.textContent = 'Loading…';
-        const params = new URLSearchParams({
-            page: String(page),
-            tool: rows.dataset.tool || '',
-            tag: rows.dataset.tag || '',
-            start: rows.dataset.start || '',
-            end: rows.dataset.end || '',
-        });
-        try {
-            const resp = await fetch('/sessions/rows?' + params.toString(), { credentials: 'same-origin' });
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const html = await resp.text();
-            rows.insertAdjacentHTML('beforeend', html);
-            if (page + 1 > totalPages) {
-                btn.remove();
-            } else {
-                btn.dataset.nextPage = String(page + 1);
-                btn.disabled = false;
-                btn.textContent = 'Load more';
-            }
-        } catch (err) {
-            btn.disabled = false;
-            btn.textContent = 'Load more (retry)';
-        }
-    });
-})();
-</script>
-{% endblock %}
-"""
-
-RULES_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<div class="p-10 max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Rules</h1>
-    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <p class="text-xs text-slate-500 mb-4">Rules are project-level instruction files and operating guidelines collected from your workspace (for example AGENTS.md / CLAUDE.md style docs).</p>
-        {% if rules %}
-        <div class="prose max-w-none antialiased">{{ rules | safe }}</div>
-        {% else %}
-        <div class="text-sm text-slate-500">No rules yet. Run `lore rules --rebuild` to generate.</div>
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
-"""
-
-MEMORY_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<section class="max-w-4xl mx-auto px-8 py-10">
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Knowledge</div>
-            <h1 class="title-font page-headline text-slate-900 mt-2">Memory</h1>
-            <p class="text-sm text-slate-500 mt-2">
-                {{ total }} entr{{ 'y' if total == 1 else 'ies' }} — facts, decisions and lessons
-                any AI tool can record and recall.
-            </p>
-        </div>
-    </div>
-
-    <form method="get" class="flex flex-wrap items-center gap-3 mb-8">
-        <input type="text" name="q" value="{{ query or '' }}"
-               placeholder="Search memory…" aria-label="Search memory"
-               class="flex-1 min-w-[12rem] bg-white border border-slate-200 text-sm text-slate-700 rounded-xl px-3 py-2 outline-none focus:border-slate-300">
-        <select name="kind" aria-label="Filter by kind"
-                class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300">
-            <option value="">All kinds</option>
-            {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if kind==k else '' }}>{{ k }}</option>{% endfor %}
-        </select>
-        <label class="flex items-center gap-2 text-[11px] text-slate-600 uppercase tracking-widest font-semibold">
-            <input type="checkbox" name="semantic" value="1" {{ 'checked' if semantic else '' }} class="w-4 h-4">
-            Semantic
-        </label>
-        <button type="submit"
-                class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-4 py-2 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">
-            Search
-        </button>
-    </form>
-
-    {% if semantic and not semantic_available %}
-    <div class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-6">
-        Semantic search needs the optional embedding model
-        (<span class="font-mono">pip install -e ".[semantic]"</span>) — showing keyword results instead.
-    </div>
-    {% endif %}
-
-    <div class="space-y-3">
-        {% for m in memories %}
-        <article class="surface-card p-5">
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="tag-chip uppercase">{{ m.kind }}</span>
-                        {% if m.scope_project %}<span class="tag-chip">{{ project_label(m.scope_project) }}</span>{% endif %}
-                        {% if m.scope_tool %}<span class="tag-chip">{{ m.scope_tool }}</span>{% endif %}
-                    </div>
-                    {# SECURITY (#43): memory is agent-writable — title/body
-                       MUST stay {{ }}-escaped. Never switch these to | safe
-                       without routing through nh3 sanitisation first. #}
-                    <h2 class="text-sm font-semibold text-slate-900">{{ m.title }}</h2>
-                    <p class="text-sm text-slate-600 mt-1.5 whitespace-pre-wrap">{{ m.body }}</p>
-                    <div class="flex flex-wrap gap-1.5 mt-3">
-                        {% for tag in m.tags %}<span class="tag-chip text-[10px]">#{{ tag }}</span>{% endfor %}
-                    </div>
-                </div>
-                <form action="/memory/{{ m.id }}/delete" method="POST"
-                      onsubmit="return confirm('Delete this memory?');">
-                    <button type="submit" aria-label="Delete memory {{ m.title }}"
-                            class="text-[10px] text-red-600 hover:text-red-900 border border-red-200 px-2 py-1 rounded-lg bg-white transition-all">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="2.5" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-                    </button>
-                </form>
-            </div>
-            <div class="text-[10px] text-slate-500 mt-3 uppercase tracking-tight">
-                {{ m.author or 'unknown' }} · {{ m.created[:10] }}
-            </div>
-            {% if m.sources %}
-            <div class="text-[10px] text-slate-500 mt-2 flex flex-wrap gap-1.5 items-center">
-                <span class="uppercase tracking-tight">From:</span>
-                {% for src in m.sources %}
-                <a href="/session/{{ src.session_id|urlpath }}" class="tag-chip hover:text-slate-900"
-                   title="Session this memory was recorded from">{{ src.session_id[:16] }}</a>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </article>
-        {% else %}
-        <div class="surface-card p-8 text-center">
-            <p class="text-sm text-slate-600">No memory entries{{ ' match your search' if query else ' yet' }}.</p>
-            <p class="text-xs text-slate-500 mt-2">
-                Record one with <span class="font-mono">lore memory add</span>, or let an
-                AI agent write to it via the <span class="font-mono">memory_write</span> MCP tool.
-            </p>
-        </div>
-        {% endfor %}
-    </div>
-</section>
-{% endblock %}
-"""
-
-NOISE_RULES_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<section class="max-w-4xl mx-auto px-8 py-10">
-    <div class="surface-card p-6">
-        <div class="flex items-center justify-between gap-4 mb-6">
-            <div>
-                <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Readability</div>
-                <h1 class="title-font page-headline text-slate-900 mt-2">Noise Rules</h1>
-                <p class="text-sm text-slate-500 mt-2">Configure provider-specific cleanup rules for session rendering.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" id="noiseRulesResetBtn" class="density-toggle border">Reset to Saved</button>
-                <button type="button" id="noiseRulesSaveBtn" class="density-toggle border">Save</button>
-            </div>
-        </div>
-
-        <div class="list-row p-4 mb-4">
-            <div class="text-xs font-semibold text-slate-900 mb-3">Presets</div>
-            <div class="flex flex-wrap gap-2" id="noisePresetBar">
-                {% for preset_key, preset in noise_rule_presets.items() %}
-                <button
-                    type="button"
-                    class="density-toggle border"
-                    data-preset="{{ preset_key }}"
-                    title="{{ preset.description }}"
-                >{{ preset.label }}</button>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="space-y-4" id="noiseRulesForm">
-            {% for provider, rules in noise_rules.items() %}
-            <div class="list-row p-4">
-                <div class="text-xs font-semibold text-slate-900 mb-3">{{ get_style(provider).name if provider in provider_tools else provider }}</div>
-                <div class="space-y-2">
-                    {% for key, value in rules.items() %}
-                    <label class="flex items-center justify-between gap-4 text-sm text-slate-600">
-                        <span class="font-mono text-[12px]">{{ key }}</span>
-                        <input
-                            type="checkbox"
-                            data-provider="{{ provider }}"
-                            data-key="{{ key }}"
-                            {% if value %}checked{% endif %}
-                            class="w-4 h-4"
-                        >
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="mt-8 list-row p-4" id="noiseRulesPreview">
-            <div class="text-xs font-semibold text-slate-900 mb-3">Preview (before save)</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                <select id="noisePreviewProvider" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-                    {% for provider in provider_tools %}
-                    <option value="{{ provider }}">{{ get_style(provider).name }}</option>
-                    {% endfor %}
-                </select>
-                <select id="noisePreviewRole" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-                    <option value="assistant">assistant</option>
-                    <option value="user">user</option>
-                </select>
-            </div>
-            <textarea id="noisePreviewInput" class="w-full min-h-[140px] bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-700" placeholder="Paste a noisy message here..."></textarea>
-            <div class="flex items-center gap-2 mt-3">
-                <button type="button" id="noiseRulesPreviewBtn" class="density-toggle border">Preview</button>
-                <span class="text-xs text-slate-500">Uses your current checkbox state, even before Save.</span>
-            </div>
-            <pre id="noisePreviewOutput" class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-700 whitespace-pre-wrap"></pre>
-        </div>
-    </div>
-</section>
-<script nonce="{{ nonce }}">
-    document.addEventListener('DOMContentLoaded', () => {
-        const saveBtn = document.getElementById('noiseRulesSaveBtn');
-        const resetBtn = document.getElementById('noiseRulesResetBtn');
-        const previewBtn = document.getElementById('noiseRulesPreviewBtn');
-        const presetBar = document.getElementById('noisePresetBar');
-        const presets = {{ noise_rule_presets | tojson | safe }};
-
-        function collectRulesPayload() {
-            const inputs = Array.from(document.querySelectorAll('#noiseRulesForm input[type="checkbox"]'));
-            const payload = {};
-            for (const input of inputs) {
-                const provider = String(input.getAttribute('data-provider') || '').trim();
-                const key = String(input.getAttribute('data-key') || '').trim();
-                if (!provider || !key) continue;
-                if (!payload[provider]) payload[provider] = {};
-                payload[provider][key] = Boolean(input.checked);
-            }
-            return payload;
-        }
-
-        function applyRulesToInputs(rulesPayload) {
-            const rules = (rulesPayload && typeof rulesPayload === 'object') ? rulesPayload : {};
-            const inputs = Array.from(document.querySelectorAll('#noiseRulesForm input[type="checkbox"]'));
-            for (const input of inputs) {
-                const provider = String(input.getAttribute('data-provider') || '').trim();
-                const key = String(input.getAttribute('data-key') || '').trim();
-                if (!provider || !key) continue;
-                const providerRules = (rules[provider] && typeof rules[provider] === 'object') ? rules[provider] : {};
-                if (Object.prototype.hasOwnProperty.call(providerRules, key)) {
-                    input.checked = Boolean(providerRules[key]);
-                }
-            }
-        }
-
-        function applyPreset(presetKey) {
-            const preset = presets[presetKey];
-            if (!preset || !preset.rules) return;
-            const inputs = Array.from(document.querySelectorAll('#noiseRulesForm input[type="checkbox"]'));
-            for (const input of inputs) {
-                const provider = String(input.getAttribute('data-provider') || '').trim();
-                const key = String(input.getAttribute('data-key') || '').trim();
-                const providerRules = (preset.rules[provider] || {});
-                if (Object.prototype.hasOwnProperty.call(providerRules, key)) {
-                    input.checked = Boolean(providerRules[key]);
-                }
-            }
-        }
-
-        if (presetBar) {
-            presetBar.addEventListener('click', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) return;
-                const presetKey = String(target.getAttribute('data-preset') || '').trim();
-                if (!presetKey) return;
-                applyPreset(presetKey);
-            });
-        }
-
-        if (saveBtn) {
-            saveBtn.addEventListener('click', async () => {
-                const payload = collectRulesPayload();
-
-                const original = saveBtn.textContent;
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'Saving...';
-                try {
-                    const response = await fetch('/api/noise-rules', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'same-origin',
-                        body: JSON.stringify(payload),
-                    });
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error || 'Save failed');
-                    saveBtn.textContent = 'Saved';
-                    setTimeout(() => { saveBtn.textContent = original || 'Save'; }, 1200);
-                } catch (error) {
-                    saveBtn.textContent = 'Save failed';
-                    setTimeout(() => { saveBtn.textContent = original || 'Save'; }, 1800);
-                } finally {
-                    saveBtn.disabled = false;
-                }
-            });
-        }
-
-        if (resetBtn) {
-            resetBtn.addEventListener('click', async () => {
-                const original = resetBtn.textContent;
-                resetBtn.disabled = true;
-                resetBtn.textContent = 'Resetting...';
-                try {
-                    const response = await fetch('/api/noise-rules', {
-                        method: 'GET',
-                        credentials: 'same-origin',
-                    });
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error || 'Reset failed');
-                    applyRulesToInputs(data);
-                    resetBtn.textContent = 'Reset';
-                    setTimeout(() => { resetBtn.textContent = original || 'Reset to Saved'; }, 900);
-                } catch (error) {
-                    resetBtn.textContent = 'Reset failed';
-                    setTimeout(() => { resetBtn.textContent = original || 'Reset to Saved'; }, 1500);
-                } finally {
-                    resetBtn.disabled = false;
-                }
-            });
-        }
-
-        if (previewBtn) {
-            previewBtn.addEventListener('click', async () => {
-                const provider = String(document.getElementById('noisePreviewProvider')?.value || '').trim();
-                const role = String(document.getElementById('noisePreviewRole')?.value || 'assistant').trim();
-                const content = String(document.getElementById('noisePreviewInput')?.value || '');
-                const output = document.getElementById('noisePreviewOutput');
-                const payload = {
-                    tool: provider,
-                    role,
-                    content,
-                    noise_rules: collectRulesPayload(),
-                };
-
-                const original = previewBtn.textContent;
-                previewBtn.disabled = true;
-                previewBtn.textContent = 'Rendering...';
-                if (output) output.textContent = '';
-                try {
-                    const response = await fetch('/api/noise-rules/preview', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'same-origin',
-                        body: JSON.stringify(payload),
-                    });
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error || 'Preview failed');
-                    if (output) output.textContent = String(data.content || '');
-                } catch (error) {
-                    if (output) output.textContent = `Preview failed: ${error.message}`;
-                } finally {
-                    previewBtn.disabled = false;
-                    previewBtn.textContent = original || 'Preview';
-                }
-            });
-        }
-    });
-</script>
-{% endblock %}
-"""
-THREADS_LIST_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<section class="max-w-5xl mx-auto px-8 py-10">
-    <div class="flex justify-between items-center mb-8">
-        <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Connections</div>
-            <h1 class="title-font page-headline text-slate-900 mt-2">Threads</h1>
-        </div>
-    </div>
-    <div class="compact-list">
-        {% for t in threads %}
-        <a href="/thread/{{ t.thread_id|urlpath }}" class="compact-row flex items-center gap-3 group">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white border border-slate-200 text-slate-500">T</div>
-            <div class="flex-1 min-w-0">
-                <div class="compact-title text-slate-900 group-hover:text-slate-900 truncate">{{ t.title }}</div>
-                <div class="text-[10px] text-slate-500 mt-1 truncate uppercase tracking-[0.2em]">{{ t.project or 'No Project' }}</div>
-            </div>
-            <div class="text-[10px] font-mono text-slate-500 group-hover:text-slate-700">{{ t.count }} sessions</div>
-        </a>
-        {% endfor %}
-        {% if threads|length == 0 %}
-        <div class="compact-row text-sm text-slate-500">No thread groups found yet. Run <code>lore sync --all</code> and refresh to build cross-session thread continuity.</div>
-        {% endif %}
-    </div>
-</section>
-{% endblock %}
-"""
-
-PROJECTS_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<section class="max-w-6xl mx-auto px-8 py-10">
-    <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
-        <div>
-            <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</div>
-            <h1 class="title-font page-headline text-slate-900 mt-2">Projects</h1>
-        </div>
-    </div>
-    <form method="get" data-autosubmit="true" class="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-8">
-        <select name="tool" onchange="this.form.submit()" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-            <option value="">All Tools</option>
-            {% for t in tools %}<option value="{{ t }}" {{ 'selected' if tool==t else '' }}>{{ get_style(t).name }}</option>{% endfor %}
-        </select>
-        <select name="tag" onchange="this.form.submit()" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-            <option value="">All Tags</option>
-            {% for t in tags %}<option value="{{ t }}" {{ 'selected' if tag==t else '' }}>{{ t }}</option>{% endfor %}
-        </select>
-        <input type="date" name="start" onchange="this.form.submit()" value="{{ start or '' }}" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-        <input type="date" name="end" onchange="this.form.submit()" value="{{ end or '' }}" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold outline-none focus:border-slate-300 transition-all">
-        <button type="submit" class="bg-white border border-slate-200 text-[11px] text-slate-600 rounded-xl px-3 py-2 uppercase tracking-widest font-semibold hover:text-slate-900 transition-all">Apply</button>
-    </form>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {% for p in projects %}
-        <div class="surface-card p-5">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <div class="text-xs font-semibold text-slate-900">{{ p.name }}</div>
-                    <div class="text-[10px] text-slate-500 mt-1">{{ p.path }}</div>
-                </div>
-                <div class="text-[10px] text-slate-500 font-mono">{{ p.updated }}</div>
-            </div>
-            <div class="flex flex-wrap gap-2 mt-4 text-[10px]">
-                <span class="tag-chip">{{ p.session_count }} sessions</span>
-                <span class="tag-chip">{{ p.prompt_count }} prompts</span>
-                {% for tool, count in p.tool_counts.items() %}
-                <span class="tag-chip">via {{ get_style(tool).name }} · {{ count }}</span>
-                {% endfor %}
-            </div>
-            {% if p.agents %}
-            <div class="flex items-center gap-2 mt-4">
-                {% for agent in p.agents %}
-                <div class="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-xs font-semibold" style="color: {{ get_style(agent.tool).color }}" title="{{ get_style(agent.tool).name }} · {{ agent.count }}">
-                    {{ get_style(agent.tool).icon }}
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            <div class="mt-4 space-y-3">
-                {% for s in p.recent_sessions %}
-                <a href="/session/{{ s.id|urlpath }}" class="list-row block p-3 transition-all">
-                    <div class="text-sm font-semibold text-slate-900 truncate">{{ s.display_title or s.title or s.id }}</div>
-                    {% if s.prompt_outline %}
-                    <div class="text-xs text-slate-500 mt-1">{{ s.prompt_outline }}</div>
-                    {% endif %}
-                    <div class="text-[10px] text-slate-500 mt-2">via {{ get_style(s.tool).name }} • {{ s.prompts or s.messages }} prompts • {{ s.created[:10] }}</div>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% else %}
-        <div class="compact-row text-sm text-slate-500 lg:col-span-2">No projects found. Run <code>lore sync --all</code> and refresh to group your sessions by project.</div>
-        {% endfor %}
-    </div>
-</section>
-{% endblock %}
-"""
-
-THREAD_DETAIL_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<div data-transcript-view="1" hidden></div>
-<section class="max-w-[90rem] mx-auto px-6 pt-6 pb-4">
-    <div class="surface-card flex flex-wrap items-center justify-between gap-4 px-5 py-4 backdrop-blur-xl">
-        <div class="min-w-0">
-            <h1 class="session-headline truncate">Thread {{ thread_id[-10:] }}</h1>
-            <div class="session-meta mt-2">
-                <span>Thread timeline</span>
-                <span class="session-meta-dot"></span>
-                <span>{{ thread_meta.session_count }} sessions</span>
-                <span class="session-meta-dot"></span>
-                <span>{{ thread_meta.message_count }} messages</span>
-            </div>
-            <div class="flex flex-wrap gap-2 mt-3">
-                <span class="pill bg-white border border-slate-200 text-slate-500 font-mono">{{ thread_id }}</span>
-            </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-                <button onclick='copyCommand({{ continue_cmd|tojson }})' class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Continue</button>
-            <a href="/threads" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">All Threads</a>
-        </div>
-    </div>
-</section>
-
-<section class="max-w-[90rem] mx-auto px-6 pb-24">
-    <div class="flex flex-col lg:flex-row w-full">
-    <aside class="hidden lg:block lg:flex-grow lg:flex-shrink-[100] lg:basis-[550px] lg:min-w-[350px] lg:max-w-[550px] lg:pr-6">
-        <div class="toc-card sticky top-24 h-[calc(100vh-12rem)]">
-            <div class="toc-card-head">On this page</div>
-            <nav aria-label="Table of contents">
-            <ol class="toc-stepper toc-list space-y-0.5">
-                {% for item in toc_items %}
-                <li>
-                <a href="#tmsg-{{ item.index }}" class="toc-item" data-toc="tmsg-{{ item.index }}" title="{{ item.text }}">
-                    <span class="toc-badge">{{ loop.index }}</span>
-                    <span class="toc-item-text">{{ item.text }}</span>
-                    <span class="toc-item-meta">{{ item.time }}</span>
-                </a>
-                </li>
-                {% endfor %}
-                {% if toc_items|length == 0 %}
-                <li class="text-[11px] text-slate-500 px-3 py-2">No prompts detected.</li>
-                {% endif %}
-            </ol>
-            </nav>
-            <div class="toc-card-foot">{{ toc_items|length }} entries</div>
-        </div>
-    </aside>
-    <div class="lg:flex-grow-0 lg:flex-shrink-1 lg:basis-[850px] lg:min-w-[500px] lg:px-8 space-y-6">
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3">Continuation Cluster</div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {% for group in thread_groups %}
-                <div class="border border-slate-200 rounded-xl p-3">
-                    <div class="flex items-center justify-between">
-                        <div class="text-xs font-semibold text-slate-900">via {{ get_style(group.tool).name }}</div>
-                        <span class="text-[10px] text-slate-500 font-mono">{{ group.count }}</span>
-                    </div>
-                    <div class="mt-3 space-y-2">
-                        {% for s in group.sessions %}
-                        <a href="/session/{{ s.id|urlpath }}" class="block text-xs text-slate-600 hover:text-slate-900">
-                    <div class="font-semibold truncate">{{ s.display_title or s.title or s.id }}</div>
-                            <div class="text-[10px] text-slate-500">{{ s.prompts or s.messages }} prompts • {{ s.created[:10] }}</div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3">Timeline</div>
-            <div class="space-y-3">
-                {% for s in thread_timeline %}
-                <a href="/session/{{ s.id|urlpath }}" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
-                    <div class="w-2 h-2 rounded-full" style="background: {{ get_style(s.tool).color }}"></div>
-                    <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-slate-900 truncate">{{ s.display_title or s.title or s.id }}</div>
-                        <div class="text-[10px] text-slate-500">via {{ get_style(s.tool).name }} • {{ s.prompts or s.messages }} prompts</div>
-                    </div>
-                    <div class="text-[10px] text-slate-500 font-mono">{{ s.created[:10] }}</div>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Thread Summary</div>
-            <div class="flex flex-wrap gap-3 text-xs text-slate-600">
-                <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Sessions: {{ thread_meta.session_count }}</span>
-                <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Messages: {{ thread_meta.message_count }}</span>
-                <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Tools: {{ thread_meta.tools }}</span>
-                <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Start: {{ thread_meta.start_date }}</span>
-                <span class="px-2 py-1 rounded-full border border-slate-200 bg-white">Last: {{ thread_meta.end_date }}</span>
-            </div>
-        </div>
-        {% for msg in messages %}
-        <div id="tmsg-{{ loop.index0 }}" class="flex gap-3 items-start group">
-            <div class="flex-shrink-0 w-10 h-10 rounded-2xl border border-slate-200 bg-white flex items-center justify-center text-xs font-semibold text-slate-500">
-                {% if msg.role.value == 'user' %}
-                You
-                {% else %}
-                {{ msg.style.icon }}
-                {% endif %}
-            </div>
-            <div class="flex-1 min-w-0 max-w-3xl">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{{ msg.label }}</div>
-                    <div class="text-[10px] text-slate-500 font-mono opacity-60">{{ msg.timestamp.strftime('%H:%M') }}</div>
-                </div>
-        <div class="message-card p-4 {% if msg.role.value == 'user' %}user-card{% else %}assistant-card{% endif %}">
-                    <div class="prose max-w-none antialiased">
-                        {{ msg.content | safe }}
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    </div>
-</section>
-{% endblock %}
-"""
-
-STATS_TEMPLATE = """
-{% extends "base" %}
-{% block content %}
-<section class="max-w-6xl mx-auto px-8 py-10">
-    <div class="mb-10">
-        <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Activity</div>
-        <h1 class="title-font page-headline text-slate-900 mt-2">Statistics</h1>
-        <p class="text-sm text-slate-500 mt-2">Your AI coding activity over the last 30 days.</p>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Sessions</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ total_sessions }}</div>
-        </div>
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Messages</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ total_messages }}</div>
-        </div>
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Prompts</div>
-            <div class="text-3xl font-semibold text-slate-900">{{ total_prompts }}</div>
-        </div>
-        <div class="stat-card p-6">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Busiest day</div>
-            {% if busiest_day %}
-            <div class="text-xl font-semibold text-slate-900">{{ busiest_day[0][5:] }}</div>
-            <div class="text-[11px] text-slate-500 mt-1">{{ busiest_day[1] }} session{{ '' if busiest_day[1] == 1 else 's' }}</div>
-            {% else %}
-            <div class="text-xl font-semibold text-slate-500">—</div>
-            {% endif %}
-        </div>
-    </div>
-
-    {% if total_sessions == 0 %}
-    <div class="surface-card p-10 text-center">
-        <p class="text-sm text-slate-600">No sessions in the last 30 days.</p>
-        <p class="text-xs text-slate-500 mt-2">Run <span class="font-mono">lore sync --all</span> to import your AI conversations.</p>
-    </div>
-    {% else %}
-
-    <div class="surface-card p-6 mb-8">
-        <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Sessions per day</h2>
-        <div class="flex items-end gap-[3px] h-32">
-            {% for d in by_day %}
-            <div class="flex-1 flex flex-col justify-end group relative" title="{{ d.date }}: {{ d.count }}">
-                <div class="w-full rounded-t transition-all"
-                     style="height: {{ ((d.count / peak_day * 100) | round(1)) if peak_day else 0 }}%; min-height: {{ '3px' if d.count else '2px' }}; background: {{ 'var(--primary)' if d.count else 'var(--border)' }};"></div>
-            </div>
-            {% endfor %}
-        </div>
-        <div class="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
-            <span>{{ by_day[0].date }}</span>
-            <span>{{ by_day[-1].date }}</span>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
-            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Sessions by tool</h2>
-            <div class="space-y-2">
-                {% for tool, count in by_tool %}
-                <a href="/sessions?tool={{ tool }}" class="list-row flex items-center justify-between p-3 group">
-                    <div class="flex items-center gap-3">
-                        <span class="w-2 h-2 rounded-full" style="background: {{ get_style(tool).color }}"></span>
-                        <span class="text-sm text-slate-600 group-hover:text-slate-900">{{ get_style(tool).name }}</span>
-                    </div>
-                    <span class="text-[11px] font-mono text-slate-500 group-hover:text-slate-700">{{ count }}</span>
-                </a>
-                {% else %}
-                <div class="text-sm text-slate-500">No tool activity.</div>
-                {% endfor %}
-            </div>
-        </div>
-        <div>
-            <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-5">Top projects</h2>
-            <div class="space-y-2">
-                {% for project, count in top_projects %}
-                <div class="list-row flex items-center justify-between p-3">
-                    <span class="text-sm text-slate-600 truncate" title="{{ project }}">{{ project_label(project) }}</span>
-                    <span class="text-[11px] font-mono text-slate-500">{{ count }}</span>
-                </div>
-                {% else %}
-                <div class="text-sm text-slate-500">No project activity.</div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</section>
-{% endblock %}
-"""
