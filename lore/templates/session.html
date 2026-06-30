@@ -20,6 +20,10 @@
                 <a href="/thread/{{ session.thread_id|urlpath }}" class="pill bg-white border border-slate-200 text-slate-500 font-mono hover:text-slate-900 transition-colors">{{ session.thread_id[-10:] }}</a>
             </div>
             {% endif %}
+            <div id="session-tags" class="flex flex-wrap items-center gap-2 mt-3" data-session-id="{{ session.session_id|tojson }}">
+                <span id="tags-list" class="flex flex-wrap gap-2"></span>
+                <button type="button" id="add-tag-btn" onclick="promptAddTag()" class="text-[11px] text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 px-2 py-1 rounded-lg transition-all bg-white">+ tag</button>
+            </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             {% if session.thread_id %}
@@ -212,5 +216,56 @@ document.getElementById('resume-modal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeResumeModal(); }
 });
+
+// --- User tags / bookmarks (#56) ---
+(function () {
+    const root = document.getElementById('session-tags');
+    if (!root) return;
+    const sessionId = JSON.parse(root.getAttribute('data-session-id'));
+    const list = document.getElementById('tags-list');
+
+    // Built via DOM nodes (no innerHTML with data) so tag values can't inject markup.
+    function renderTags(tags) {
+        list.replaceChildren();
+        (tags || []).forEach(function (t) {
+            const pill = document.createElement('span');
+            pill.className = 'pill bg-blue-50 border border-blue-200 text-blue-700 flex items-center gap-1';
+            pill.appendChild(document.createTextNode(t));
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'tag-remove text-blue-400 hover:text-blue-700';
+            x.setAttribute('aria-label', 'Remove tag');
+            x.textContent = '×';
+            x.addEventListener('click', function () { mutate('DELETE', t); });
+            pill.appendChild(x);
+            list.appendChild(pill);
+        });
+    }
+
+    async function loadTags() {
+        try {
+            const r = await fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/tags');
+            if (r.ok) renderTags((await r.json()).tags);
+        } catch (_) { /* tags are non-critical */ }
+    }
+
+    async function mutate(method, tag) {
+        try {
+            const r = await fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/tags', {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tag: tag })
+            });
+            if (r.ok) renderTags((await r.json()).tags);
+        } catch (_) { /* ignore */ }
+    }
+
+    window.promptAddTag = function () {
+        const tag = prompt('Add a tag (e.g. important, bookmark):');
+        if (tag && tag.trim()) mutate('POST', tag.trim());
+    };
+
+    loadTags();
+})();
 </script>
 {% endblock %}
