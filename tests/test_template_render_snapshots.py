@@ -92,10 +92,19 @@ PAGE_ROUTES = [
 ]
 
 
+# A fixed noise-rules payload so the /noise-rules snapshot does not depend on the
+# machine's ~/.lore/noise_rules.json (which differs between a dev box and CI).
+_FIXED_NOISE_RULES = {
+    "default": {"strip_ansi_sequences": True},
+    "claude-code": {"claude_strip_command_xml": True},
+}
+
+
 @pytest.fixture()
 def client(monkeypatch):
     monkeypatch.setattr(web, "load_index", lambda: _index_payload())
     monkeypatch.setattr(web, "load_sessions_for_tool", lambda _tool=None: [_live_session()])
+    monkeypatch.setattr(web, "load_noise_rules", lambda: _FIXED_NOISE_RULES)
     with web.app.test_client() as c:
         yield c
 
