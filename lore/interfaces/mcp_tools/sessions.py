@@ -49,6 +49,13 @@ def register(server, deps: MCPToolDeps) -> None:
             payload["live"] = False
             if include_messages:
                 payload["messages"] = []
+        # Surface user-editable tags / bookmarks (#56).
+        from ...storage import get_session_tags
+
+        try:
+            payload["user_tags"] = get_session_tags(deps.server.output_dir, session_id)
+        except Exception:  # noqa: BLE001 - tags are best-effort, never fail the read
+            payload["user_tags"] = []
         return deps.json_text(payload)
 
     server.register_tool(

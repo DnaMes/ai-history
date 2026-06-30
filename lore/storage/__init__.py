@@ -33,26 +33,40 @@ from .memory import (
 from .reader import load_index_v2, load_session_messages_v2, v2_is_available
 from .schema import apply_migrations, current_version, initialise, open_connection
 from .search import search_sessions
+from .tags import (
+    BOOKMARK_TAG,
+    add_session_tag,
+    get_session_tags,
+    get_tags_for_sessions,
+    list_all_tags,
+    remove_session_tag,
+)
 from .writer import v2_db_path, write_sessions, write_sessions_safe
 
 __all__ = [
+    "BOOKMARK_TAG",
     "MEMORY_KINDS",
     "MemoryEntry",
     "add_memory",
+    "add_session_tag",
     "apply_migrations",
     "current_version",
     "delete_memory",
     "embed_text",
     "embeddings_available",
     "get_memory",
+    "get_session_tags",
+    "get_tags_for_sessions",
     "initialise",
     "link_memory_to_session",
+    "list_all_tags",
     "list_memory",
     "list_memory_sources",
     "load_index_v2",
     "load_session_messages_v2",
     "open_connection",
     "recall_memory",
+    "remove_session_tag",
     "search_sessions",
     "supersede_memory",
     "v2_db_path",

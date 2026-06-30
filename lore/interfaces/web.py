@@ -1529,6 +1529,50 @@ def api_session_resume(session_id):
         )
 
 
+@app.route("/api/sessions/<session_id>/tags", methods=["GET", "POST", "DELETE"])
+def api_session_tags(session_id):
+    """User-editable tags / bookmarks for a session (#56).
+
+    GET    → {"tags": [...]}
+    POST   {"tag": "x"}  → add, returns updated {"tags": [...]}
+    DELETE {"tag": "x"}  → remove, returns updated {"tags": [...]}
+    """
+    if not validate_session_id(session_id):
+        return jsonify({"error": "Invalid session ID"}), 400
+
+    from ..storage import add_session_tag, get_session_tags, remove_session_tag
+
+    if request.method == "GET":
+        return jsonify({"tags": get_session_tags(OUTPUT_DIR, session_id)})
+
+    # Mutations are local-origin only, like the other POST/DELETE endpoints.
+    if (err := _check_local_origin()) is not None:
+        return err
+
+    payload = request.get_json(silent=True)
+    tag = (payload or {}).get("tag") if isinstance(payload, dict) else None
+    if not isinstance(tag, str) or not tag.strip():
+        return jsonify({"error": "a non-empty 'tag' is required"}), 400
+
+    try:
+        if request.method == "POST":
+            tags = add_session_tag(OUTPUT_DIR, session_id, tag)
+        else:  # DELETE
+            tags = remove_session_tag(OUTPUT_DIR, session_id, tag)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    clear_index_cache()
+    return jsonify({"tags": tags})
+
+
+@app.route("/api/tags")
+def api_all_tags():
+    """All user tags with session counts: {"tags": {tag: count, ...}}."""
+    from ..storage import list_all_tags
+
+    return jsonify({"tags": list_all_tags(OUTPUT_DIR)})
+
+
 @app.route("/session/<session_id>/delete", methods=["POST"])
 def session_delete(session_id):
     if (err := _check_local_origin()) is not None:
