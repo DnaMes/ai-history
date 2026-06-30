@@ -6,13 +6,15 @@
 
 ## TL;DR — every easily-fixable issue is shipped; only big features/architecture remain
 
-Autonomous QA + fix sweep across three sessions. **16 PRs merged** (#70–#84), each CI-green
-(lint + bandit + pip-audit + tests 3.11/3.12), squash-merged to master. Suite **1051 passed**,
-coverage ~83.9%. master HEAD **340833e**.
+Autonomous QA + fix sweep. **18 PRs merged** (#70–#86), each CI-green
+(lint + bandit + pip-audit + tests 3.11/3.12), squash-merged to master. Suite **1063 passed**,
+coverage ~83.9%. master HEAD **9017965**.
 
-Latest round (this session): #62, #54, #55, #57 (diagnosed), then #79 (canonical tool_call
-shape — fixed silently-dropped codex/copilot args), #53 (session-render rebuild closed as done),
-#83 (tool-burst ×N folding). All open issues are now genuinely strategic.
+Latest round: #62, #54, #55, #57 (diagnosed), #79 (canonical tool_call shape — fixed
+silently-dropped codex/copilot args), #53 (render rebuild closed), #83 (tool-burst ×N folding),
+and **#56 session tags end-to-end** (#85 backend: migration 12 `session_tags` + storage CRUD +
+`/api/sessions/<id>/tags` + `/api/tags` + MCP `user_tags`; #86 UI: tag-editor chips on the
+session page). All remaining work is genuinely strategic architecture.
 
 | # | Fix | PR |
 |---|---|---|
@@ -35,16 +37,14 @@ shape — fixed silently-dropped codex/copilot args), #53 (session-render rebuil
 
 ## Open issues — all genuinely strategic, need a product/design conversation first
 
-Only 4 left, none autonomous-fixable:
+Only architecture/design work left:
 
-- **[#56](https://github.com/DnaMes/lore/issues/56)** — umbrella. **2 of its 4 items already shipped**: Resume button (`/api/sessions/<id>/resume`) + token/cost dashboard (#67/#72/#75). Remaining: (a) **user-editable session tags/bookmarks** — partial infra exists (LLM-gen tags, `compute_top_tags`, `filter_sessions(tag=)`), but user-edit needs a `session_tags` table (mirror `memory_tags` migration), write API, MCP expose, and a tag-editor UI with real UX decisions; (b) **hybrid search over the archive** — extend `memory_embeddings` (migration 10) semantic retrieval to sessions. Both want a product pass; split each into its own issue when picked up.
-- **[#48](https://github.com/DnaMes/lore/issues/48)** JSON-retirement exit criteria — architecture decision (when the legacy index.json path is fully retired in favour of v2).
+- **[#56](https://github.com/DnaMes/lore/issues/56)** — umbrella, **3 of 4 items shipped** (Resume, cost dashboard, tags end-to-end). Remaining: **hybrid search over the archive** — extend `memory_embeddings` (migration 10) semantic retrieval to the session archive. Sizeable: embedding-model + index-size tradeoffs, retrieval pipeline. Split into its own issue + close this umbrella when picked up.
+- **[#48](https://github.com/DnaMes/lore/issues/48)** JSON-retirement exit criteria — when the legacy index.json path is fully retired in favour of v2 (architecture decision).
 - **[#33](https://github.com/DnaMes/lore/issues/33)** shared-memory vision — architecture.
 - **[#29](https://github.com/DnaMes/lore/issues/29)** MCP-over-HTTP transport — feature.
 
-Also open as a tracked split-out: none — #83 (burst folding) and #79 (tool_call shape) both shipped this session.
-
-These four need you to decide direction (build user-tags? when to drop JSON? HTTP transport priority?) before code. Not loop-fixable.
+All four need a direction decision (which embedding model? when to drop JSON? HTTP transport priority?) before code. Not loop-fixable — they're the genuine roadmap.
 
 ## ⚠️ repo-autosync gotcha (cost me a near-miss this session)
 
