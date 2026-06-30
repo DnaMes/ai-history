@@ -198,17 +198,20 @@ def format_tool_calls(tool_calls):
 
     if not tool_calls:
         return ""
+    from lore.core.models import normalize_tool_call
+
     blocks = []
-    for tc in tool_calls:
-        tool_name = tc.get("name") or tc.get("tool") or "tool"
-        tool_input = tc.get("input", {})
+    for raw_tc in tool_calls:
+        tc = normalize_tool_call(raw_tc)
+        tool_name = tc["tool"]
+        tool_input = tc["input"]
         if isinstance(tool_input, (dict, list)):
             tool_args = json.dumps(tool_input, indent=2, ensure_ascii=False)
         else:
             tool_args = str(tool_input)
         blocks.append(format_tool_display(str(tool_name), tool_args))
 
-        tool_output = tc.get("output")
+        tool_output = tc["output"]
         if isinstance(tool_output, str) and tool_output.strip():
             blocks.append(format_tool_result(tool_output))
     return "\n".join(blocks)

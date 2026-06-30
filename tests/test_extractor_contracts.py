@@ -218,21 +218,20 @@ def test_no_two_extractors_claim_same_tool():
 # Contract: tool_calls shape on really-extracted sessions (#55)
 # ---------------------------------------------------------------------------
 
-# A tool_call must identify its tool by *some* key. Extractors are inconsistent
-# here today — opencode uses "tool", claude uses "name" (tracked as a follow-up
-# issue). The contract asserts a dict with a non-empty identifying key, not a
-# single canonical key name, so it catches genuinely broken shapes without
-# forcing the cross-extractor key-unification refactor.
-_TOOL_NAME_KEYS = ("tool", "name")
 
-
+# Extractors still write divergent raw tool_call keys (opencode "tool", claude
+# "name", codex/copilot "arguments"), but normalize_tool_call() maps them all to
+# the canonical shape at the consume layer (#79). The contract asserts the
+# canonical view names a tool — that's what every consumer actually reads.
 @pytest.mark.parametrize("extractor_cls", ALL_EXTRACTOR_CLASSES, ids=ALL_EXTRACTOR_IDS)
 def test_tool_calls_are_well_shaped(extractor_cls):
-    """Any tool_calls an available extractor produces must be dicts naming a tool.
+    """Any tool_calls an available extractor produces must normalize to a named tool.
 
     Skips extractors that aren't available on this machine — this asserts the
     shape contract only where there's real data to check.
     """
+    from lore.core.models import normalize_tool_call
+
     instance = extractor_cls()
     if not instance.is_available():
         pytest.skip(f"{extractor_cls.__name__} not available on this machine")
@@ -244,9 +243,12 @@ def test_tool_calls_are_well_shaped(extractor_cls):
                 assert isinstance(call, dict), (
                     f"{extractor_cls.__name__} tool_call is not a dict: {type(call)!r}"
                 )
-                assert any(call.get(k) for k in _TOOL_NAME_KEYS), (
-                    f"{extractor_cls.__name__} tool_call names no tool "
-                    f"(no {' / '.join(_TOOL_NAME_KEYS)}): {call!r}"
+                canonical = normalize_tool_call(call)
+                named = bool(canonical["tool"]) and canonical["tool"] != "tool"
+                has_payload = bool(canonical.get("output")) or bool(canonical.get("input"))
+                assert named or has_payload, (
+                    f"{extractor_cls.__name__} tool_call has no tool name or payload "
+                    f"after normalization: {call!r}"
                 )
                 checked += 1
                 if checked >= 50:
