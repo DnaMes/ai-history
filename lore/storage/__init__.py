@@ -30,7 +30,7 @@ from .memory import (
     recall_memory,
     supersede_memory,
 )
-from .reader import load_index_v2, v2_is_available
+from .reader import load_index_v2, load_session_messages_v2, v2_is_available
 from .schema import apply_migrations, current_version, initialise, open_connection
 from .search import search_sessions
 from .writer import v2_db_path, write_sessions, write_sessions_safe
@@ -50,6 +50,7 @@ __all__ = [
     "list_memory",
     "list_memory_sources",
     "load_index_v2",
+    "load_session_messages_v2",
     "open_connection",
     "recall_memory",
     "search_sessions",

@@ -245,3 +245,111 @@ def test_load_index_falls_back_when_v2_stale(tmp_path, monkeypatch):
     payload = web_data.load_index()
     # v2 is stale -> JSON path wins
     assert payload["sessions"][0]["id"] == "jsonsess"
+
+
+# ---------------------------------------------------------------------------
+# load_session_messages_v2 (#62 — per-message tokens/model for the served path)
+# ---------------------------------------------------------------------------
+
+
+def test_load_session_messages_v2_roundtrips_tokens_and_model(tmp_path):
+    from lore.storage import load_session_messages_v2
+
+    session = UnifiedSession(
+        tool=Tool.OPENCODE,
+        session_id="s-msgs",
+        created_at=datetime(2026, 1, 1),
+        last_updated=datetime(2026, 1, 2),
+        project_path="/p",
+        title="T",
+        messages=[
+            UnifiedMessage(
+                role=Role.USER,
+                content="q",
+                timestamp=datetime(2026, 1, 1, 10, 0),
+            ),
+            UnifiedMessage(
+                role=Role.ASSISTANT,
+                content="a",
+                timestamp=datetime(2026, 1, 1, 10, 1),
+                model="claude-opus-4-8",
+                tokens={"input": 100, "output": 20, "total": 120},
+            ),
+        ],
+    )
+    IndexBuilder(tmp_path).build_index([session], {})
+
+    loaded = load_session_messages_v2(tmp_path, "s-msgs")
+    assert loaded is not None
+    assert len(loaded) == 2
+    assert loaded[0].tokens is None
+    assert loaded[1].tokens == {"input": 100, "output": 20, "total": 120}
+    assert loaded[1].model == "claude-opus-4-8"
+    assert loaded[1].role == Role.ASSISTANT
+
+
+def test_load_session_messages_v2_none_for_missing_session(tmp_path):
+    from lore.storage import load_session_messages_v2
+
+    IndexBuilder(tmp_path).build_index([_session("present")], {})
+    assert load_session_messages_v2(tmp_path, "absent") is None
+
+
+def test_load_session_messages_v2_none_when_no_db(tmp_path):
+    from lore.storage import load_session_messages_v2
+
+    assert load_session_messages_v2(tmp_path, "anything") is None
+
+
+# ---------------------------------------------------------------------------
+# served-path token backfill (#62)
+# ---------------------------------------------------------------------------
+
+
+def test_backfill_v2_message_tokens_fills_matching_count(monkeypatch, tmp_path):
+    from lore.interfaces import web
+
+    served = UnifiedSession(
+        tool=Tool.OPENCODE,
+        session_id="s1",
+        created_at=datetime(2026, 1, 1),
+        last_updated=datetime(2026, 1, 2),
+        messages=[
+            UnifiedMessage(Role.USER, "q", datetime(2026, 1, 1)),
+            UnifiedMessage(Role.ASSISTANT, "a", datetime(2026, 1, 1)),
+        ],
+    )
+    v2_msgs = [
+        UnifiedMessage(Role.USER, "q", datetime(2026, 1, 1)),
+        UnifiedMessage(Role.ASSISTANT, "a", datetime(2026, 1, 1), model="m1", tokens={"total": 99}),
+    ]
+    monkeypatch.setattr(web, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr("lore.storage.load_session_messages_v2", lambda _dir, _sid: v2_msgs)
+
+    web._backfill_v2_message_tokens("s1", served)
+
+    assert served.messages[1].tokens == {"total": 99}
+    assert served.messages[1].model == "m1"
+
+
+def test_backfill_v2_message_tokens_skips_on_count_mismatch(monkeypatch, tmp_path):
+    from lore.interfaces import web
+
+    served = UnifiedSession(
+        tool=Tool.OPENCODE,
+        session_id="s1",
+        created_at=datetime(2026, 1, 1),
+        last_updated=datetime(2026, 1, 2),
+        messages=[UnifiedMessage(Role.USER, "q", datetime(2026, 1, 1))],
+    )
+    v2_msgs = [
+        UnifiedMessage(Role.USER, "q", datetime(2026, 1, 1)),
+        UnifiedMessage(Role.ASSISTANT, "a", datetime(2026, 1, 1), tokens={"total": 99}),
+    ]
+    monkeypatch.setattr(web, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr("lore.storage.load_session_messages_v2", lambda _dir, _sid: v2_msgs)
+
+    web._backfill_v2_message_tokens("s1", served)
+
+    # Count mismatch → no misaligned backfill.
+    assert served.messages[0].tokens is None
