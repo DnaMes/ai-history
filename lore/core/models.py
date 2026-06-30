@@ -28,6 +28,41 @@ def _message_token_total(tokens: Optional[Dict[str, Any]]) -> int:
     return total
 
 
+# Canonical keys for a tool_call dict. Extractors historically diverged
+# (opencode "tool" vs claude "name", codex/copilot "arguments" vs "input"),
+# which silently hid args for some tools in the render layer (#79).
+def normalize_tool_call(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Map any extractor's tool_call dict to the canonical shape.
+
+    Canonical keys: ``tool`` (name), ``input`` (args), ``output``, ``id``,
+    ``status``, ``truncated``. Accepts the legacy aliases ``name`` (→tool) and
+    ``arguments`` (→input). Unknown extra keys are preserved so nothing is lost.
+    """
+    if not isinstance(raw, dict):
+        return {"tool": "tool", "input": {}, "output": None}
+
+    tool = raw.get("tool") or raw.get("name") or "tool"
+    tool_input = raw.get("input")
+    if tool_input is None:
+        tool_input = raw.get("arguments")
+    if tool_input is None:
+        tool_input = {}
+
+    canonical = {
+        "id": raw.get("id"),
+        "tool": tool,
+        "input": tool_input,
+        "output": raw.get("output"),
+        "status": raw.get("status"),
+        "truncated": bool(raw.get("truncated", False)),
+    }
+    # Preserve any extra keys (e.g. type, caller) without clobbering canonical ones.
+    for key, value in raw.items():
+        if key not in canonical and key not in ("name", "arguments"):
+            canonical[key] = value
+    return canonical
+
+
 class Tool(Enum):
     CLAUDE_CODE = "claude-code"
     CURSOR = "cursor"

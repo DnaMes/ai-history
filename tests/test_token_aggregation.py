@@ -96,3 +96,29 @@ def test_total_tokens_roundtrips_through_v2_store(tmp_path):
     payload = load_index_v2(tmp_path)
     entry = next(s for s in payload["sessions"] if s["id"] == "s-roundtrip")
     assert entry["tokens"] == 1200
+
+
+def test_normalize_tool_call_maps_all_extractor_formats():
+    """#79 — divergent extractor tool_call keys map to one canonical shape."""
+    from lore.core.models import normalize_tool_call
+
+    # opencode: already "tool" + "input"
+    oc = normalize_tool_call({"id": "1", "tool": "read", "input": {"f": "a"}, "output": "ok"})
+    assert oc["tool"] == "read" and oc["input"] == {"f": "a"} and oc["output"] == "ok"
+
+    # claude: "name" → tool
+    cl = normalize_tool_call({"type": "tool_use", "name": "Read", "input": {"f": "b"}})
+    assert cl["tool"] == "Read" and cl["input"] == {"f": "b"}
+    assert cl["type"] == "tool_use"  # extra keys preserved
+
+    # codex/copilot: "arguments" → input, "name" → tool
+    cx = normalize_tool_call({"id": "2", "name": "shell", "arguments": {"cmd": "ls"}})
+    assert cx["tool"] == "shell" and cx["input"] == {"cmd": "ls"}
+    assert "arguments" not in cx and "name" not in cx  # aliases consumed
+
+    # garbage in → safe default
+    assert normalize_tool_call(None)["tool"] == "tool"
+    assert normalize_tool_call({})["tool"] == "tool"
+
+    # truncated coerced to bool
+    assert normalize_tool_call({"tool": "x", "truncated": 1})["truncated"] is True
