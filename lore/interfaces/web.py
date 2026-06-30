@@ -1204,6 +1204,37 @@ def _enriched_session_for_detail(session_id: str, *, force_live: bool):
     return _enriched_session_for_detail_uncached(session_id, force_live=force_live)
 
 
+def _backfill_v2_message_tokens(session_id: str, session_obj) -> None:
+    """Copy per-message tokens/model from the v2 store onto a served session (#62).
+
+    The export-markdown served path drops per-message tokens; the v2 store keeps
+    them (messages.tokens_json / model). When the v2 message count matches the
+    served session's, the rows are in the same seq order (both came from the same
+    UnifiedSession at sync time), so tokens/model transfer positionally. On any
+    count mismatch we leave the session untouched rather than misalign chips.
+    """
+    messages = getattr(session_obj, "messages", None)
+    if not messages:
+        return
+    # Only fill what's missing — a live/opencode parse may already carry tokens.
+    if any(getattr(m, "tokens", None) for m in messages):
+        return
+    try:
+        from ..storage import load_session_messages_v2
+
+        v2_messages = load_session_messages_v2(OUTPUT_DIR, session_id)
+    except Exception as exc:  # storage unavailable / unreadable — non-fatal
+        logger.debug("v2 token backfill skipped for %s: %s", session_id, exc)
+        return
+    if not v2_messages or len(v2_messages) != len(messages):
+        return
+    for served_msg, v2_msg in zip(messages, v2_messages):
+        if v2_msg.tokens and not getattr(served_msg, "tokens", None):
+            served_msg.tokens = v2_msg.tokens
+        if v2_msg.model and not getattr(served_msg, "model", None):
+            served_msg.model = v2_msg.model
+
+
 def _enriched_session_for_detail_uncached(session_id: str, *, force_live: bool):
     """Load + enrich a session by id for the detail/fragment routes.
 
@@ -1224,6 +1255,11 @@ def _enriched_session_for_detail_uncached(session_id: str, *, force_live: bool):
     noise_rules = load_noise_rules()
 
     def _enrich(session_obj):
+        # Backfill per-message tokens/model from the v2 store onto the served
+        # session, so chips render without ?live=1 (#62). The export-markdown
+        # path drops per-message tokens; the v2 store keeps them.
+        if not force_live:
+            _backfill_v2_message_tokens(session_id, session_obj)
         toc = enrich_session_for_detail(
             session_obj,
             session_meta,

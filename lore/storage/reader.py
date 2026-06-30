@@ -174,3 +174,69 @@ def load_index_v2(output_dir: Path) -> Dict[str, Any]:
         "stats": _compute_stats(sessions),
         "sessions": sessions,
     }
+
+
+def load_session_messages_v2(output_dir: Path, session_id: str) -> Optional[list]:
+    """Load one session's messages from the v2 store, with per-message tokens/model.
+
+    Returns a list of ``UnifiedMessage`` (ordered by seq) when the session has
+    its message rows synced (``messages_synced = 1``), else ``None`` so callers
+    fall back to the token-less export-markdown path. This is the path that lets
+    the default served view carry token/model chips without ``?live=1`` (#62).
+    """
+    from ..core.models import Role, UnifiedMessage
+
+    db = v2_db_path(output_dir)
+    if not db.exists():
+        return None
+
+    conn = open_connection(db)
+    try:
+        synced = conn.execute(
+            "SELECT messages_synced FROM sessions WHERE id = ?", (session_id,)
+        ).fetchone()
+        if not synced or not synced[0]:
+            return None
+        rows = conn.execute(
+            """
+            SELECT seq, role, content, timestamp, model, tokens_json
+            FROM messages
+            WHERE session_id = ?
+            ORDER BY seq
+            """,
+            (session_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return None
+
+    messages = []
+    for _seq, role, content, timestamp, model, tokens_json in rows:
+        try:
+            role_enum = Role(role)
+        except ValueError:
+            role_enum = Role.USER
+        ts = None
+        if timestamp:
+            try:
+                ts = datetime.fromisoformat(timestamp)
+            except ValueError:
+                ts = None
+        tokens = None
+        if tokens_json:
+            try:
+                tokens = json.loads(tokens_json)
+            except (ValueError, TypeError):
+                tokens = None
+        messages.append(
+            UnifiedMessage(
+                role=role_enum,
+                content=content or "",
+                timestamp=ts or datetime.fromtimestamp(0),
+                model=model,
+                tokens=tokens,
+            )
+        )
+    return messages
