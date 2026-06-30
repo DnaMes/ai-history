@@ -75,6 +75,8 @@ include = ["lore*"]
 [tool.setuptools.package-data]
 # Vendored web assets (Tailwind, highlight.js) must ship in the wheel.
 "lore.interfaces" = ["static/*.js", "static/*.css"]
+# Jinja templates served by the web UI (FileSystemLoader resolves from the package).
+"lore" = ["templates/*.html"]
 
 [tool.ruff]
 line-length = 100

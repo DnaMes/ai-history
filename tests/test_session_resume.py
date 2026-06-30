@@ -118,19 +118,27 @@ def test_resume_invalid_session_id(monkeypatch):
     assert resp.status_code in (400, 404, 308)
 
 
+def _session_template_html() -> str:
+    from pathlib import Path
+
+    return (
+        Path(__file__).resolve().parent.parent / "lore" / "templates" / "session.html"
+    ).read_text(encoding="utf-8")
+
+
 def test_resume_button_present_in_session_template():
     """The Resume button must be rendered in the session detail page HTML."""
-    from lore.interfaces.web_templates import SESSION_TEMPLATE
+    html = _session_template_html()
 
-    assert "resumeSession" in SESSION_TEMPLATE
-    assert "Resume" in SESSION_TEMPLATE
+    assert "resumeSession" in html
+    assert "Resume" in html
 
 
 def test_resume_modal_js_present_in_session_template():
     """The modal and copy helper JS must be embedded in the session template."""
-    from lore.interfaces.web_templates import SESSION_TEMPLATE
+    html = _session_template_html()
 
-    assert "resume-modal" in SESSION_TEMPLATE
-    assert "closeResumeModal" in SESSION_TEMPLATE
-    assert "copyResumeCmd" in SESSION_TEMPLATE
-    assert "/api/sessions/" in SESSION_TEMPLATE
+    assert "resume-modal" in html
+    assert "closeResumeModal" in html
+    assert "copyResumeCmd" in html
+    assert "/api/sessions/" in html

@@ -8,6 +8,7 @@ import secrets
 import sys
 import time
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote, urlparse
@@ -82,21 +83,6 @@ from .web_jobs import (
     _set_reload_job,
     _start_audit_job,
     _start_reload_job,
-)
-from .web_templates import (
-    BASE_TEMPLATE,
-    DASHBOARD_TEMPLATE,
-    MEMORY_TEMPLATE,
-    NOISE_RULES_TEMPLATE,
-    PROJECTS_TEMPLATE,
-    RULES_TEMPLATE,
-    SESSION_PAIRS_TEMPLATE,
-    SESSION_ROWS_TEMPLATE,
-    SESSION_TEMPLATE,
-    SESSIONS_LIST_TEMPLATE,
-    STATS_TEMPLATE,
-    THREAD_DETAIL_TEMPLATE,
-    THREADS_LIST_TEMPLATE,
 )
 from .web_utils import (
     METRICS,
@@ -482,34 +468,34 @@ if os.environ.get("LORE_CLEAR_OPENCODE_CACHE", "").lower() == "true":
         opencode_state_cache.unlink()
 
 
-# Templates moved to web_templates.py
+# Templates live as files under lore/templates/*.html, loaded by _template_env().
 
 # --- LOGIC ---
 
 
-def render(tpl_name, **kwargs):
-    templates = {
-        "base": BASE_TEMPLATE,
-        "dashboard": DASHBOARD_TEMPLATE,
-        "session": SESSION_TEMPLATE,
-        "session_pairs": SESSION_PAIRS_TEMPLATE,
-        "sessions": SESSIONS_LIST_TEMPLATE,
-        "session_rows": SESSION_ROWS_TEMPLATE,
-        "projects": PROJECTS_TEMPLATE,
-        "threads": THREADS_LIST_TEMPLATE,
-        "thread_detail": THREAD_DETAIL_TEMPLATE,
-        "rules": RULES_TEMPLATE,
-        "noise_rules": NOISE_RULES_TEMPLATE,
-        "stats": STATS_TEMPLATE,
-        "memory": MEMORY_TEMPLATE,
-    }
-    from jinja2 import Environment, FunctionLoader, select_autoescape
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+
+
+@lru_cache(maxsize=1)
+def _template_env():
+    """Build the Jinja Environment once (templates are static files in the wheel).
+
+    Replaces the previous per-request Environment(FunctionLoader(dict)) — Jinja now
+    compiles+caches each template on first use. autoescape=True for all loaded
+    templates matches the prior default_for_string=True string-loader behavior (#30).
+    """
+    from jinja2 import Environment, FileSystemLoader
 
     env = Environment(
-        loader=FunctionLoader(lambda n: templates.get(n)),
-        autoescape=select_autoescape(default_for_string=True, default=True),
+        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        autoescape=True,
     )
     env.filters["urlpath"] = lambda value: quote(str(value or ""), safe="")
+    return env
+
+
+def render(tpl_name, **kwargs):
+    env = _template_env()
     idx = load_index()
     recent = sorted(
         idx.get("sessions", []),
@@ -533,7 +519,7 @@ def render(tpl_name, **kwargs):
             kwargs["show_session_controls"] = tpl_name in ("session", "thread_detail")
     from lore import __version__
 
-    return env.get_template(tpl_name).render(
+    return env.get_template(f"{tpl_name}.html").render(
         get_style=get_style,
         project_label=project_label,
         recent=recent,
