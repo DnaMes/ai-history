@@ -1,29 +1,42 @@
-# HANDOFF — Lore — 2026-06-29 (QA + 4 issues + 3 follow-ups, all merged)
+# HANDOFF — Lore — 2026-06-30 (QA + 11 issues + #30 Jinja, all merged)
 
 > Continue on **ai-workstation** (`ssh ai-workstation`, VM 300 on pve-awow, tmux session `ai`).
-> ✅ Workstation synced to latest master (b9b3dc4). venv built, tests green, HTTPS+gh remote.
+> ✅ Workstation synced to latest master. venv built, tests green, HTTPS+gh remote.
 > Update this before session ends.
 
-## TL;DR — all 4 QA bugs + 3 follow-ups shipped, master clean
+## TL;DR — every easily-fixable issue is shipped; only big features/architecture remain
 
-Production-readiness QA + full fix pass done autonomously. UI render quality is genuinely good
-(Axis-2 paid off) — NOT "billig". Seven PRs (#70–#75 + docs), each CI-green (lint + bandit +
-pip-audit + tests 3.11/3.12), squash-merged to master. **Suite 1004 passed, coverage ~83.9%.**
+Autonomous QA + fix sweep across two sessions. **12 PRs merged** (#70–#81), each CI-green
+(lint + bandit + pip-audit + tests 3.11/3.12), squash-merged to master. Suite ~1046 passed,
+coverage ~83.9%. master HEAD **5c77393**.
 
-| # | Fix | PR | Status |
-|---|---|---|---|
-| [#66](https://github.com/DnaMes/lore/issues/66) | `lore-web`/`lore-mcp` CLI entry points (were 0-byte modules) | [#70](https://github.com/DnaMes/lore/pull/70) | ✅ closed |
-| [#68](https://github.com/DnaMes/lore/issues/68) | Strip `<local-command-caveat>` title leak + `[command:/exit]` render noise | [#71](https://github.com/DnaMes/lore/pull/71) | ✅ closed |
-| [#67](https://github.com/DnaMes/lore/issues/67) | Cost dashboard: persist per-session token total (migration 11 + all layers) | [#72](https://github.com/DnaMes/lore/pull/72) | ✅ closed |
-| [#69](https://github.com/DnaMes/lore/issues/69) | antigravity/copilot drops surfaced as skip reasons (not silent 0) | [#73](https://github.com/DnaMes/lore/pull/73) | ✅ closed |
-| — | `[dev]` extra in pyproject + MCP serverInfo version → `lore.__version__` | [#74](https://github.com/DnaMes/lore/pull/74) | ✅ merged |
-| — | Cost dashboard: `untokened_count` (sessions without token data, not dropped) | [#75](https://github.com/DnaMes/lore/pull/75) | ✅ merged |
+| # | Fix | PR |
+|---|---|---|
+| [#66](https://github.com/DnaMes/lore/issues/66) | `lore-web`/`lore-mcp` CLI entry points (were 0-byte) | #70 |
+| [#68](https://github.com/DnaMes/lore/issues/68) | strip `<local-command-caveat>` title leak + command noise | #71 |
+| [#67](https://github.com/DnaMes/lore/issues/67) | cost dashboard: persist per-session token total (migration 11) | #72 |
+| [#69](https://github.com/DnaMes/lore/issues/69) | antigravity/copilot drops surfaced as skip reasons | #73 |
+| — | `[dev]` extra + MCP serverInfo version → `lore.__version__` | #74 |
+| [#67](https://github.com/DnaMes/lore/issues/67)↳ | cost dashboard `untokened_count` (no silent drop) | #75 |
+| [#30](https://github.com/DnaMes/lore/issues/30) | extract 13 Jinja templates → `lore/templates/*.html`, env built once | #76 |
+| [#62](https://github.com/DnaMes/lore/issues/62) | served-path per-message tokens/model from v2 store (chips without `?live=1`) | #77 |
+| [#54](https://github.com/DnaMes/lore/issues/54) | stop truncating opencode tool output at 50k (2M cap + `truncated` flag) | #78 |
+| [#55](https://github.com/DnaMes/lore/issues/55) | parametrized extractor contract tests (tool_calls shape, empty-HOME) | #81 |
+| [#57](https://github.com/DnaMes/lore/issues/57) | diagnosed: raw→import gap is 100% MIN_USER_PROMPTS filtering, no data loss (closed) | — |
 
-- **Version** 2.4.0 · **Repo** `~/projects/lab/ai/lore` · **GitHub** `DnaMes/lore` (default `master`, HEAD **b9b3dc4**)
+- **Version** 2.4.0 · **Repo** `~/projects/lab/ai/lore` · **GitHub** `DnaMes/lore` (default `master`, HEAD **5c77393**)
 - **Data** `~/.lore` · **Docker** `lore-app` :5000 (`gunicorn --workers 1`)
-- `lore-web --port 5057` works locally; `pip install -e ".[dev]"` sets up the full dev env.
-- Cost dashboard real: `/api/stats/costs` → 5.57B tokens / 719 tokened + 191 untokened sessions.
-- Planning docs (`docs/EXECUTION-PROMPT.md`, `docs/UMBAU.md`) are now committed (were churning untracked).
+- `lore-web --port 5057` works; `pip install -e ".[dev]"` sets up the dev env.
+- Cost dashboard real; token/model chips render without `?live=1`; templates are files now.
+
+## Open issues — all big/strategic, NOT autonomous-fixable (need product/design calls)
+
+- **[#79](https://github.com/DnaMes/lore/issues/79)** tool_call dict keys inconsistent (claude `name` vs opencode `tool`) — normalize all 10 extractors to a canonical shape; touches prep/UI/MCP. **New, filed during #55.** Mid-size refactor, do with a contract-test pass.
+- **[#53](https://github.com/DnaMes/lore/issues/53)** session-render rebuild — phases 0–2 done (#61/#63/#64); phase 3 (sticky TOC scroll-spy, burst/dup folding) open. Design-heavy; the regex re-parse (`web_formatting.py:149/161`) still lives parallel to the structured path. Do with the snapshot net (`tests/test_template_render_snapshots.py`) as the guard.
+- **[#56](https://github.com/DnaMes/lore/issues/56)** tags/bookmarks/hybrid-search/resume — new feature, schema+UI+MCP, product decision.
+- **[#33](https://github.com/DnaMes/lore/issues/33)** shared-memory vision, **[#48](https://github.com/DnaMes/lore/issues/48)** JSON-retirement, **[#29](https://github.com/DnaMes/lore/issues/29)** MCP-over-HTTP — architecture/roadmap.
+
+Recommended next: **#79** (bounded refactor, has a contract test ready) or **#53 phase 3** (snapshot-guarded). The rest want a product/design conversation first.
 
 ## ⚠️ repo-autosync gotcha (cost me a near-miss this session)
 
