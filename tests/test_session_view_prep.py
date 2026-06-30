@@ -23,7 +23,10 @@ def _fmt_tools(tool_calls):
     parts = []
     for tc in tool_calls:
         out = tc.get("output", "")
-        parts.append(f"<TOOL name={tc.get('name')} out={out!r}>")
+        # fold_tool_bursts normalizes to the canonical "tool" key (#79/#83);
+        # keep the "name" fallback for any raw call passed straight through.
+        name = tc.get("tool") or tc.get("name")
+        parts.append(f"<TOOL name={name} out={out!r}>")
     return "".join(parts)
 
 
@@ -94,3 +97,51 @@ def test_render_empty_message():
         msg, format_message_content_fn=_fmt_content, format_tool_calls_fn=_fmt_tools
     )
     assert html == ""
+
+
+def test_fold_tool_bursts_collapses_identical_consecutive():
+    from lore.interfaces.session_view_prep import fold_tool_bursts
+
+    calls = [
+        {"tool": "read", "input": {"f": "a"}, "output": "x"},
+        {"tool": "read", "input": {"f": "a"}, "output": "x"},
+        {"tool": "read", "input": {"f": "a"}, "output": "x"},
+        {"tool": "read", "input": {"f": "b"}, "output": "y"},
+    ]
+    folded = fold_tool_bursts(calls)
+    assert len(folded) == 2
+    assert folded[0]["_burst_count"] == 3
+    assert folded[1]["_burst_count"] == 1
+
+
+def test_fold_tool_bursts_does_not_fold_non_consecutive():
+    from lore.interfaces.session_view_prep import fold_tool_bursts
+
+    calls = [
+        {"tool": "a", "input": {}, "output": "1"},
+        {"tool": "b", "input": {}, "output": "2"},
+        {"tool": "a", "input": {}, "output": "1"},
+    ]
+    assert len(fold_tool_bursts(calls)) == 3
+
+
+def test_fold_tool_bursts_normalizes_mixed_key_formats():
+    """claude 'name' and opencode 'tool' for the same call still fold (#79 + #83)."""
+    from lore.interfaces.session_view_prep import fold_tool_bursts
+
+    calls = [
+        {"name": "read", "input": {"f": "a"}, "output": "x"},
+        {"tool": "read", "input": {"f": "a"}, "output": "x"},
+    ]
+    folded = fold_tool_bursts(calls)
+    assert len(folded) == 1
+    assert folded[0]["_burst_count"] == 2
+
+
+def test_burst_count_renders_as_multiplier():
+    from lore.interfaces.session_view_prep import fold_tool_bursts
+    from lore.interfaces.web_formatting import format_tool_calls
+
+    calls = [{"tool": "read", "input": {"f": "a"}, "output": "x"}] * 3
+    out = format_tool_calls(fold_tool_bursts(calls))
+    assert "×3" in out

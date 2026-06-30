@@ -203,13 +203,17 @@ def format_tool_calls(tool_calls):
     blocks = []
     for raw_tc in tool_calls:
         tc = normalize_tool_call(raw_tc)
-        tool_name = tc["tool"]
+        tool_name = str(tc["tool"])
+        # Identical consecutive calls are folded upstream (#83); show the count.
+        burst = raw_tc.get("_burst_count", 1) if isinstance(raw_tc, dict) else 1
+        if burst > 1:
+            tool_name = f"{tool_name} ×{burst}"
         tool_input = tc["input"]
         if isinstance(tool_input, (dict, list)):
             tool_args = json.dumps(tool_input, indent=2, ensure_ascii=False)
         else:
             tool_args = str(tool_input)
-        blocks.append(format_tool_display(str(tool_name), tool_args))
+        blocks.append(format_tool_display(tool_name, tool_args))
 
         tool_output = tc["output"]
         if isinstance(tool_output, str) and tool_output.strip():
