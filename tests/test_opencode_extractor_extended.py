@@ -735,3 +735,36 @@ def test_extract_tool_input_many_keys(monkeypatch, tmp_path):
     ]
     content, *_ = extractor._assemble_message_content_from_parts(parts)
     assert "..." in content
+
+
+def test_clamp_tool_output_keeps_normal_output_full(monkeypatch, tmp_path):
+    """#54 — outputs under the sanity cap are kept verbatim, not truncated."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ex = OpenCodeExtractor()
+
+    # 50k+ used to be truncated; now kept in full.
+    text = "x" * 60_000
+    out, truncated = ex._clamp_tool_output(text)
+    assert truncated is False
+    assert out == text
+
+
+def test_clamp_tool_output_clamps_pathological_dump(monkeypatch, tmp_path):
+    """#54 — only multi-MB pathological dumps are clamped, and the flag is set."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ex = OpenCodeExtractor()
+
+    text = "y" * (ex.MAX_TOOL_PART_CHARS + 500)
+    out, truncated = ex._clamp_tool_output(text)
+    assert truncated is True
+    assert out.startswith("y" * 100)
+    assert f"truncated, {len(text)} chars total" in out
+
+
+def test_clamp_tool_output_passes_non_strings_through(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ex = OpenCodeExtractor()
+    obj = {"structured": "output"}
+    out, truncated = ex._clamp_tool_output(obj)
+    assert out is obj
+    assert truncated is False
