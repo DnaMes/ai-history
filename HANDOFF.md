@@ -63,16 +63,15 @@ clean-looking `git add <file>`; the autosync may have pre-staged other things. T
 - **#67** — after a full index rebuild, `/api/stats/costs` returns total_tokens=5,569,949,748, session_count=719, by_tool (claude 58M / gemini 139M / opencode 5.37B).
 - **#69** — antigravity skip_counts = {no_task_md: 12, too_few_user_prompts: 7}; copilot's 2 sessions are real but single-prompt (correctly filtered). Neither had a lying is_available — the bug was silent drops, now surfaced.
 
-## Findings worth a follow-up (NOT done — out of scope)
+## Findings worth a follow-up — ALL SHIPPED (verified 2026-07-01)
 
-- **`[dev]` extra missing in pyproject** — test deps (pytest/pytest-cov/coverage/fastembed) aren't declared, so fresh setups install them by hand. Add `[project.optional-dependencies] dev = [...]`.
-- **Cost dashboard "N without token data"** — sessions without usage (codex today) report 0 and drop out of session_count silently. Surface the count in the dashboard.
-- **MCP serverInfo version hardcoded "2.0.0"** (≠ package 2.4.0) in the server handshake.
-- **#30** (Jinja extraction of `web_templates.py`, 2036-LOC string) still the "make it leaner" item; body references old `ai_history/` path.
+Every item previously listed here is done; kept for the trail:
 
-## NOT committed (left for you)
-
-- `docs/EXECUTION-PROMPT.md`, `docs/UMBAU.md` — real planning docs (Achse 1–4 + UX rebuild spec). Commit when ready: `git add docs/EXECUTION-PROMPT.md docs/UMBAU.md && git commit`.
+- **`[dev]` extra** — present, `pyproject.toml:43` (`dev = [...]`).
+- **Cost dashboard "N without token data"** — `untokened_count` surfaced, `web.py:1006/1067`.
+- **MCP serverInfo version** — uses `__version__`, `server.py:67`; live handshake returns `2.4.0`.
+- **#30** — Jinja extraction done; 13 files under `lore/templates/`, `web_templates.py` gone.
+- Planning docs `docs/EXECUTION-PROMPT.md`, `docs/UMBAU.md` — committed and tracked.
 
 ## Pre-existing open issues still relevant
 
