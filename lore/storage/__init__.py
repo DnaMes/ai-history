@@ -18,6 +18,7 @@ Public surface:
 from __future__ import annotations
 
 from .embeddings import embed_text, embeddings_available
+from .fusion import rrf_merge
 from .memory import (
     MEMORY_KINDS,
     MemoryEntry,
@@ -32,7 +33,7 @@ from .memory import (
 )
 from .reader import load_index_v2, load_session_messages_v2, v2_is_available
 from .schema import apply_migrations, current_version, initialise, open_connection
-from .search import search_sessions
+from .search import search_sessions, semantic_search_sessions
 from .tags import (
     BOOKMARK_TAG,
     add_session_tag,
@@ -67,7 +68,9 @@ __all__ = [
     "open_connection",
     "recall_memory",
     "remove_session_tag",
+    "rrf_merge",
     "search_sessions",
+    "semantic_search_sessions",
     "supersede_memory",
     "v2_db_path",
     "v2_is_available",

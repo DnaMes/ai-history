@@ -177,6 +177,42 @@ def _v2_enabled() -> bool:
     return raw not in ("0", "false", "no", "off")
 
 
+def _hybrid_enabled() -> bool:
+    """Whether to fuse semantic (vector) hits into keyword search (#87).
+
+    Default is **on**. Set ``LORE_HYBRID_SEARCH=0`` (or false/no/off) to force
+    keyword-only search — an escape hatch if the vector pass ever misbehaves.
+    The vector backend still has to be installed for hybrid to do anything.
+    """
+    raw = os.environ.get("LORE_HYBRID_SEARCH", "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def _hybrid_search(
+    index_dir: Path,
+    query: str,
+    tool: Optional[str],
+    project: Optional[str],
+    limit: int,
+    *,
+    fts_results: list[dict],
+) -> list[dict]:
+    """Fuse the already-computed FTS hits with semantic (vector) hits via RRF.
+
+    Returns the FTS results unchanged when semantic search yields nothing
+    (vector backend absent, or query empty) — so hybrid never *loses* a keyword
+    match, it only adds meaning-based ones.
+    """
+    from lore.storage import rrf_merge, semantic_search_sessions
+
+    vec_results = semantic_search_sessions(
+        index_dir, query, tool=tool, project=project, limit=limit
+    )
+    if not vec_results:
+        return fts_results
+    return rrf_merge(fts_results, vec_results, limit=limit)
+
+
 def _load_index_from_v2(index_path: Path, deleted: set[str]) -> Optional[dict]:
     """Load and post-process the index from the v2 store, or None to fall back.
 
@@ -328,6 +364,14 @@ def search_index(
                 results = search_sessions(
                     index_dir, query, tool=tool, project=project, limit=limit, scope=scope
                 )
+                # Hybrid: fuse keyword hits with semantic (vector) hits so a
+                # query that only matches by meaning still surfaces. Only when
+                # enabled, the vector backend is present, and no role scope is
+                # set (scoping is keyword-only — vectors are per-session).
+                if _hybrid_enabled() and not (scope and scope != "all"):
+                    results = _hybrid_search(
+                        index_dir, query, tool, project, limit, fts_results=results
+                    )
                 if results:
                     return apply_deleted_filter_to_results(results, deleted)
                 # v2 returned nothing — fall through to legacy. Better to

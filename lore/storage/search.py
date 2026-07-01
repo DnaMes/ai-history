@@ -162,3 +162,75 @@ def _sessions_matching_scope(
     finally:
         conn.close()
     return {row["session_id"] for row in rows}
+
+
+def semantic_search_sessions(
+    output_dir: Path,
+    query: str,
+    *,
+    tool: Optional[str] = None,
+    project: Optional[str] = None,
+    limit: int = 50,
+) -> List[Dict[str, Any]]:
+    """Vector (KNN) search over the session archive.
+
+    Embeds ``query`` and finds the nearest ``session_embeddings`` vectors via
+    sqlite-vec, joining back to ``sessions`` for the display dict. Returns the
+    same ``[{"session": <dict>, "score": <float>}]`` shape as
+    :func:`search_sessions` (score = vec distance, smaller = closer), so it
+    fuses cleanly with the FTS results.
+
+    Returns an empty list — never raises — when the vector table or the
+    embedding backend is unavailable, the query is empty, or it can't be
+    embedded. Callers then rely on FTS alone. ``scope`` is intentionally not
+    supported: vectors are per-session, so role scoping has no vector analogue.
+    """
+    from .embeddings import embed_text, pack_vector, sqlite_vec_available
+
+    if not sqlite_vec_available():
+        return []
+    if not (query or "").strip():
+        return []
+    db = v2_db_path(output_dir)
+    if not db.exists():
+        return []
+
+    vector = embed_text(query)
+    if vector is None:
+        return []
+
+    conn = open_connection(db)
+    try:
+        rows = conn.execute(
+            """
+            SELECT s.id, s.tool, s.project, s.thread_id, s.title,
+                   s.created, s.updated, s.source_path, s.source_mtime_ns,
+                   s.git_branch, s.git_commit, s.metadata_json,
+                   s.messages_count, s.prompt_count, s.prompt_outline,
+                   s.export_path, s.total_tokens,
+                   se.distance AS score
+            FROM session_embeddings se
+            JOIN sessions s ON s.id = se.session_id
+            WHERE se.embedding MATCH ?
+              AND k = ?
+            ORDER BY se.distance ASC
+            """,
+            (pack_vector(vector), max(1, limit) * 4),
+        ).fetchall()
+    except sqlite3.Error:
+        # No vec table (e.g. extension absent) or a malformed query — FTS covers it.
+        return []
+    finally:
+        conn.close()
+
+    results: List[Dict[str, Any]] = []
+    for row in rows:
+        session = _row_to_session_dict(row)
+        if tool and session.get("tool") != tool:
+            continue
+        if project and project not in str(session.get("project") or ""):
+            continue
+        results.append({"session": session, "score": float(row["score"])})
+        if len(results) >= limit:
+            break
+    return results
