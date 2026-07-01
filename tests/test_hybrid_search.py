@@ -121,9 +121,7 @@ def test_hybrid_disabled_by_env(tmp_path, monkeypatch):
 
 def test_hybrid_keeps_fts_when_semantic_empty(tmp_path, monkeypatch):
     """When the vector pass returns nothing, FTS results pass through unchanged."""
-    monkeypatch.setattr(
-        "lore.storage.semantic_search_sessions", lambda *a, **k: []
-    )
+    monkeypatch.setattr("lore.storage.semantic_search_sessions", lambda *a, **k: [])
     index_path = _build(tmp_path, [_session("a", body="unique keyword zebra")])
     results = search_index(index_path, "zebra", deleted=set(), limit=5)
     assert any(r["session"]["id"] == "a" for r in results)
