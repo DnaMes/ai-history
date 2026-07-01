@@ -45,7 +45,6 @@ from lore.exporters.index import IndexBuilder
 from lore.exporters.markdown import MarkdownExporter
 from lore.extractors.factory import get_all_extractors
 from lore.extractors.opencode import OpenCodeExtractor
-from lore.search.engine import SearchEngine
 from lore.utils.datetime import make_naive, parse_duration
 from lore.utils.git import get_git_info
 from lore.utils.paths import get_current_project, lore_home, make_thread_id
@@ -872,9 +871,15 @@ def cmd_run(args):
 def cmd_search(args):
     """Search across sessions."""
     output_dir = Path(args.output_dir).expanduser()
-    engine = SearchEngine(output_dir / "index.json")
+    # Route through the shared search service so the CLI, web UI and MCP all hit
+    # the same backend: v2 FTS + hybrid semantic fusion when available, with the
+    # legacy SearchEngine as the fallback. Previously this called SearchEngine
+    # directly, bypassing v2 and hybrid search entirely (#87).
+    from lore.services.index import load_deleted_session_ids, search_index
 
-    results = engine.search(args.query, tool=args.tool, project=args.project)
+    index_path = output_dir / "index.json"
+    deleted = load_deleted_session_ids(output_dir / "deleted_sessions.json")
+    results = search_index(index_path, args.query, deleted, tool=args.tool, project=args.project)
 
     if not results:
         print("No results found.")

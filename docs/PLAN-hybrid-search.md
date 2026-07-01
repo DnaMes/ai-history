@@ -75,15 +75,20 @@ search path (services/index.py::search_index):
   (default on when available) so it can be disabled.
 - Tests: fusion ordering; a query that only semantic finds surfaces; FTS-only fallback intact.
 
-### PR 4 — surface + consistency
-- MCP `search_history`: no signature change (fusion is transparent); optional `mode`
-  arg (`keyword`/`semantic`/`hybrid`, default `hybrid`) for power users.
-- Web `/api/search`, `/api/v1/search`: expose `semantic_available` like memory routes do;
-  no UI change required, hybrid is default-on.
-- **Fix CLI drift** (found during exploration): `lore_cli.py:875` `cmd_search` bypasses
-  the v2 router and hits legacy `SearchEngine` directly → route it through
-  `services/index.py::search_index` so CLI, web, MCP all share one search path.
-- Docs: CLAUDE.md architecture section (search data flow), CONTRIBUTING if needed.
+### PR 4 — surface + consistency ✅ (branch `feat/hybrid-search-surface`)
+- **Fix CLI drift** (the actual fix): `cmd_search` bypassed the v2 router and hit
+  legacy `SearchEngine` directly → now routes through `services/index.py::search_index`,
+  so CLI, web, MCP share one search path (and the CLI gets hybrid for free). Verified
+  live: `lore search` returns RRF-scored results from the v2 router.
+- MCP `search_history` / web `/api/search`: **no change** — they already call the router,
+  so hybrid is transparently active. The optional `mode` arg was **dropped** (YAGNI):
+  hybrid is default-on via `LORE_HYBRID_SEARCH`, a per-request override wasn't worth the
+  extra API surface + a new router param.
+- Docs: CLAUDE.md architecture section now documents the hybrid search data flow.
+
+**Known limitation (Phase-2):** semantic KNN has no distance cutoff, so a hybrid query
+with zero keyword matches still returns nearest neighbours. Acceptable for Phase 1;
+a relevance threshold on vector distance is the fix.
 
 ## Risks / watch-items
 
