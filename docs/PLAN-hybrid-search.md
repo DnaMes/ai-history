@@ -55,7 +55,7 @@ search path (services/index.py::search_index):
   — guarded: skip cleanly if the extension can't load (record migration anyway so it's not retried destructively; document that vec rows are rebuilt, not migrated).
 - Tests: extension loads, table creates, insert+KNN roundtrip; all skip if unavailable.
 
-### PR 2 — populate session vectors
+### PR 2 — populate session vectors ✅ (branch `feat/hybrid-search-populate-vectors`)
 - `storage/embeddings.py` (or new `storage/session_vectors.py`): `embed_sessions(conn, sessions)`
   — one vector per session from the same text `writer.py` feeds FTS (title + message
   bodies, truncated to model's max tokens). Best-effort, mirrors `memory._store_embedding`.
