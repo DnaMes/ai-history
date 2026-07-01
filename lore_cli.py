@@ -879,9 +879,7 @@ def cmd_search(args):
 
     index_path = output_dir / "index.json"
     deleted = load_deleted_session_ids(output_dir / "deleted_sessions.json")
-    results = search_index(
-        index_path, args.query, deleted, tool=args.tool, project=args.project
-    )
+    results = search_index(index_path, args.query, deleted, tool=args.tool, project=args.project)
 
     if not results:
         print("No results found.")
