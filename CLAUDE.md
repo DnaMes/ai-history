@@ -47,7 +47,9 @@ Tool data dirs  →  Extractor  →  UnifiedSession  →  IndexBuilder  →  ~/.
                                                                   →  ~/.lore/projects/<id>/session.md
 ```
 
-`~/.lore/` is the persistent output dir (`OUTPUT_DIR` in `web_data.py`). The index is a flat JSON file; SQLite FTS (`search/engine.py`) sits beside it as `index.sqlite`.
+`~/.lore/` is the persistent output dir (`OUTPUT_DIR` in `web_data.py`). The legacy index is a flat JSON file with a SQLite FTS sidecar (`search/engine.py` → `index.sqlite`); the v2 store (`storage/`, `index_v2.sqlite`, default on via `LORE_USE_V2`) is the modern read path.
+
+**Search** goes through one router — `services/index.py::search_index` — used by the CLI (`lore search`), web (`/api/search`), and MCP (`search_history`) alike. On the v2 store it runs **hybrid search**: FTS5 keyword hits (`storage/search.py::search_sessions`) fused by RRF (`storage/fusion.py::rrf_merge`) with semantic vector hits (`storage/search.py::semantic_search_sessions`, sqlite-vec KNN over `session_embeddings`). Vectors use `fastembed` (`bge-small`, 384-dim) and are populated on index write (`storage/session_vectors.py`). Both `sqlite-vec` and `fastembed` are the optional `[semantic]` extra — absent → search degrades to FTS-only. Disable fusion with `LORE_HYBRID_SEARCH=0`. Role-scoped search (`scope=user_only|…`) stays keyword-only (vectors are per-session). Caveat: semantic KNN has no distance cutoff, so hybrid always returns nearest neighbours even for a no-keyword-match query.
 
 ### Package Layout
 
