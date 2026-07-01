@@ -18,10 +18,11 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from ..core.models import UnifiedSession
 from .schema import initialise
+from .session_vectors import embed_sessions
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,8 @@ def write_sessions(
     titles = titles or {}
     extras = extras or {}
     conn = initialise(db_path)
+    # (session_id, fts_body) pairs, embedded after the main commit (below).
+    embed_inputs: List[Tuple[str, str]] = []
     try:
         conn.execute("BEGIN")
         # Full replace — ON DELETE CASCADE clears the dependent messages,
@@ -222,6 +225,7 @@ def write_sessions(
                 body_parts.append(content)
 
             # One FTS row per session: title + concatenated message bodies.
+            fts_body = "\n".join(p for p in body_parts if p)
             conn.execute(
                 """
                 INSERT INTO search_index (
@@ -233,9 +237,10 @@ def write_sessions(
                     session.tool.value,
                     session.project_path or "",
                     title,
-                    "\n".join(p for p in body_parts if p),
+                    fts_body,
                 ),
             )
+            embed_inputs.append((session.session_id, fts_body))
 
         # Stamp the write time so readers can detect a stale v2 store (#36).
         conn.execute(
@@ -244,6 +249,14 @@ def write_sessions(
             (datetime.now(timezone.utc).isoformat(timespec="seconds"),),
         )
         conn.execute("COMMIT")
+        # Embed sessions AFTER the FTS commit — embedding is slow and best-effort;
+        # holding the write lock across model calls would block web-UI reads, and
+        # a vector failure must never roll back the committed index. No-op when
+        # sqlite-vec / fastembed are absent (search stays FTS-only).
+        try:
+            embed_sessions(conn, embed_inputs)
+        except Exception as exc:  # noqa: BLE001 - vectors are optional, never fatal
+            logger.warning("Session vector pass skipped: %s", exc)
         return count
     except sqlite3.Error:
         try:
