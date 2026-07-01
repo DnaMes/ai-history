@@ -45,7 +45,7 @@ search path (services/index.py::search_index):
 
 ## Work breakdown (each = 1 CI-green PR, branch off `main`)
 
-### PR 1 — vector store foundation
+### PR 1 — vector store foundation ✅ (branch `feat/hybrid-search-vec-foundation`)
 - Optional dep: `pyproject.toml` `semantic = ["fastembed>=0.3", "sqlite-vec>=0.1.9"]`.
 - `storage/embeddings.py`: add `sqlite_vec_available()` guard + `load_vec(conn)` helper
   (enable_load_extension → `sqlite_vec.load` → disable). Reuse existing `embed_text`,

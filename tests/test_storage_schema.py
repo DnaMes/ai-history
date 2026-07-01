@@ -95,14 +95,17 @@ def _tables(conn) -> set[str]:
     rows = conn.execute(
         "SELECT name FROM sqlite_master "
         "WHERE type IN ('table','virtual table') AND name NOT LIKE 'sqlite_%' "
-        "  AND name NOT LIKE 'search_index_%'"
+        "  AND name NOT LIKE 'search_index_%' "
+        # vec0 creates several shadow tables (session_embeddings_chunks,
+        # _rowids, _vector_chunks00, …) — only the virtual table itself is ours.
+        "  AND name NOT LIKE 'session_embeddings_%'"
     ).fetchall()
     return {r[0] for r in rows}
 
 
 def test_expected_tables_exist(tmp_path):
     conn = initialise(tmp_path / "v2.sqlite")
-    assert _tables(conn) == {
+    core = {
         "schema_version",
         "sessions",
         "messages",
@@ -115,6 +118,19 @@ def test_expected_tables_exist(tmp_path):
         "memory_embeddings",
         "session_tags",
     }
+    tables = _tables(conn)
+    # The vec0 session_embeddings table only exists when sqlite-vec loaded;
+    # it is created outside the migration list, so drop it before comparing.
+    assert tables - {"session_embeddings"} == core
+
+
+def test_session_embeddings_table_present_with_vec(tmp_path):
+    from lore.storage.embeddings import sqlite_vec_available
+
+    conn = initialise(tmp_path / "v2.sqlite")
+    present = "session_embeddings" in _tables(conn)
+    # Table exists iff the optional extension is available in this env.
+    assert present == sqlite_vec_available()
 
 
 def test_sessions_columns(tmp_path):

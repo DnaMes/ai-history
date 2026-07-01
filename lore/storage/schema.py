@@ -16,11 +16,16 @@ Tier 2/3 rows later without a schema change.
 
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Tuple
+
+from .embeddings import EMBEDDING_DIM, load_vec_extension
+
+logger = logging.getLogger(__name__)
 
 # (version, description, sql) — append new migrations, NEVER edit existing ones.
 MIGRATIONS: List[Tuple[int, str, str]] = [
@@ -255,7 +260,44 @@ def open_connection(path: Path) -> sqlite3.Connection:
     # immediately with SQLITE_BUSY — the web UI reads while a sync writes,
     # and a memory write can overlap a sync (#40).
     conn.execute("PRAGMA busy_timeout = 5000")
+    # Best-effort: load sqlite-vec so the ``session_embeddings`` vec0 table is
+    # usable on this connection. No-op (returns False) when the optional
+    # dependency or the host's extension-loading support is absent — vector
+    # search then degrades to FTS-only. The table itself is created lazily by
+    # ``ensure_session_vec_table`` (NOT a migration — a vec0 CREATE would raise
+    # 'no such module' and wedge the migration runner where the extension is
+    # missing).
+    load_vec_extension(conn)
     return conn
+
+
+def ensure_session_vec_table(conn: sqlite3.Connection) -> bool:
+    """Create the ``session_embeddings`` vec0 table if sqlite-vec is loaded.
+
+    Returns True if the table exists (or was just created), False if the
+    extension isn't available on this connection — in which case the caller
+    should skip vector writes/search and rely on FTS. Idempotent:
+    ``CREATE VIRTUAL TABLE IF NOT EXISTS`` is a no-op once the table exists.
+
+    Kept out of the linear ``MIGRATIONS`` list on purpose: a ``vec0`` CREATE
+    fails with 'no such module: vec0' when the extension can't load, which
+    would abort ``apply_migrations`` and leave the DB stuck below its target
+    version on any host without sqlite-vec.
+    """
+    if not load_vec_extension(conn):
+        return False
+    try:
+        conn.execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS session_embeddings USING vec0("
+            "session_id TEXT PRIMARY KEY, "
+            "model TEXT, "
+            f"embedding float[{EMBEDDING_DIM}]"
+            ")"
+        )
+        return True
+    except sqlite3.Error as exc:
+        logger.warning("session_embeddings vec0 table unavailable: %s", exc)
+        return False
 
 
 def current_version(conn: sqlite3.Connection) -> int:
@@ -348,4 +390,7 @@ def initialise(path: Path) -> sqlite3.Connection:
     """Open ``path`` and apply every pending migration. Returns the connection."""
     conn = open_connection(path)
     apply_migrations(conn)
+    # Create the optional vector table once the base schema is in place.
+    # No-op when sqlite-vec is unavailable — search stays FTS-only.
+    ensure_session_vec_table(conn)
     return conn

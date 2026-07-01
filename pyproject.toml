@@ -35,11 +35,13 @@ dependencies = [
 
 [project.optional-dependencies]
 watch = ["watchdog>=3.0"]
-# Local semantic memory search — a small CPU-only ONNX model, no torch.
-semantic = ["fastembed>=0.3"]
+# Local semantic search — a small CPU-only ONNX model (no torch) plus
+# sqlite-vec for native KNN over the session archive. Both optional; without
+# them search degrades to FTS-only.
+semantic = ["fastembed>=0.3", "sqlite-vec>=0.1.9"]
 # Everything needed to run the test suite, lint, and type-check locally.
-# Mirrors what CI installs; fastembed is included so the semantic tests run for
-# real instead of being skipped. `pip install -e ".[dev]"`.
+# Mirrors what CI installs; fastembed + sqlite-vec are included so the semantic
+# tests run for real instead of being skipped. `pip install -e ".[dev]"`.
 dev = [
     "pytest>=8,<10",
     "pytest-cov>=5",
@@ -47,6 +49,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.8",
     "fastembed>=0.3",
+    "sqlite-vec>=0.1.9",
 ]
 
 [project.urls]

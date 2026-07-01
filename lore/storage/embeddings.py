@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import math
+import sqlite3
 import struct
 from typing import List, Optional, Sequence
 
@@ -23,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 # A small, fast, CPU-only model. 384-dimensional output.
 DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+
+# Output dimensionality of DEFAULT_MODEL. The ``session_embeddings`` vec0
+# table is declared ``float[EMBEDDING_DIM]``, so a model change that alters
+# the dimension needs a matching table rebuild.
+EMBEDDING_DIM = 384
 
 # Lazily-initialised singleton — building the model is expensive.
 _model = None
@@ -114,3 +120,59 @@ def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
     if norm_a == 0.0 or norm_b == 0.0:
         return 0.0
     return dot / (norm_a * norm_b)
+
+
+# --- sqlite-vec (native KNN over the session archive) -----------------------
+#
+# Per-session vector search needs a real ANN index — the Python cosine scan
+# above is fine for a few hundred memory rows but not for thousands of
+# sessions. ``sqlite-vec`` is a loadable SQLite extension that adds a ``vec0``
+# virtual table with KNN in SQL, living inside the same ``index_v2.sqlite``.
+# It is an *optional* dependency (the ``semantic`` extra); when it (or the
+# host's ability to load extensions) is absent, callers fall back to FTS-only.
+
+_vec_failed = False
+
+
+def sqlite_vec_available() -> bool:
+    """True if the ``sqlite_vec`` package is importable.
+
+    Does not check that the running SQLite build can actually *load* the
+    extension — use :func:`load_vec_extension`, which returns False on a
+    load failure. Once a load has failed this returns False too, so a
+    broken environment is only probed once.
+    """
+    if _vec_failed:
+        return False
+    try:
+        import sqlite_vec  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def load_vec_extension(conn: sqlite3.Connection) -> bool:
+    """Load the sqlite-vec extension into ``conn``. Returns True on success.
+
+    Best-effort and non-fatal: some Python SQLite builds ship without
+    ``enable_load_extension`` at all, and the extension load itself can fail.
+    In every such case this logs once, disables the feature for the process,
+    and returns False so the caller degrades to FTS-only search.
+    """
+    global _vec_failed
+    if _vec_failed:
+        return False
+    try:
+        import sqlite_vec
+    except ImportError:
+        return False
+    try:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+        return True
+    except (AttributeError, sqlite3.Error) as exc:
+        # AttributeError: this SQLite build has no enable_load_extension.
+        logger.warning("sqlite-vec unavailable, vector search disabled: %s", exc)
+        _vec_failed = True
+        return False
