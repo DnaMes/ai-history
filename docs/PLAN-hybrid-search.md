@@ -65,7 +65,7 @@ search path (services/index.py::search_index):
   Phase 1 (1513 rows), but key on `session_id` with `ON CONFLICT DO UPDATE`.
 - Tests: after `write_sessions`, N sessions → N vec rows; fallback path writes 0 and doesn't raise.
 
-### PR 3 — semantic search + RRF fusion
+### PR 3 — semantic search + RRF fusion ✅ (branch `feat/hybrid-search-rrf-fusion`)
 - `storage/search.py`: `semantic_search_sessions(output_dir, query, *, tool, project, limit)`
   — embed query, KNN over `session_embeddings`, join `sessions`, apply tool/project
   filter, return the same `[{"session": dict, "score": float}]` shape as `search_sessions`.
