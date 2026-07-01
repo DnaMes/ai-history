@@ -79,7 +79,7 @@ release:
    `[X.Y.Z]` section.
 3. Commit: `docs: changelog for X.Y.Z` together with the version bump.
 4. Tag the commit: `git tag -a vX.Y.Z -m "Lore X.Y.Z — <summary>"`.
-5. Push the branch and the tag: `git push <remote> master vX.Y.Z`.
+5. Push the branch and the tag: `git push <remote> main vX.Y.Z`.
 6. Optionally build + publish the wheel: `python -m build`.
 
 The web UI (sidebar footer), `lore --version`, and

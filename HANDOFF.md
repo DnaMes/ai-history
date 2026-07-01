@@ -104,7 +104,7 @@ for m in (claude,codex,opencode,cursor,gemini,antigravity,vscode,warp):
 
 ## Gotchas (still valid)
 
-- Default remote branch is **`master`**, not `main`.
+- Default remote branch is **`main`** (renamed from `master` on 2026-07-01; the old `master` ref is gone).
 - gunicorn is **not** in `.venv` (Docker image only); `lore-web` uses the Flask dev server locally.
 - Test deps are **not** in pyproject (no `[dev]` extra) — fresh venvs need `pip install pytest pytest-cov coverage fastembed` by hand (follow-up to fix).
 - Tailwind console warning ("cdn.tailwindcss.com should not be used in production") is the vendored dev build's banner — cosmetic.
@@ -124,7 +124,7 @@ for m in (claude,codex,opencode,cursor,gemini,antigravity,vscode,warp):
 2. `git pull` (already up to date as of this handoff).
 3. `.venv/bin/python -m pytest tests/ -q` — confirm green baseline.
 4. Pick a follow-up from "Findings worth a follow-up" above (e.g. add `[dev]` extra, or #30 Jinja),
-   or a roadmap issue. Branch off master, never commit to master directly without CI.
+   or a roadmap issue. Branch off main, never commit to main directly without CI.
 
 ---
 
