@@ -30,8 +30,22 @@ missing blob). **Fixed for good on 2026-07-02**: `/lab/ai/lore` added to
 Syncthing-synced at all; git push/pull is the only sync. Repair recipe for ref
 corruption lives in the project memory (`ai-workstation-syncthing-mirror`).
 
+**QA session 2026-07-02** (deep pass over the freshly shipped hybrid search — real
+endpoints, cold-start, reload, RAM; all findings filed):
+- ✅ good: warm search 70–85 ms, cold first search 0.85 s; FTS-injection/unicode/5k-query
+  edge cases all clean (400 or safe 200, no 500s); MCP `search_history` returns fused
+  RRF results; tool filter + scope combos fine.
+- **#94 (p1)** Docker image lacks `[semantic]` — prod silently FTS-only; also needs
+  build-time model pre-download (offline container would silently degrade too).
+- **#95 (p1)** web Sync button broken: reload job embeds ~950 sessions in-job → hits the
+  180 s `ACTION_JOB_TIMEOUT_SECONDS` (measured 382 s), abort discards the WHOLE reload
+  (even the FTS update). Fix: embed outside job scope and/or incremental embedding.
+- **#96 (p2)** web RSS 54 MB → ~1.9 GB once the model + a bulk embed pass ran in-process.
+- **#97 (p3)** `/api/v1/search` silently ignores `scope`.
+
 **Open roadmap** (all need a direction decision): #48 JSON-retirement, #33 shared
-memory, #29 MCP-over-HTTP, #92 hybrid-search Phase 2.
+memory, #29 MCP-over-HTTP, #92 hybrid-search Phase 2, and the QA findings above
+(#94/#95 are the pressing ones — prod correctness).
 
 ---
 
