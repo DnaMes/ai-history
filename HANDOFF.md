@@ -3,6 +3,39 @@
 > Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
 > Update this before session ends.
 
+## ▶ NEXT SESSION — tackle #96 (IndexBuilder RAM, ~1.7 GB)
+
+Start a **fresh session** for this. Copy the prompt in `docs/NEXT-SESSION-96.md`
+verbatim. One-line summary of the task:
+
+> The reload/reindex path materialises **all ~960 UnifiedSession objects (with
+> full message bodies) in a Python list** before writing the index, peaking at
+> ~1740 MB RSS — measured with **zero embedding involved**, so it's a
+> pre-existing IndexBuilder problem, not hybrid search. Make extraction→write
+> **streaming/batched** so peak memory is bounded regardless of archive size.
+
+Key facts already established (don't re-investigate):
+- Root cause proven: extracting 962 sessions into a list = 1740 MB; the
+  embedding model is only +263 MB. See #96 comment for the measurements.
+- Entry points that build the full list: `lore_cli.py` (several `sessions.append`
+  loops → `build_index(all_sessions, …)`, e.g. lines ~145/218/268/315, callers
+  ~298/454/518/784/1214) and `lore/services/extraction.py:119,262` (the web
+  reload path). `IndexBuilder.build_index(sessions: List[UnifiedSession], …)`
+  in `lore/exporters/index.py:88` takes a materialised list today.
+- The hard part: `build_index` computes JSON stats, a keyword inverted index,
+  and the v2 dual-write from the **same** list; `writer.write_sessions` also
+  iterates it once. A streaming redesign must keep all consumers fed without
+  re-extracting. Consider a two-pass (cheap metadata pass for stats, then a
+  streamed body pass) or an iterator + running aggregates.
+- Extractors already `yield` (`extract_sessions() -> Iterator`), so the source
+  is lazy — it's the callers that eagerly `list()` it.
+
+Constraints: keep behaviour identical (same index.json, same v2 rows, same FTS
++ vectors), stay CI-green, and **verify with a real RSS measurement** before/after
+(the QA method: extract-all into memory and read `/proc/<pid>/status` VmRSS).
+
+---
+
 ## TL;DR — hybrid search (#87) shipped in 4 PRs; #56 umbrella closed
 
 **Session 2026-07-01/02:** `master`→`main` rename (GitHub API rename, PR #65 closed as
