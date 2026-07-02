@@ -1,10 +1,40 @@
-# HANDOFF — Lore — 2026-06-30 (QA + 11 issues + #30 Jinja, all merged)
+# HANDOFF — Lore — 2026-07-02 (hybrid search shipped end-to-end, #56 closed)
 
-> Continue on **ai-workstation** (`ssh ai-workstation`, VM 300 on pve-awow, tmux session `ai`).
-> ✅ Workstation synced to latest master. venv built, tests green, HTTPS+gh remote.
+> Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
 > Update this before session ends.
 
-## TL;DR — every easily-fixable issue is shipped; only big features/architecture remain
+## TL;DR — hybrid search (#87) shipped in 4 PRs; #56 umbrella closed
+
+**Session 2026-07-01/02:** `master`→`main` rename (GitHub API rename, PR #65 closed as
+stale, CI/docs refs fixed), venv rebuilt (was still the old `ai-history` editable install
+on a broken path — now `lore 2.4.0` on Python 3.12), and **#87 hybrid search** built
+end-to-end per `docs/PLAN-hybrid-search.md`:
+
+| PR | What |
+|---|---|
+| #88 | sqlite-vec foundation — vec0 `session_embeddings` table, guarded outside MIGRATIONS |
+| #89 | one embedding per session populated on index write (post-FTS-commit, best-effort) |
+| #90 | `semantic_search_sessions` (KNN) + `rrf_merge` fusion wired into `search_index` |
+| #91 | CLI drift fixed — `lore search` now uses the shared v2 router; CLAUDE.md documents the flow |
+
+Suite **1102 passed**, coverage ~84.8%, all CI green. Design: sqlite-vec in
+`index_v2.sqlite`, per-session bge-small 384-dim vectors, RRF (k=60), `[semantic]`
+optional extra with FTS-only fallback, `LORE_HYBRID_SEARCH=0` escape hatch.
+Verified end-to-end over the real archive: 7/10 hits for a conceptual query found
+only by semantic search. **#56 + #87 closed; follow-up #92** (distance cutoff +
+message-level embeddings, Phase 2).
+
+⚠️ **Syncthing corrupted `.git` three times this session** (invalid refs/reflogs, one
+missing blob). Repair recipe lives in the project memory
+(`ai-workstation-syncthing-mirror`): remove corrupt loose+packed refs, delete affected
+reflog files, `git fsck` — pushed work always survived.
+
+**Open roadmap** (all need a direction decision): #48 JSON-retirement, #33 shared
+memory, #29 MCP-over-HTTP, #92 hybrid-search Phase 2.
+
+---
+
+## Previous session — 2026-06-30 (QA + 11 issues + #30 Jinja, all merged)
 
 Autonomous QA + fix sweep. **18 PRs merged** (#70–#86), each CI-green
 (lint + bandit + pip-audit + tests 3.11/3.12), squash-merged to master. Suite **1063 passed**,
