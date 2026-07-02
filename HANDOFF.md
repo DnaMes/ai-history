@@ -24,10 +24,11 @@ Verified end-to-end over the real archive: 7/10 hits for a conceptual query foun
 only by semantic search. **#56 + #87 closed; follow-up #92** (distance cutoff +
 message-level embeddings, Phase 2).
 
-⚠️ **Syncthing corrupted `.git` three times this session** (invalid refs/reflogs, one
-missing blob). Repair recipe lives in the project memory
-(`ai-workstation-syncthing-mirror`): remove corrupt loose+packed refs, delete affected
-reflog files, `git fsck` — pushed work always survived.
+⚠️ **Syncthing corrupted `.git` four times this session** (invalid refs/reflogs, one
+missing blob). **Fixed for good on 2026-07-02**: `/lab/ai/lore` added to
+`~/projects/.stignore` on BOTH machines (per-device file!) — lore is no longer
+Syncthing-synced at all; git push/pull is the only sync. Repair recipe for ref
+corruption lives in the project memory (`ai-workstation-syncthing-mirror`).
 
 **Open roadmap** (all need a direction decision): #48 JSON-retirement, #33 shared
 memory, #29 MCP-over-HTTP, #92 hybrid-search Phase 2.
@@ -138,7 +139,7 @@ for m in (claude,codex,opencode,cursor,gemini,antigravity,vscode,warp):
 - Test deps are **not** in pyproject (no `[dev]` extra) — fresh venvs need `pip install pytest pytest-cov coverage fastembed` by hand (follow-up to fix).
 - Tailwind console warning ("cdn.tailwindcss.com should not be used in production") is the vendored dev build's banner — cosmetic.
 - Subagent sessions have `project_path: None` in the index (cosmetic, affects project filter).
-- Syncthing mirrors this repo to ai-workstation incl. `.git` — but **sync via git** (push/pull), don't rely on Syncthing for `.git` consistency.
+- ~~Syncthing mirrors this repo to ai-workstation incl. `.git`~~ **No longer true (2026-07-02):** lore is in `~/projects/.stignore` on both machines — Syncthing skips it entirely; sync via git push/pull only.
 
 ## ai-workstation — synced to latest master (cca6def)
 
