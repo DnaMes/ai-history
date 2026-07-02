@@ -20,8 +20,20 @@ COPY lore ./lore/
 # Top-level CLI entry modules referenced by [project.scripts] / py-modules.
 COPY lore_cli.py lore_session_cli.py ./
 
-# Install dependencies (no postgres or redis — this app uses JSON + SQLite)
-RUN pip install --no-cache-dir . gunicorn
+# Install dependencies (no postgres or redis — this app uses JSON + SQLite).
+# [semantic] pulls fastembed + sqlite-vec so hybrid search works in the
+# container (#94); without it search silently degrades to FTS-only.
+RUN pip install --no-cache-dir ".[semantic]" gunicorn
+
+# Pre-download the embedding model at build time (#94). fastembed fetches
+# bge-small from HuggingFace on first use — an offline container would fail
+# that download and silently fall back to FTS. FASTEMBED_CACHE_PATH pins the
+# cache to a fixed image path (the default is /tmp, which tmpfs mounts would
+# shadow); a+rX keeps it readable when compose overrides `user:`.
+ENV FASTEMBED_CACHE_PATH=/opt/fastembed-cache
+RUN python -c "from lore.storage.embeddings import embed_text; \
+    v = embed_text('warmup'); assert v and len(v) == 384, 'model warmup failed'" \
+    && chmod -R a+rX /opt/fastembed-cache
 
 # Switch to non-root user
 USER ai
