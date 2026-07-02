@@ -84,6 +84,21 @@ def test_embed_sessions_empty_input_is_zero(tmp_path):
     assert embed_sessions(conn, []) == 0
 
 
+@requires_vectors
+def test_embed_sessions_deduplicates_ids(tmp_path):
+    """Duplicate session ids must not kill the pass (regression).
+
+    vec0 ignores INSERT OR REPLACE and raises 'UNIQUE constraint failed' on a
+    duplicate key — real batches contain duplicate ids (same reason the
+    sessions table uses INSERT OR REPLACE), which zeroed out the first real
+    reindex. Last duplicate wins, matching the sessions-table semantics.
+    """
+    conn = initialise(tmp_path / "index_v2.sqlite")
+    written = embed_sessions(conn, [("dup", "first text"), ("dup", "second text"), ("b", "other")])
+    assert written == 2  # dup collapsed to one row, not a crashed pass
+    assert _vec_count(conn) == 2
+
+
 # ---------------------------------------------------------------------------
 # Graceful degradation — no backend
 # ---------------------------------------------------------------------------
