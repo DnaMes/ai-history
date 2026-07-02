@@ -30,22 +30,27 @@ missing blob). **Fixed for good on 2026-07-02**: `/lab/ai/lore` added to
 Syncthing-synced at all; git push/pull is the only sync. Repair recipe for ref
 corruption lives in the project memory (`ai-workstation-syncthing-mirror`).
 
-**QA session 2026-07-02** (deep pass over the freshly shipped hybrid search — real
-endpoints, cold-start, reload, RAM; all findings filed):
+**QA session + fixes 2026-07-02** (deep pass over hybrid search, then fixed all findings):
 - ✅ good: warm search 70–85 ms, cold first search 0.85 s; FTS-injection/unicode/5k-query
-  edge cases all clean (400 or safe 200, no 500s); MCP `search_history` returns fused
-  RRF results; tool filter + scope combos fine.
-- **#94 (p1)** Docker image lacks `[semantic]` — prod silently FTS-only; also needs
-  build-time model pre-download (offline container would silently degrade too).
-- **#95 (p1)** web Sync button broken: reload job embeds ~950 sessions in-job → hits the
-  180 s `ACTION_JOB_TIMEOUT_SECONDS` (measured 382 s), abort discards the WHOLE reload
-  (even the FTS update). Fix: embed outside job scope and/or incremental embedding.
-- **#96 (p2)** web RSS 54 MB → ~1.9 GB once the model + a bulk embed pass ran in-process.
-- **#97 (p3)** `/api/v1/search` silently ignores `scope`.
+  edge cases clean; MCP `search_history` returns fused RRF results.
+- **#94 → #100 merged**: Docker installs `[semantic]` + pre-downloads bge-small at build
+  time; `/api/build-info` now reports `semantic.*`. ⚠️ **Offline image smoke NOT run** —
+  local Docker daemon DNS is broken (can't resolve deb.debian.org, no image builds here).
+  **#101 tracks running it in a working Docker env before trusting prod hybrid search.**
+- **#95 → #99 merged**: reload no longer times out. `embed_sessions` is now incremental
+  (migration 13 `session_embedding_meta`, `LORE_EMBED_BUDGET_SECONDS` default 60s); only
+  changed sessions re-embed. Also fixed a latent bug: incremental sync's full DELETE used
+  to wipe every vector. Live web reload **92 s, done** (was 382 s → timeout/abort).
+- **#96 (p2, still open)**: reframed after investigation — the ~1.9 GB is NOT the model
+  (263 MB); it's the IndexBuilder holding all ~960 sessions in RAM (1740 MB with zero
+  embedding). Pre-existing, unrelated to hybrid search. Needs IndexBuilder streaming.
+- **#97 → #98 merged**: `/api/v1/search` now honors + validates `scope`.
 
-**Open roadmap** (all need a direction decision): #48 JSON-retirement, #33 shared
-memory, #29 MCP-over-HTTP, #92 hybrid-search Phase 2, and the QA findings above
-(#94/#95 are the pressing ones — prod correctness).
+Suite **1109 passed**; `main @ cdcccc3`.
+
+**Open roadmap** (all need a direction decision): #96 IndexBuilder RAM (p2), #101 Docker
+offline verify (p2), #92 hybrid-search Phase 2 (distance cutoff), #48 JSON-retirement,
+#33 shared memory, #29 MCP-over-HTTP.
 
 ---
 
