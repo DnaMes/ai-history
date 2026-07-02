@@ -159,8 +159,10 @@ def write_sessions(
     titles = titles or {}
     extras = extras or {}
     conn = initialise(db_path)
-    # (session_id, fts_body) pairs, embedded after the main commit (below).
-    embed_inputs: List[Tuple[str, str]] = []
+    # (session_id, fts_body|None, source_mtime_ns) triples for the incremental
+    # embed pass after the main commit. Reused (metadata-only) entries go in
+    # with text=None: keep their stored vector, never (re)embed them.
+    embed_inputs: List[Tuple[str, Optional[str], Optional[int]]] = []
     try:
         conn.execute("BEGIN")
         # Full replace — ON DELETE CASCADE clears the dependent messages,
@@ -172,11 +174,15 @@ def write_sessions(
         for entry in reused_entries or []:
             _write_reused_entry(conn, entry)
             count += 1
+            entry_id = entry.get("id")
+            if entry_id:
+                embed_inputs.append((str(entry_id), None, None))
 
         for session in sessions:
             count += 1
             title = titles.get(session.session_id) or session.title or ""
             session_extras = extras.get(session.session_id, {})
+            source_mtime_ns = _source_mtime_ns(session.source_path)
             conn.execute(
                 _SESSION_INSERT,
                 (
@@ -188,7 +194,7 @@ def write_sessions(
                     session.created_at.isoformat(),
                     session.last_updated.isoformat(),
                     session.source_path,
-                    _source_mtime_ns(session.source_path),
+                    source_mtime_ns,
                     session.git_branch,
                     session.git_commit,
                     session.cli_version,
@@ -240,7 +246,7 @@ def write_sessions(
                     fts_body,
                 ),
             )
-            embed_inputs.append((session.session_id, fts_body))
+            embed_inputs.append((session.session_id, fts_body, source_mtime_ns))
 
         # Stamp the write time so readers can detect a stale v2 store (#36).
         conn.execute(

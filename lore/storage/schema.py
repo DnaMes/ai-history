@@ -231,6 +231,24 @@ MIGRATIONS: List[Tuple[int, str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag);
         """,
     ),
+    (
+        13,
+        "embedding bookkeeping for incremental session vectors (#95)",
+        # Sidecar for the vec0 ``session_embeddings`` table (which itself must
+        # stay OUT of this list — see ensure_session_vec_table). Records which
+        # source state each stored vector was computed from, so a reload only
+        # re-embeds sessions whose source_mtime_ns (or model) changed instead
+        # of re-embedding the whole archive — the full pass blew the web
+        # reload job's 180s timeout. A plain table: no vec0 module needed.
+        """
+        CREATE TABLE IF NOT EXISTS session_embedding_meta (
+            session_id      TEXT PRIMARY KEY,
+            source_mtime_ns INTEGER,
+            model           TEXT NOT NULL,
+            created         TEXT NOT NULL
+        );
+        """,
+    ),
 ]
 
 
