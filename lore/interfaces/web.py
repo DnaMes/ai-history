@@ -1847,17 +1847,31 @@ def api_v1_search():
     if project and not validate_search_param(project):
         return jsonify({"error": "Invalid project parameter"}), 400
 
+    # Message-role scope (#97) — was silently ignored before; validate like the
+    # MCP search_history tool does and reject unknown values instead of lying.
+    from lore.storage.search import SEARCH_SCOPES
+
+    scope = (request.args.get("scope") or "all").strip().lower()
+    if scope not in SEARCH_SCOPES:
+        return (
+            jsonify(
+                {"error": f"Invalid scope. Expected one of: {', '.join(sorted(SEARCH_SCOPES))}"}
+            ),
+            400,
+        )
+
     try:
         limit = _api_limit_param(default=20, max_value=200)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    results = search_index(q, tool=tool or None, project=project or None, limit=limit)
+    results = search_index(q, tool=tool or None, project=project or None, limit=limit, scope=scope)
     return jsonify(
         {
             "query": q,
             "tool": tool or None,
             "project": project or None,
+            "scope": scope,
             "count": len(results),
             "results": [
                 {
