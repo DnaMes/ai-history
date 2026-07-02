@@ -36,11 +36,17 @@ def embed_sessions(conn: sqlite3.Connection, items: Iterable[SessionText]) -> in
 
     Returns the number of vectors written. Returns 0 (without raising) when the
     vector table or the embedding backend is unavailable — the caller keeps its
-    FTS-only index. Uses ``INSERT OR REPLACE`` keyed on ``session_id`` so a
-    re-index refreshes vectors in place.
+    FTS-only index. Duplicate session ids in ``items`` are deduped (last one
+    wins) before inserting — vec0 tables reject duplicates even under
+    ``INSERT OR REPLACE``. A re-index rebuilds the table from scratch.
     """
-    items = list(items)
-    if not items:
+    # Dedupe by session id, last one wins — real batches contain duplicate ids
+    # (the sessions table uses INSERT OR REPLACE for the same reason). This must
+    # happen in Python: vec0 virtual tables IGNORE the OR REPLACE conflict
+    # clause and still raise 'UNIQUE constraint failed' on a duplicate key,
+    # which killed the whole embedding pass on the first real reindex.
+    deduped = dict(items)
+    if not deduped:
         return 0
     if not embeddings_available() or not ensure_session_vec_table(conn):
         return 0
@@ -51,13 +57,12 @@ def embed_sessions(conn: sqlite3.Connection, items: Iterable[SessionText]) -> in
         # Full replace mirrors write_sessions' rebuild semantics: stale rows for
         # sessions that vanished upstream must not linger in the vector table.
         conn.execute("DELETE FROM session_embeddings")
-        for session_id, text in items:
+        for session_id, text in deduped.items():
             vector = embed_text((text or "")[:_MAX_EMBED_CHARS])
             if vector is None:
                 continue  # empty text or a transient embed failure — skip, FTS covers it
             conn.execute(
-                "INSERT OR REPLACE INTO session_embeddings(session_id, model, embedding) "
-                "VALUES (?, ?, ?)",
+                "INSERT INTO session_embeddings(session_id, model, embedding) VALUES (?, ?, ?)",
                 (session_id, DEFAULT_MODEL, pack_vector(vector)),
             )
             written += 1
