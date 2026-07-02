@@ -224,12 +224,19 @@ def _export_fallback_scan_enabled() -> bool:
 
 def _build_info_payload() -> dict:
     from lore import __version__
+    from lore.storage.embeddings import embeddings_available, sqlite_vec_available
 
     return {
         "module": __name__,
         "version": __version__,
         "revision": _current_revision(),
         "python": sys.version.split()[0],
+        # Hybrid search silently degrades to FTS-only when either backend is
+        # missing (#94) — surface the state so a downgrade is observable.
+        "semantic": {
+            "embeddings_available": embeddings_available(),
+            "sqlite_vec_available": sqlite_vec_available(),
+        },
         "hardening": {
             "thread_unknown_returns_404": True,
             "search_param_validation": True,
