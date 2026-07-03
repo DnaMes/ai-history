@@ -3,36 +3,30 @@
 > Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
 > Update this before session ends.
 
-## ▶ NEXT SESSION — tackle #96 (IndexBuilder RAM, ~1.7 GB)
+## ▶ #96 — DONE (PR #102). Root cause was broader than framed.
 
-Start a **fresh session** for this. Copy the prompt in `docs/NEXT-SESSION-96.md`
-verbatim. One-line summary of the task:
+**PR #102** (`fix/96-indexbuilder-streaming`) ships the cold-rebuild fix.
+Investigation found the ~1.9 GB was **three** contributors, not just list
+retention (measured peak VmHWM on the real ~980-session archive):
 
-> The reload/reindex path materialises **all ~960 UnifiedSession objects (with
-> full message bodies) in a Python list** before writing the index, peaking at
-> ~1740 MB RSS — measured with **zero embedding involved**, so it's a
-> pre-existing IndexBuilder problem, not hybrid search. Make extraction→write
-> **streaming/batched** so peak memory is bounded regardless of archive size.
+| Path | Before | After |
+|---|---|---|
+| cold full rebuild (the OOM-risk case #96 reports) | 2084 MB | **1404 MB** |
+| web-reload path (non-incremental) | 2040 MB | **1421 MB** |
 
-Key facts already established (don't re-investigate):
-- Root cause proven: extracting 962 sessions into a list = 1740 MB; the
-  embedding model is only +263 MB. See #96 comment for the measurements.
-- Entry points that build the full list: `lore_cli.py` (several `sessions.append`
-  loops → `build_index(all_sessions, …)`, e.g. lines ~145/218/268/315, callers
-  ~298/454/518/784/1214) and `lore/services/extraction.py:119,262` (the web
-  reload path). `IndexBuilder.build_index(sessions: List[UnifiedSession], …)`
-  in `lore/exporters/index.py:88` takes a materialised list today.
-- The hard part: `build_index` computes JSON stats, a keyword inverted index,
-  and the v2 dual-write from the **same** list; `writer.write_sessions` also
-  iterates it once. A streaming redesign must keep all consumers fed without
-  re-extracting. Consider a two-pass (cheap metadata pass for stats, then a
-  streamed body pass) or an iterator + running aggregates.
-- Extractors already `yield` (`extract_sessions() -> Iterator`), so the source
-  is lazy — it's the callers that eagerly `list()` it.
+1. **build_index list retention (~500–600 MB, unbounded term)** — fixed:
+   `_MultiWriter` single-pass fan-out (`lore/exporters/index.py`), callers pass
+   generators, `StreamingV2Writer` for v2 (`lore/storage/writer.py`).
+2. **139 MB VSCode chat file `json.load` spike (31→1226 MB)** — fixed: 25 MB
+   per-session-file cap in `lore/extractors/vscode.py` (`MAX_SESSION_FILE_BYTES`).
+3. **opencode internal dedup dict (~425 MB)** — follow-up **#104**.
 
-Constraints: keep behaviour identical (same index.json, same v2 rows, same FTS
-+ vectors), stay CI-green, and **verify with a real RSS measurement** before/after
-(the QA method: extract-all into memory and read `/proc/<pid>/status` VmRSS).
+**Warm incremental** still peaks ~2.0 GB (holds reused full sessions to re-write
+v2 message rows, #35) → follow-up **#103** (needs incremental v2 writes, like
+#95's incremental embedding). Neither follow-up is the OOM cold case.
+
+1120 tests pass (was 1109 + 11 new). Design doc + steelman under
+`docs/superpowers/specs/2026-07-02-indexbuilder-streaming-design.md`.
 
 ---
 
