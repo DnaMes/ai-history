@@ -156,74 +156,106 @@ def build_search_index(
         except (OSError, json.JSONDecodeError) as exc:
             logger.warning("Failed to read existing index for incremental build: %s", exc)
 
-    sessions: list[UnifiedSession] = []
     reused_entries: list[dict] = []
-    # The full UnifiedSession objects behind reused_entries — incremental sync
-    # has already extracted them (messages included), so we hand them to the
-    # v2 store as complete sessions instead of metadata-only rows (#35).
-    reused_sessions: list[UnifiedSession] = []
+    # Ids of the reused (unchanged) sessions. They are yielded through the SAME
+    # stream as refreshed sessions; build_index routes an id in this set to a
+    # v2-only write (its JSON/legacy entry comes from reused_entries). This is
+    # what lets warm incremental sync avoid holding every unchanged session in a
+    # list to re-write its v2 message rows (#96/#103/#35).
     reused_ids: set[str] = set()
     errors: list[dict] = []
     title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
     total = len(selected) or 1
+    deleted = deleted_ids or set()
+    refresh_count = 0
 
     import time as _time
 
-    for i, extractor in enumerate(selected, start=1):
-        if should_stop and should_stop():
-            raise ActionJobCancelledError("Cancelled by user")
-        # Base progress for this tool (covers the range [base, base+per_tool))
-        # so we can move the bar smoothly as sessions stream in. Without these
-        # mid-extractor updates the bar visibly froze for the user — claude-code
-        # alone needs to walk 368+ JSONL files with no other I/O signal.
-        base_progress = 15 + int((i - 1) / total * 45)
-        per_tool = max(1, int(45 / total))
-        tool_name = extractor.tool.value
-        if progress_callback:
-            progress_callback(base_progress, f"Loading {tool_name}")
-        try:
-            extracted_sessions: list[UnifiedSession] = []
-            sess_count = 0
-            last_tick = _time.monotonic()
-            for session in extractor.extract_sessions():
-                if should_stop and should_stop():
-                    raise ActionJobCancelledError("Cancelled by user")
-                sess_count += 1
-                now = _time.monotonic()
-                if progress_callback and now - last_tick >= 1.0:
-                    # Crawl the bar within this tool's slice; the count keeps
-                    # the user looking at a moving number even if the bar nudges
-                    # only a percent.
-                    sub = min(per_tool - 1, int(sess_count / 50))
-                    progress_callback(
-                        base_progress + sub,
-                        f"Loading {tool_name} ({sess_count} sessions)",
-                    )
-                    last_tick = now
+    def session_stream():
+        """Yield every session to index, one at a time (#96/#103).
 
-                if incremental:
-                    prior = existing_by_id.get(session.session_id)
-                    if prior is not None:
-                        prior_mtime = prior.get("source_mtime")
-                        current_mtime = _stat_mtime_ns(session.source_path)
-                        if (
-                            prior_mtime is not None
-                            and current_mtime is not None
-                            and prior_mtime == current_mtime
-                            and session.session_id not in reused_ids
-                        ):
-                            reused_entries.append(prior)
-                            # Keep the fully-extracted session for the v2 store
-                            # so its message rows are written too (#35).
-                            reused_sessions.append(session)
-                            reused_ids.add(session.session_id)
-                            continue
+        Runs the extractor walk lazily so ``build_index`` streams straight from
+        the extractors — no full session list is ever held. Both refreshed and
+        reused sessions are yielded (reused ones tagged via ``reused_ids``);
+        ``reused_entries`` (light prior dicts) and per-extractor skip/error
+        reports (``errors``) are collected as side effects. build_index consumes
+        this generator to exhaustion before finalizing, so those side-effect
+        lists are complete by the time it needs them.
+        """
+        nonlocal refresh_count
+        for i, extractor in enumerate(selected, start=1):
+            if should_stop and should_stop():
+                raise ActionJobCancelledError("Cancelled by user")
+            # Base progress for this tool (covers the range [base, base+per_tool))
+            # so we can move the bar smoothly as sessions stream in. Without these
+            # mid-extractor updates the bar visibly froze for the user — claude-code
+            # alone needs to walk 368+ JSONL files with no other I/O signal.
+            base_progress = 15 + int((i - 1) / total * 45)
+            per_tool = max(1, int(45 / total))
+            tool_name = extractor.tool.value
+            if progress_callback:
+                progress_callback(base_progress, f"Loading {tool_name}")
+            imported = 0
+            try:
+                sess_count = 0
+                last_tick = _time.monotonic()
+                for session in extractor.extract_sessions():
+                    if should_stop and should_stop():
+                        raise ActionJobCancelledError("Cancelled by user")
+                    sess_count += 1
+                    now = _time.monotonic()
+                    if progress_callback and now - last_tick >= 1.0:
+                        # Crawl the bar within this tool's slice; the count keeps
+                        # the user looking at a moving number even if the bar
+                        # nudges only a percent.
+                        sub = min(per_tool - 1, int(sess_count / 50))
+                        progress_callback(
+                            base_progress + sub,
+                            f"Loading {tool_name} ({sess_count} sessions)",
+                        )
+                        last_tick = now
 
-                title = title_generator.generate(session, force=False)
-                if title:
-                    session.title = title
-                extracted_sessions.append(session)
-            sessions.extend(extracted_sessions)
+                    if session.session_id in deleted:
+                        continue
+
+                    if incremental:
+                        prior = existing_by_id.get(session.session_id)
+                        if prior is not None:
+                            prior_mtime = prior.get("source_mtime")
+                            current_mtime = _stat_mtime_ns(session.source_path)
+                            if (
+                                prior_mtime is not None
+                                and current_mtime is not None
+                                and prior_mtime == current_mtime
+                                and session.session_id not in reused_ids
+                            ):
+                                # Unchanged: its JSON/legacy entry is reused
+                                # verbatim from the prior dict; yield the full
+                                # session so build_index writes its v2 message
+                                # rows (#35), then drops it — no list retained.
+                                reused_entries.append(prior)
+                                reused_ids.add(session.session_id)
+                                yield session
+                                continue
+
+                    title = title_generator.generate(session, force=False)
+                    if title:
+                        session.title = title
+                    imported += 1
+                    refresh_count += 1
+                    yield session
+            except ActionJobCancelledError:
+                raise
+            except Exception as exc:
+                logger.warning(
+                    "Extractor %s failed during index build: %s",
+                    extractor.tool.value,
+                    exc,
+                    exc_info=True,
+                )
+                errors.append({"extractor": extractor.tool.value, "error": str(exc)})
+                continue
+
             # Surface how many sessions the quality filter dropped instead of
             # letting them vanish silently inside the generator (#1e).
             skipped = dict(getattr(extractor, "skip_counts", {}) or {})
@@ -232,43 +264,26 @@ def build_search_index(
                 logger.info(
                     "Extractor %s: imported %d, skipped %d (%s)",
                     tool_name,
-                    len(extracted_sessions),
+                    imported,
                     total_skipped,
                     ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())),
                 )
-                errors.append(
-                    {
-                        "extractor": tool_name,
-                        "skipped": skipped,
-                        "imported": len(extracted_sessions),
-                    }
-                )
-        except ActionJobCancelledError:
-            raise
-        except Exception as exc:
-            logger.warning(
-                "Extractor %s failed during index build: %s",
-                extractor.tool.value,
-                exc,
-                exc_info=True,
-            )
-            errors.append({"extractor": extractor.tool.value, "error": str(exc)})
-            continue
+                errors.append({"extractor": tool_name, "skipped": skipped, "imported": imported})
 
-    deleted = deleted_ids or set()
-    filtered = [session for session in sessions if session.session_id not in deleted]
-    reused_filtered = [entry for entry in reused_entries if entry.get("id") not in deleted]
-    reused_sessions_filtered = [s for s in reused_sessions if s.session_id not in deleted]
+    # reused_entries / reused_ids are populated as session_stream runs. They are
+    # consumed only after the generator drains (build_index seeds reused-entry
+    # rows at finalize), so both are complete by then. Passing the live objects
+    # lets build_index read them post-drain without materialising sessions here.
     IndexBuilder(output_dir).build_index(
-        filtered,
+        session_stream(),
         {},
-        reused_entries=reused_filtered if reused_filtered else None,
-        reused_sessions=reused_sessions_filtered if reused_sessions_filtered else None,
+        reused_entries=reused_entries,
+        reused_ids=reused_ids,
     )
 
     if progress_callback:
         message = (
-            f"Index written ({len(reused_filtered)} reused, {len(filtered)} refreshed)"
+            f"Index written ({len(reused_entries)} reused, {refresh_count} refreshed)"
             if incremental
             else "Index written"
         )

@@ -3,36 +3,81 @@
 > Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
 > Update this before session ends.
 
-## ▶ NEXT SESSION — tackle #96 (IndexBuilder RAM, ~1.7 GB)
+## ▶ #96 + #103 DONE — PR #102 OPEN, CI GREEN, ready to merge
 
-Start a **fresh session** for this. Copy the prompt in `docs/NEXT-SESSION-96.md`
-verbatim. One-line summary of the task:
+**Status (final for this session):** all 3 commits pushed to
+`fix/96-indexbuilder-streaming`, **PR #102 CI green** (lint/bandit/pip-audit +
+tests 3.11/3.12). PR body updated (closes #96, closes #103). 1123 tests pass.
+The open-question below was RESOLVED: cold build has **0** `messages_synced=0`
+rows → the earlier JSON/message-count deltas were live-archive drift, not a bug.
+**Only remaining action: merge PR #102** (and #104 opencode stays a separate PR).
 
-> The reload/reindex path materialises **all ~960 UnifiedSession objects (with
-> full message bodies) in a Python list** before writing the index, peaking at
-> ~1740 MB RSS — measured with **zero embedding involved**, so it's a
-> pre-existing IndexBuilder problem, not hybrid search. Make extraction→write
-> **streaming/batched** so peak memory is bounded regardless of archive size.
+Historical detail from mid-session (kept for reference):
 
-Key facts already established (don't re-investigate):
-- Root cause proven: extracting 962 sessions into a list = 1740 MB; the
-  embedding model is only +263 MB. See #96 comment for the measurements.
-- Entry points that build the full list: `lore_cli.py` (several `sessions.append`
-  loops → `build_index(all_sessions, …)`, e.g. lines ~145/218/268/315, callers
-  ~298/454/518/784/1214) and `lore/services/extraction.py:119,262` (the web
-  reload path). `IndexBuilder.build_index(sessions: List[UnifiedSession], …)`
-  in `lore/exporters/index.py:88` takes a materialised list today.
-- The hard part: `build_index` computes JSON stats, a keyword inverted index,
-  and the v2 dual-write from the **same** list; `writer.write_sessions` also
-  iterates it once. A streaming redesign must keep all consumers fed without
-  re-extracting. Consider a two-pass (cheap metadata pass for stats, then a
-  streamed body pass) or an iterator + running aggregates.
-- Extractors already `yield` (`extract_sessions() -> Iterator`), so the source
-  is lazy — it's the callers that eagerly `list()` it.
+## ▶ (resolved) — #96 + #103 on branch `fix/96-indexbuilder-streaming`
 
-Constraints: keep behaviour identical (same index.json, same v2 rows, same FTS
-+ vectors), stay CI-green, and **verify with a real RSS measurement** before/after
-(the QA method: extract-all into memory and read `/proc/<pid>/status` VmRSS).
+### Goal
+Bound reload/reindex peak RSS (#96) so it doesn't grow with archive size and
+isn't an OOM risk on small hosts / containers.
+
+### Current progress
+- **PR #102 OPEN** (unmerged) on branch `fix/96-indexbuilder-streaming`. Two
+  commits pushed (#96 fix + handoff). CI was green on those.
+- **#103 work committed locally? NO — STAGED, NOT committed** as of this
+  handoff. `git status`: `lore/exporters/index.py`,
+  `lore/services/extraction.py`, `tests/test_index_builder_streaming.py`, and
+  the design doc are **staged**. Commit them next.
+
+### Measured results (peak VmHWM, real ~990-session archive, isolated processes)
+| Path | Before | After |
+|---|---|---|
+| cold full rebuild (#96 OOM case) | 2084 MB | **1404 MB** |
+| web-reload non-incremental | 2040 MB | **1421 MB** |
+| **warm incremental (#103)** | 2077 MB | **1429 MB** |
+
+### What was done
+1. **#96 build_index list retention** — `_MultiWriter` single-pass fan-out in
+   `lore/exporters/index.py`; callers pass generators; `StreamingV2Writer` in
+   `lore/storage/writer.py`. Light data (JSON dicts, legacy tuples) buffers;
+   heavy message rows stream into v2 and drop.
+2. **#96 139 MB VSCode file `json.load` spike** — 25 MB cap
+   (`MAX_SESSION_FILE_BYTES`) in `lore/extractors/vscode.py`, logged skip.
+3. **#103 warm incremental** — steelman REJECTED the mtime-diff v2 write
+   (correctness downgrade). Instead: caller yields reused sessions through the
+   **same generator** tagged via a `reused_ids` set; `build_index` routes tagged
+   ids to a **v2-only** write (JSON/legacy entry from `reused_entries`).
+   DELETE-and-rebuild consistency preserved; no second list held.
+
+### What didn't work / caught bugs
+- **`reused_ids or set()` in build_index** dropped the caller's live (empty-at-
+  call-time) set → mis-routed every reused session to a full write, duplicating
+  it in JSON. FIXED with `if reused_ids is None`. (See index.py build_index.)
+- Diff-based v2 write (mtime as sole re-index trigger) — rejected by steelman:
+  a same-mtime content edit would serve stale search forever.
+
+### ⚠️ OPEN QUESTION before merge (verify next)
+Parity check (full rebuild vs cold+incremental) over the **live** archive showed
+JSON ids 992 vs 991 and message counts differing by ~12–18. **v2 session ids
+matched True; search_index matched True.** Strongly looks like **live-data drift**
+(these read active AI session dirs that change between builds, seconds apart) —
+NOT a bug. BUT the same-OUT run also showed `messages_synced sum = 985 < 991`
+(6 sessions messages_synced=0). A background job (`ba6nl49t3`) was checking
+whether messages_synced=0 appears on a **COLD** build too (→ pre-existing, not
+#103's fault) and whether those sessions still have message rows. **READ THAT
+RESULT FIRST.** If cold build also has messages_synced=0 with message rows
+present → benign/pre-existing, safe to commit+push #103. If #103 introduced it →
+investigate `add_reused_session` / seeding order.
+
+### Next steps (ordered)
+1. Read `ba6nl49t3` output (messages_synced=0 on cold build?). Decide benign vs bug.
+2. If benign: `git commit` the staged #103 changes; push branch; update PR #102
+   body to note #103 folded in (warm incremental now 1429 MB).
+3. Run full suite once more (was **1123 passed, 1 skipped** before commit).
+4. Confirm CI green on the pushed branch.
+5. Close #103 when PR #102 merges. #104 (opencode dedup dict ~425 MB) still open.
+
+Design doc + both steelman passes:
+`docs/superpowers/specs/2026-07-02-indexbuilder-streaming-design.md`.
 
 ---
 
