@@ -3,7 +3,18 @@
 > Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
 > Update this before session ends.
 
-## ▶ IN PROGRESS — #96 + #103 on branch `fix/96-indexbuilder-streaming`
+## ▶ #96 + #103 DONE — PR #102 OPEN, CI GREEN, ready to merge
+
+**Status (final for this session):** all 3 commits pushed to
+`fix/96-indexbuilder-streaming`, **PR #102 CI green** (lint/bandit/pip-audit +
+tests 3.11/3.12). PR body updated (closes #96, closes #103). 1123 tests pass.
+The open-question below was RESOLVED: cold build has **0** `messages_synced=0`
+rows → the earlier JSON/message-count deltas were live-archive drift, not a bug.
+**Only remaining action: merge PR #102** (and #104 opencode stays a separate PR).
+
+Historical detail from mid-session (kept for reference):
+
+## ▶ (resolved) — #96 + #103 on branch `fix/96-indexbuilder-streaming`
 
 ### Goal
 Bound reload/reindex peak RSS (#96) so it doesn't grow with archive size and
