@@ -189,16 +189,34 @@ contributors, not the whole story:
    two-pass id-scan redesign. **Left as follow-up** (documented, not silently
    ignored).
 
-### Known remaining: warm incremental reused_sessions (follow-up)
+### Warm incremental — fixed too (#103, merged stream)
 
-The warm incremental path (`incremental=True`, most sessions unchanged) still
-peaks ~2.0 GB because `build_search_index` collects every unchanged session's
-full `UnifiedSession` into `reused_sessions` to re-write its v2 message rows
-(#35). `build_index` already *streams* that list one-at-a-time, but the caller
-materialises it. Truly bounding this needs **incremental v2 writes** (skip
-re-writing unchanged sessions' message rows instead of DELETE-and-rebuild) —
-the same shape as #95's incremental embedding, and out of scope for this PR.
-The cold rebuild (the OOM-risk case the issue actually reports) is fixed.
+The warm incremental path (`incremental=True`, most sessions unchanged) also
+peaked ~2.0 GB because `build_search_index` collected every unchanged session's
+full `UnifiedSession` into a `reused_sessions` list to re-write its v2 message
+rows (#35).
+
+A **steelman pass** rejected the obvious fix (diff-based v2 write keyed on
+mtime) — it would make `source_mtime_ns` the sole re-index trigger for message
+content and FTS, a correctness downgrade that today's DELETE-and-rebuild
+self-heals. Instead the caller now yields reused sessions through the **same
+generator** as refreshed ones, tagged via a `reused_ids` set. `build_index`
+routes a tagged id to a **v2-only** write (its JSON/legacy entry still comes
+from `reused_entries`), so every session's full message rows still reach v2 —
+DELETE-and-rebuild consistency preserved — but the caller never holds a second
+list. `reused_sessions` (list param) is kept only for the list-based
+callers/tests.
+
+Result: warm incremental **2077 → 1429 MB** (−31%), now matching the
+cold-rebuild floor. Verified `index.json` ids, v2 session ids, v2 message count,
+and search_index rows are identical between a pure full rebuild and a
+cold-then-incremental build.
+
+Subtle bug caught in review: `build_index(..., reused_ids=reused_ids)` must NOT
+do `reused_ids = reused_ids or set()` — the caller passes a **live** set that is
+empty at call time and fills as the generator runs; `or set()` would swap in a
+new set and mis-route every reused session to a full write (duplicating it in
+the JSON index). Guard with `if reused_ids is None` instead.
 
 ## Non-goals / out of scope
 

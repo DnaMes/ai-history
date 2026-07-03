@@ -178,3 +178,99 @@ def test_build_index_batch_boundaries(tmp_path, n):
         assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == n
     finally:
         conn.close()
+
+
+def test_reused_ids_route_to_v2_only_and_preserve_json(tmp_path):
+    """A session whose id is in reused_ids is written v2-only (#103).
+
+    Its JSON/legacy entry comes from reused_entries (not from the streamed
+    session), while its full message rows still reach v2 — so the merged
+    single-stream caller never needs a separate reused_sessions list.
+    """
+    reused = {
+        "id": "r1",
+        "tool": "claude-code",
+        "project": "/proj",
+        "thread_id": None,
+        "title": "Reused One",
+        "created": "2025-06-15T10:00:00",
+        "updated": "2025-06-15T10:00:00",
+        "messages": 3,
+        "prompts": 0,
+        "keywords": [],
+        "search_text": "reused body",
+    }
+
+    # r1 arrives INSIDE the sessions stream and is tagged reused via reused_ids.
+    def stream():
+        yield _session("r1", n_messages=3)  # reused -> v2-only
+        yield _session("fresh", n_messages=2)  # fresh -> full fan-out
+
+    IndexBuilder(tmp_path).build_index(stream(), {}, reused_entries=[reused], reused_ids={"r1"})
+
+    data = json.loads((tmp_path / "index.json").read_text())
+    # JSON: reused entry (verbatim, reused-first) then the fresh session — r1
+    # appears exactly once (from reused_entries, not duplicated by the stream).
+    assert [s["id"] for s in data["sessions"]] == ["r1", "fresh"]
+    assert data["sessions"][0]["title"] == "Reused One"  # verbatim prior dict
+
+    # v2 got full message rows for BOTH r1 (reused) and fresh (#35 intact).
+    from lore.storage.writer import v2_db_path
+
+    conn = sqlite3.connect(v2_db_path(tmp_path))
+    try:
+        r1_msgs = conn.execute("SELECT COUNT(*) FROM messages WHERE session_id='r1'").fetchone()[0]
+        r1_synced = conn.execute("SELECT messages_synced FROM sessions WHERE id='r1'").fetchone()[0]
+    finally:
+        conn.close()
+    assert r1_msgs == 3, "reused session must still get its v2 message rows"
+    assert r1_synced == 1
+
+
+def test_reused_ids_stream_does_not_materialise(tmp_path):
+    """Reused sessions in the merged stream are dropped one at a time (#103)."""
+    import gc
+    import weakref
+
+    live = 0
+    peak = 0
+    refs = []
+
+    def tracked(s):
+        nonlocal live, peak
+        live += 1
+        peak = max(peak, live)
+        refs.append(weakref.ref(s, lambda _r: _dec()))
+        return s
+
+    def _dec():
+        nonlocal live
+        live -= 1
+
+    total = 40
+    reused_ids = {f"s{i:03d}" for i in range(0, total, 2)}  # half reused
+    entries = [
+        {
+            "id": sid,
+            "tool": "claude-code",
+            "project": "/p",
+            "thread_id": None,
+            "title": sid,
+            "created": "2025-06-15T10:00:00",
+            "updated": "2025-06-15T10:00:00",
+            "messages": 3,
+            "prompts": 0,
+            "keywords": [],
+            "search_text": "x",
+        }
+        for sid in sorted(reused_ids)
+    ]
+
+    def stream():
+        for i in range(total):
+            yield tracked(_session(f"s{i:03d}"))
+            gc.collect()
+
+    IndexBuilder(tmp_path).build_index(stream(), {}, reused_entries=entries, reused_ids=reused_ids)
+    gc.collect()
+    assert peak < total // 2, f"peak {peak} suggests reused sessions were retained"

@@ -157,10 +157,11 @@ def build_search_index(
             logger.warning("Failed to read existing index for incremental build: %s", exc)
 
     reused_entries: list[dict] = []
-    # The full UnifiedSession objects behind reused_entries — incremental sync
-    # has already extracted them (messages included), so we hand them to the
-    # v2 store as complete sessions instead of metadata-only rows (#35).
-    reused_sessions: list[UnifiedSession] = []
+    # Ids of the reused (unchanged) sessions. They are yielded through the SAME
+    # stream as refreshed sessions; build_index routes an id in this set to a
+    # v2-only write (its JSON/legacy entry comes from reused_entries). This is
+    # what lets warm incremental sync avoid holding every unchanged session in a
+    # list to re-write its v2 message rows (#96/#103/#35).
     reused_ids: set[str] = set()
     errors: list[dict] = []
     title_generator = TitleGenerator(strategy=TitleStrategy.FAST)
@@ -170,16 +171,16 @@ def build_search_index(
 
     import time as _time
 
-    def refresh_stream():
-        """Yield the sessions that need (re)indexing, one at a time (#96).
+    def session_stream():
+        """Yield every session to index, one at a time (#96/#103).
 
         Runs the extractor walk lazily so ``build_index`` streams straight from
-        the extractors — the full refreshed set is never held in a list. Reused
-        (unchanged) sessions are collected as a side effect into
-        ``reused_entries`` / ``reused_sessions`` for the incremental path, and
-        per-extractor skip/error reports into ``errors``. Because build_index
-        consumes this generator to exhaustion before returning, those side-effect
-        lists are complete by the time the caller reads them below.
+        the extractors — no full session list is ever held. Both refreshed and
+        reused sessions are yielded (reused ones tagged via ``reused_ids``);
+        ``reused_entries`` (light prior dicts) and per-extractor skip/error
+        reports (``errors``) are collected as side effects. build_index consumes
+        this generator to exhaustion before finalizing, so those side-effect
+        lists are complete by the time it needs them.
         """
         nonlocal refresh_count
         for i, extractor in enumerate(selected, start=1):
@@ -228,11 +229,13 @@ def build_search_index(
                                 and prior_mtime == current_mtime
                                 and session.session_id not in reused_ids
                             ):
+                                # Unchanged: its JSON/legacy entry is reused
+                                # verbatim from the prior dict; yield the full
+                                # session so build_index writes its v2 message
+                                # rows (#35), then drops it — no list retained.
                                 reused_entries.append(prior)
-                                # Keep the fully-extracted session for the v2
-                                # store so its message rows are written too (#35).
-                                reused_sessions.append(session)
                                 reused_ids.add(session.session_id)
+                                yield session
                                 continue
 
                     title = title_generator.generate(session, force=False)
@@ -267,16 +270,15 @@ def build_search_index(
                 )
                 errors.append({"extractor": tool_name, "skipped": skipped, "imported": imported})
 
-    # reused_entries / reused_sessions are populated as refresh_stream runs.
-    # They are consumed only after the refresh generator drains (build_index
-    # writes reused rows at finalize and iterates reused_sessions last), so the
-    # lists are complete by then. Passing the live lists lets build_index read
-    # them post-drain without us materialising the refreshed sessions here.
+    # reused_entries / reused_ids are populated as session_stream runs. They are
+    # consumed only after the generator drains (build_index seeds reused-entry
+    # rows at finalize), so both are complete by then. Passing the live objects
+    # lets build_index read them post-drain without materialising sessions here.
     IndexBuilder(output_dir).build_index(
-        refresh_stream(),
+        session_stream(),
         {},
         reused_entries=reused_entries,
-        reused_sessions=(s for s in reused_sessions if s.session_id not in deleted),
+        reused_ids=reused_ids,
     )
 
     if progress_callback:

@@ -94,6 +94,7 @@ class IndexBuilder:
         export_paths: Dict[str, Path],
         reused_entries: Optional[List[Dict]] = None,
         reused_sessions: Optional[Iterable[UnifiedSession]] = None,
+        reused_ids: Optional[set] = None,
     ) -> None:
         """Build and save the search index, streaming ``sessions`` once (#96).
 
@@ -106,29 +107,43 @@ class IndexBuilder:
         included verbatim in the JSON index (no re-extraction of
         keywords/search_text). They must be disjoint from ``sessions`` by id.
 
-        ``reused_sessions`` are the *full* UnifiedSession objects behind those
-        same reused entries. Incremental sync has already extracted them, so
-        the v2 store receives them as complete sessions (with message rows)
-        rather than metadata-only — this keeps the v2 ``messages`` table
-        complete after an incremental sync (#35). They stream through too.
+        Two ways to supply the *full* UnifiedSession objects behind the reused
+        entries so the v2 store gets their message rows (#35):
+
+        - ``reused_ids`` (preferred, #103): a set of ids that arrive **inside**
+          ``sessions``. Sessions whose id is in this set are written v2-only
+          (their JSON/legacy entry comes from ``reused_entries``), so the caller
+          streams one merged generator and never holds a second list in RAM.
+        - ``reused_sessions``: a separate iterable of full sessions, streamed
+          after ``sessions``. Kept for the list-based callers/tests.
         """
         ignored_ids = self._load_ignored()
         if ignored_ids and reused_entries:
             reused_entries = [
                 entry for entry in reused_entries if entry.get("id") not in ignored_ids
             ]
+        # NB: do NOT `reused_ids or set()` — the caller may pass a live set that
+        # is still empty at call time and fills as the `sessions` generator runs
+        # (services.extraction). `or set()` would swap in a new empty set and
+        # drop the reference, mis-routing every reused session to a full write.
+        if reused_ids is None:
+            reused_ids = set()
 
         writer = _MultiWriter(self, reused_entries=reused_entries)
         try:
-            # Fresh/refreshed sessions: full fan-out (JSON + legacy + v2).
             for session in sessions:
                 if session.session_id in ignored_ids:
                     continue
-                writer.add_session(session, export_paths.get(session.session_id, ""))
-            # Reused full sessions: v2-only (their JSON/legacy entry comes from
-            # reused_entries). Streamed and dropped one at a time so the warm
-            # incremental sync no longer holds every unchanged session in RAM to
-            # re-write its v2 message rows (#96/#35).
+                if session.session_id in reused_ids:
+                    # Reused: v2-only (JSON/legacy entry comes from
+                    # reused_entries). Written and dropped one at a time so warm
+                    # incremental sync never holds every unchanged session in RAM
+                    # to re-write its v2 message rows (#96/#103/#35).
+                    writer.add_reused_session(session, export_paths.get(session.session_id, ""))
+                else:
+                    # Fresh/refreshed: full fan-out (JSON + legacy + v2).
+                    writer.add_session(session, export_paths.get(session.session_id, ""))
+            # Legacy list-based path: reused full sessions supplied separately.
             for session in reused_sessions or []:
                 if session.session_id in ignored_ids:
                     continue

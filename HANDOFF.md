@@ -3,29 +3,69 @@
 > Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
 > Update this before session ends.
 
-## ▶ #96 — DONE (PR #102). Root cause was broader than framed.
+## ▶ IN PROGRESS — #96 + #103 on branch `fix/96-indexbuilder-streaming`
 
-**PR #102** (`fix/96-indexbuilder-streaming`) ships the cold-rebuild fix.
-Investigation found the ~1.9 GB was **three** contributors, not just list
-retention (measured peak VmHWM on the real ~980-session archive):
+### Goal
+Bound reload/reindex peak RSS (#96) so it doesn't grow with archive size and
+isn't an OOM risk on small hosts / containers.
 
+### Current progress
+- **PR #102 OPEN** (unmerged) on branch `fix/96-indexbuilder-streaming`. Two
+  commits pushed (#96 fix + handoff). CI was green on those.
+- **#103 work committed locally? NO — STAGED, NOT committed** as of this
+  handoff. `git status`: `lore/exporters/index.py`,
+  `lore/services/extraction.py`, `tests/test_index_builder_streaming.py`, and
+  the design doc are **staged**. Commit them next.
+
+### Measured results (peak VmHWM, real ~990-session archive, isolated processes)
 | Path | Before | After |
 |---|---|---|
-| cold full rebuild (the OOM-risk case #96 reports) | 2084 MB | **1404 MB** |
-| web-reload path (non-incremental) | 2040 MB | **1421 MB** |
+| cold full rebuild (#96 OOM case) | 2084 MB | **1404 MB** |
+| web-reload non-incremental | 2040 MB | **1421 MB** |
+| **warm incremental (#103)** | 2077 MB | **1429 MB** |
 
-1. **build_index list retention (~500–600 MB, unbounded term)** — fixed:
-   `_MultiWriter` single-pass fan-out (`lore/exporters/index.py`), callers pass
-   generators, `StreamingV2Writer` for v2 (`lore/storage/writer.py`).
-2. **139 MB VSCode chat file `json.load` spike (31→1226 MB)** — fixed: 25 MB
-   per-session-file cap in `lore/extractors/vscode.py` (`MAX_SESSION_FILE_BYTES`).
-3. **opencode internal dedup dict (~425 MB)** — follow-up **#104**.
+### What was done
+1. **#96 build_index list retention** — `_MultiWriter` single-pass fan-out in
+   `lore/exporters/index.py`; callers pass generators; `StreamingV2Writer` in
+   `lore/storage/writer.py`. Light data (JSON dicts, legacy tuples) buffers;
+   heavy message rows stream into v2 and drop.
+2. **#96 139 MB VSCode file `json.load` spike** — 25 MB cap
+   (`MAX_SESSION_FILE_BYTES`) in `lore/extractors/vscode.py`, logged skip.
+3. **#103 warm incremental** — steelman REJECTED the mtime-diff v2 write
+   (correctness downgrade). Instead: caller yields reused sessions through the
+   **same generator** tagged via a `reused_ids` set; `build_index` routes tagged
+   ids to a **v2-only** write (JSON/legacy entry from `reused_entries`).
+   DELETE-and-rebuild consistency preserved; no second list held.
 
-**Warm incremental** still peaks ~2.0 GB (holds reused full sessions to re-write
-v2 message rows, #35) → follow-up **#103** (needs incremental v2 writes, like
-#95's incremental embedding). Neither follow-up is the OOM cold case.
+### What didn't work / caught bugs
+- **`reused_ids or set()` in build_index** dropped the caller's live (empty-at-
+  call-time) set → mis-routed every reused session to a full write, duplicating
+  it in JSON. FIXED with `if reused_ids is None`. (See index.py build_index.)
+- Diff-based v2 write (mtime as sole re-index trigger) — rejected by steelman:
+  a same-mtime content edit would serve stale search forever.
 
-1120 tests pass (was 1109 + 11 new). Design doc + steelman under
+### ⚠️ OPEN QUESTION before merge (verify next)
+Parity check (full rebuild vs cold+incremental) over the **live** archive showed
+JSON ids 992 vs 991 and message counts differing by ~12–18. **v2 session ids
+matched True; search_index matched True.** Strongly looks like **live-data drift**
+(these read active AI session dirs that change between builds, seconds apart) —
+NOT a bug. BUT the same-OUT run also showed `messages_synced sum = 985 < 991`
+(6 sessions messages_synced=0). A background job (`ba6nl49t3`) was checking
+whether messages_synced=0 appears on a **COLD** build too (→ pre-existing, not
+#103's fault) and whether those sessions still have message rows. **READ THAT
+RESULT FIRST.** If cold build also has messages_synced=0 with message rows
+present → benign/pre-existing, safe to commit+push #103. If #103 introduced it →
+investigate `add_reused_session` / seeding order.
+
+### Next steps (ordered)
+1. Read `ba6nl49t3` output (messages_synced=0 on cold build?). Decide benign vs bug.
+2. If benign: `git commit` the staged #103 changes; push branch; update PR #102
+   body to note #103 folded in (warm incremental now 1429 MB).
+3. Run full suite once more (was **1123 passed, 1 skipped** before commit).
+4. Confirm CI green on the pushed branch.
+5. Close #103 when PR #102 merges. #104 (opencode dedup dict ~425 MB) still open.
+
+Design doc + both steelman passes:
 `docs/superpowers/specs/2026-07-02-indexbuilder-streaming-design.md`.
 
 ---
