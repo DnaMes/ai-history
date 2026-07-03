@@ -41,6 +41,29 @@ connections and the in-memory JSON accumulator, and fans each session out to all
 consumers as it arrives; the `UnifiedSession` is then dropped before the next is
 pulled.
 
+### Refinements from the steelman pass (do not skip)
+
+1. **Ordering must stay reused-entries-first, then extraction order.** Multiple
+   tests assert exact ordered id lists and `sessions[0]` (`test_storage_reader.py`,
+   `test_services_extraction.py`). `MultiWriter.__init__` seeds the reused-entry
+   dicts/rows **before** any `add()` runs, so the JSON `sessions` array and the
+   legacy sqlite rows keep today's order byte-for-byte. `add()` appends in the
+   order sessions are yielded (extraction order) — identical to today.
+2. **Batch the SQLite writes (N=100), don't single-row per session.** The
+   legacy `_build_sqlite_index` uses `executemany` today; keeping that shape
+   means buffering ~100 rows, flushing with `executemany`, then dropping the
+   buffer. This bounds RSS to a batch (~180 MB worst case) *and* preserves bulk
+   insert performance, while avoiding a full transaction-ownership rewrite.
+   Per-message v2 inserts are already single-row `execute` today (`writer.py`),
+   so v2 message-write performance is unchanged. `BATCH_SIZE = 100`, tunable via
+   a module constant.
+3. **v2 stays best-effort with clean degradation.** A mid-stream v2 error
+   rolls back v2 and disables further v2 writes for the run; the legacy index
+   still completes and commits. Failure mode is *legacy-correct, v2-stale* —
+   the same guarantee as today's `write_sessions_safe`. A regression test
+   injects a `sqlite3.Error` mid-stream and asserts legacy `index.json` is
+   complete while v2 is not half-written.
+
 ### `MultiWriter` (new, in `lore/exporters/index.py`)
 
 ```python
@@ -139,6 +162,43 @@ those are ~KB each and safe to hold.
   `/proc/<pid>/status` VmRSS at peak; target = peak stays roughly flat as
   session count grows (verify against the real ~960-session archive). Recorded
   in the PR, not asserted in CI.
+
+## Findings during implementation (root cause was broader than the handoff)
+
+Measured on the real ~980-session archive (peak `VmHWM` via `/proc/self/status`):
+
+| Path | Before | After |
+|---|---|---|
+| cold full rebuild (Docker / OOM-risk case from #96) | **2084 MB** | **1404 MB** |
+| real web-reload path (`build_search_index`, non-incremental) | 2040 MB | **1421 MB** |
+
+The handoff framed #96 as "build_index holds the list". That was **one of three**
+contributors, not the whole story:
+
+1. **build_index list retention (~500–600 MB)** — fixed here (streaming
+   `_MultiWriter` + generator callers). This is the *unbounded* term (grew with
+   archive size); now bounded.
+2. **Pathological large-file parse spikes (~1 GB transient)** — a single 139 MB
+   VSCode chat session parsed whole via `json.load` drove `VmHWM` from 31 MB to
+   1226 MB. Fixed here with a 25 MB per-session-file cap in the VSCode extractor
+   (`MAX_SESSION_FILE_BYTES`), logged via `_record_skip` (no silent drop).
+3. **Per-extractor internal materialisation (opencode ~425 MB, claude `seen`
+   dict)** — `opencode.extract_sessions` dedups across file + sqlite sources into
+   a dict, then sorts, so it holds all its sessions before yielding. This is
+   inherent to its cross-source dedup contract; making it streaming needs a
+   two-pass id-scan redesign. **Left as follow-up** (documented, not silently
+   ignored).
+
+### Known remaining: warm incremental reused_sessions (follow-up)
+
+The warm incremental path (`incremental=True`, most sessions unchanged) still
+peaks ~2.0 GB because `build_search_index` collects every unchanged session's
+full `UnifiedSession` into `reused_sessions` to re-write its v2 message rows
+(#35). `build_index` already *streams* that list one-at-a-time, but the caller
+materialises it. Truly bounding this needs **incremental v2 writes** (skip
+re-writing unchanged sessions' message rows instead of DELETE-and-rebuild) —
+the same shape as #95's incremental embedding, and out of scope for this PR.
+The cold rebuild (the OOM-risk case the issue actually reports) is fixed.
 
 ## Non-goals / out of scope
 

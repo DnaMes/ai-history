@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 class VSCodeCopilotExtractor(BaseExtractor):
     """Extract chat history from VSCode Copilot (workspace chatSessions)."""
 
+    # A single VSCode chat session file is parsed whole (json.load / readlines).
+    # A degenerate multi-hundred-MB conversation spikes RSS ~10x its file size
+    # during parse (a 139 MB file drove VmHWM to ~1.2 GB), which dominated the
+    # reload peak (#96). Skip files above this cap — logged, never silent — so
+    # peak memory stays bounded regardless of one runaway conversation.
+    MAX_SESSION_FILE_BYTES = 25 * 1024 * 1024  # 25 MB
+
     def __init__(self):
         self.workspace_storage = Path.home() / ".config" / "Code" / "User" / "workspaceStorage"
         self.workspace_roots = self._discover_workspace_roots()
@@ -67,6 +74,21 @@ class VSCodeCopilotExtractor(BaseExtractor):
                 for session_file in list(chat_sessions_dir.glob("*.json")) + list(
                     chat_sessions_dir.glob("*.jsonl")
                 ):
+                    try:
+                        size = session_file.stat().st_size
+                    except OSError:
+                        size = 0
+                    if size > self.MAX_SESSION_FILE_BYTES:
+                        # Parsing this whole file would spike RSS ~10x its size
+                        # (#96). Drop it, loudly — not a silent filter.
+                        logger.warning(
+                            "Skipping oversized VSCode session %s (%.0f MB > %.0f MB cap)",
+                            session_file.name,
+                            size / 1024 / 1024,
+                            self.MAX_SESSION_FILE_BYTES / 1024 / 1024,
+                        )
+                        self._record_skip("oversized_session_file")
+                        continue
                     try:
                         session = self._parse_session(session_file, project_path)
 

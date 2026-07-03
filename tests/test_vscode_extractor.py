@@ -320,3 +320,45 @@ def test_extract_multiple_sessions(monkeypatch, tmp_path):
     sessions = list(VSCodeCopilotExtractor().extract_sessions())
     assert len(sessions) == 3
     assert {s.session_id for s in sessions} == {"sess-0", "sess-1", "sess-2"}
+
+
+# ---------------------------------------------------------------------------
+# Oversized-file guard (#96) — a runaway chat file must not spike RSS
+# ---------------------------------------------------------------------------
+
+
+def test_oversized_session_file_is_skipped_not_parsed(monkeypatch, tmp_path):
+    """A session file above the size cap is skipped and tallied, not parsed.
+
+    A single multi-hundred-MB chat file parsed whole via json.load spikes RSS
+    ~10x its size (#96). The extractor caps it by file size before parsing.
+    """
+    sessions_dir = _chat_sessions_dir(tmp_path)
+
+    # One normal session, one oversized (padded past the cap without actually
+    # allocating hundreds of MB — the guard reads st_size, never the content).
+    normal = {
+        "requests": [
+            {
+                "requestId": "r0",
+                "message": {"text": "a real prompt with enough content here"},
+                "response": [{"value": "a real reply with enough content here"}],
+            }
+        ]
+    }
+    (sessions_dir / "small.json").write_text(json.dumps(normal), encoding="utf-8")
+
+    ex = VSCodeCopilotExtractor()
+    big = sessions_dir / "huge.json"
+    # Write just over the cap; content is valid JSON but never reaches json.load.
+    pad = " " * (ex.MAX_SESSION_FILE_BYTES + 1024)
+    big.write_text(json.dumps(normal) + "\n//" + pad, encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    ex = VSCodeCopilotExtractor()
+    sessions = list(ex.extract_sessions())
+
+    ids = {s.session_id for s in sessions}
+    assert "small" in ids
+    assert "huge" not in ids
+    assert ex.skip_counts.get("oversized_session_file") == 1
