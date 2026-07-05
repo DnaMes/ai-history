@@ -733,7 +733,7 @@
                     </button>
                     <div class="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 shadow-sm">
                         <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                        <input type="text" onfocus="openSearch()" class="w-full bg-transparent outline-none text-sm text-slate-700" placeholder="Start a new chat across all your AI context...">
+                        <input type="text" id="searchTrigger" class="w-full bg-transparent outline-none text-sm text-slate-700" placeholder="Start a new chat across all your AI context...">
                     </div>
                 </div>
                 <div class="top-controls">
@@ -1057,6 +1057,10 @@
             }
             if (e.key === 'Escape') closeSearch();
         });
+        const searchTriggerEl = document.getElementById('searchTrigger');
+        if (searchTriggerEl) {
+            searchTriggerEl.addEventListener('focus', openSearch);
+        }
         document.addEventListener('click', (e) => {
             const modal = document.getElementById('searchModal');
             if (!modal) return;
