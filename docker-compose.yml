@@ -13,6 +13,9 @@ services:
     # docs/issues — bis dahin ist 127.0.0.1:5000 der Zugang).
     ports:
       - "127.0.0.1:5000:5000"
+    dns:
+      - 192.168.50.1
+      - 192.168.1.1
     networks:
       - traefik_local
     labels:
@@ -61,6 +64,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    cpus: "2.0"
+    mem_limit: 4g
+    pids_limit: 512
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   traefik_local:
