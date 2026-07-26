@@ -19,6 +19,9 @@ services:
     networks:
       - traefik_local
     labels:
+      # Locally built image (build: .), no upstream registry → WUD can't track a
+      # "latest" version for it. Exclude it so it doesn't error every watch cycle.
+      wud.watch: "false"
       traefik.enable: "true"
       traefik.docker.network: traefik_local
       traefik.http.routers.lore.rule: Host(`lore.local.erdlabs.com`)
