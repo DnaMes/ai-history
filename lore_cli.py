@@ -841,7 +841,7 @@ def cmd_run(args):
         print("Command timed out after 1 hour", file=sys.stderr)
     except Exception as e:
         print(f"Error running command: {e}", file=sys.stderr)
-        subprocess.run(cmd, check=False, shell=False)
+        exit_status = 1
 
     end_ts = datetime.now()
     meta_path = log_path.with_suffix(".json")
