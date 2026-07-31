@@ -681,19 +681,36 @@ class OpenCodeExtractor(BaseExtractor):
         message_files = list(message_dir.glob("msg_*.json"))
         self.stats.messages_found += len(message_files)
 
+        # Load every message's JSON up front (one pass), then batch-load every
+        # part file for those message ids in one more pass, instead of a
+        # separate glob()+open() per message inside the per-message loop
+        # (#N+1 I/O). The part directory is keyed by the message's own "id"
+        # field, not by its filename, so message content must be read first.
+        loaded_message_data = []
         for message_file in message_files:
             try:
                 message_data = self._safe_load_json(message_file)
-                if not message_data:
-                    continue
+                if message_data:
+                    loaded_message_data.append(message_data)
+            except Exception as e:
+                logger.debug(f"Failed to parse message {message_file}: {e}")
+                self.stats.errors_other += 1
+                continue
 
-                message = self._parse_message(message_data)
+        parts_by_message = self._load_all_parts_for_messages(
+            message_data.get("id")
+            for message_data in loaded_message_data
+            if message_data.get("id")
+        )
+
+        for message_data in loaded_message_data:
+            try:
+                message = self._parse_message(message_data, parts_by_message)
                 if message:
                     messages.append(message)
                     self.stats.messages_loaded += 1
-
             except Exception as e:
-                logger.debug(f"Failed to parse message {message_file}: {e}")
+                logger.debug(f"Failed to parse message {message_data.get('id')}: {e}")
                 self.stats.errors_other += 1
                 continue
 
@@ -702,7 +719,43 @@ class OpenCodeExtractor(BaseExtractor):
 
         return messages
 
-    def _parse_message(self, message_data: Dict) -> Optional[UnifiedMessage]:
+    def _load_all_parts_for_messages(self, message_ids) -> Dict[str, List[PartDict]]:
+        """Batch-load and parse every part file for a set of message ids.
+
+        Avoids the previous per-message glob()+open() call inside
+        ``_assemble_message_content`` by loading every message's parts up
+        front, once per message id, in a single pass over the session.
+        """
+        result: Dict[str, List[PartDict]] = {}
+        for message_id in message_ids:
+            parts_dir = self.part_path / message_id
+            if not parts_dir.exists():
+                continue
+
+            part_files = list(parts_dir.glob("prt_*.json"))
+            self.stats.parts_found += len(part_files)
+
+            parts = []
+            for part_file in part_files:
+                try:
+                    part_data = self._safe_load_json(part_file)
+                    if part_data:
+                        parts.append(part_data)
+                        self.stats.parts_loaded += 1
+                except Exception as e:
+                    logger.debug(f"Failed to load part {part_file}: {e}")
+                    self.stats.errors_other += 1
+                    continue
+
+            result[message_id] = parts
+
+        return result
+
+    def _parse_message(
+        self,
+        message_data: Dict,
+        parts_by_message: Optional[Dict[str, List[PartDict]]] = None,
+    ) -> Optional[UnifiedMessage]:
         """Parse a single message with all its parts."""
         message_id = message_data.get("id")
         if not message_id:
@@ -743,8 +796,10 @@ class OpenCodeExtractor(BaseExtractor):
             reasoning_tokens = tokens_dict.get("reasoning")
             if reasoning_tokens:
                 tokens["reasoning"] = reasoning_tokens
-        # Assemble content from parts
-        content, reasoning, tool_calls = self._assemble_message_content(message_id)
+        # Assemble content from parts (already batch-loaded by _load_messages)
+        content, reasoning, tool_calls = self._assemble_message_content(
+            (parts_by_message or {}).get(message_id, [])
+        )
 
         return UnifiedMessage(
             role=role,
@@ -757,33 +812,16 @@ class OpenCodeExtractor(BaseExtractor):
             tool_calls=tool_calls,
         )
 
-    def _assemble_message_content(self, message_id: str) -> tuple[str, Optional[str], List[Dict]]:
-        """Assemble message content from parts.
+    def _assemble_message_content(
+        self, parts: List[PartDict]
+    ) -> tuple[str, Optional[str], List[Dict]]:
+        """Assemble message content from already-loaded parts.
 
         Returns:
             tuple of (content, reasoning, tool_calls)
         """
-        parts_dir = self.part_path / message_id
-
-        if not parts_dir.exists():
-            # Message without parts - return empty content
+        if not parts:
             return "", None, []
-
-        # Load all parts
-        part_files = list(parts_dir.glob("prt_*.json"))
-        self.stats.parts_found += len(part_files)
-
-        parts = []
-        for part_file in part_files:
-            try:
-                part_data = self._safe_load_json(part_file)
-                if part_data:
-                    parts.append(part_data)
-                    self.stats.parts_loaded += 1
-            except Exception as e:
-                logger.debug(f"Failed to load part {part_file}: {e}")
-                self.stats.errors_other += 1
-                continue
 
         # Sort parts by timestamp (start time)
         def get_part_time(part: PartDict) -> int:

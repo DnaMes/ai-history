@@ -29,6 +29,19 @@ def test_sanitize_path_rejects_relative_traversal(tmp_path):
         raise AssertionError("expected ValueError for traversal path")
 
 
+def test_sanitize_path_rejects_absolute_traversal_when_allowed(tmp_path):
+    base = tmp_path / "base"
+    base.mkdir(parents=True)
+    unsafe = f"{tmp_path}/base/../outside"
+
+    try:
+        sanitize_path(unsafe, base, allow_absolute=True)
+    except ValueError as exc:
+        assert "Path traversal" in str(exc)
+    else:
+        raise AssertionError("expected ValueError for absolute traversal path")
+
+
 def test_gemini_project_roots_ignores_unsafe_relative_paths(monkeypatch, tmp_path):
     home = tmp_path / "home"
     safe_root = home / "projects"

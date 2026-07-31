@@ -52,7 +52,10 @@ def sanitize_path(user_path: str, base_dir: Path, allow_absolute: bool = False) 
         except ValueError:
             raise ValueError(f"Path traversal detected: {user_path} resolves outside {base_dir}")
 
-    # Check for suspicious patterns
+    # Check for suspicious patterns. For absolute paths these are not caught by
+    # the relative_to() traversal check above, so ".." must be rejected outright
+    # here rather than merely logged, or a caller can walk an absolute path
+    # anywhere on disk (e.g. "/home/user/../../etc/passwd").
     path_str = str(user_path)
     suspicious_patterns = [
         "..",
@@ -62,6 +65,8 @@ def sanitize_path(user_path: str, base_dir: Path, allow_absolute: bool = False) 
     ]
     for pattern in suspicious_patterns:
         if pattern in path_str:
+            if path.is_absolute() and pattern == "..":
+                raise ValueError(f"Path traversal detected: {user_path}")
             logger.warning(f"Suspicious pattern '{pattern}' in path: {user_path}")
 
     return resolved
