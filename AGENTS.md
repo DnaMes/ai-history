@@ -179,7 +179,7 @@ place to look things up, and the place to write lasting notes:
 - **Start here (human):** `~/ObsidianVault/START.md`
 - **Homelab wiki:** https://wiki.home.erdlabs.com
 
-Session logs are filed automatically to `Projects/ai-stack/lore/Sessions/` via the
+Session logs are filed automatically to `2-Projects/ai-stack/lore/Sessions/` via the
 `.obsidian-doc` marker in this directory — you do not need to write them.
 
 Conventions before editing the vault: skill `obsidian-keeper`.
