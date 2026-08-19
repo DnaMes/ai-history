@@ -504,9 +504,6 @@ def cmd_reindex(args):
                 count_before = len(all_sessions)
                 for session in extractor.extract_sessions():
                     all_sessions.append(session)
-                    # Use pre-built export_path map
-                    if session.session_id in export_paths:
-                        pass  # already mapped
                 added = len(all_sessions) - count_before
                 if added:
                     print(f"  {tool_name}: {added} sessions")

@@ -46,8 +46,13 @@ def get_project_sessions(project_path: str):
                 if session.project_path and project_path in str(session.project_path):
                     sessions.append(session)
                 elif session.project_path and str(session.project_path) in project_path:
-                    # Also match if session is subfolder of current project?
-                    # Or parent? Let's stick to simple containment for now
+                    # Containment is checked in both directions on purpose: a
+                    # session recorded in a subdirectory belongs to this project,
+                    # and so does one recorded in a parent directory (a monorepo
+                    # root, or the session started before the user cd'd deeper).
+                    # Substring matching is deliberate over path-aware parenting —
+                    # it is cheap and over-matching here only widens the candidate
+                    # list the user picks from.
                     sessions.append(session)
                 elif thread_id and session.thread_id and session.thread_id == thread_id:
                     sessions.append(session)
