@@ -130,9 +130,6 @@ class CursorExtractor(BaseExtractor):
 
         # 1. Try 'conversation' array (Old format)
         raw_msgs = data.get("conversation", [])
-        if not raw_msgs and data.get("text", "").strip():
-            # Single prompt
-            pass
 
         for msg in raw_msgs:
             role = Role.USER if msg.get("type") == 1 else Role.ASSISTANT
