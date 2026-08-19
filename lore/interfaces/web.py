@@ -880,19 +880,37 @@ def dashboard():
 SESSIONS_PER_PAGE = 50
 
 
-def _filtered_sorted_sessions(tool, tag, start, end):
-    """Apply list filters and sort newest-first. Returns the full filtered list."""
+def _index_mtime():
+    """Return the current index mtime used to invalidate session-list caches."""
+    try:
+        return INDEX_PATH.stat().st_mtime_ns
+    except FileNotFoundError:
+        return None
+
+
+@threadsafe_lru_cache(maxsize=128)
+def _filtered_sorted_session_ids(tool, tag, start, end, index_mtime):
+    """Apply list filters and sort newest-first, returning session IDs only."""
     all_s = load_index().get("sessions", [])
     start_dt = parse_date_param(start)
     end_dt = parse_date_param(end)
     filtered = filter_sessions(
         all_s, tool=tool or None, tag=tag or None, start=start_dt, end=end_dt
     )
-    return sorted(
+    filtered = sorted(
         filtered,
         key=lambda s: s.get("updated") or s.get("created") or "",
         reverse=True,
     )
+    return tuple(session.get("id") for session in filtered)
+
+
+def _filtered_sorted_sessions(tool, tag, start, end):
+    """Apply list filters and sort newest-first. Returns the full filtered list."""
+    session_ids = _filtered_sorted_session_ids(tool, tag, start, end, _index_mtime())
+    all_s = load_index().get("sessions", [])
+    sessions_by_id = {session.get("id"): session for session in all_s}
+    return [sessions_by_id[session_id] for session_id in session_ids if session_id in sessions_by_id]
 
 
 @app.route("/sessions")

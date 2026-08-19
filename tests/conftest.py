@@ -33,3 +33,13 @@ def _reset_embedding_singletons():
     yield
     embeddings._model = saved_model
     embeddings._model_failed = saved_failed
+
+
+@pytest.fixture(autouse=True)
+def _clear_web_session_filter_cache():
+    """Keep the process-wide session-list cache isolated between tests."""
+    from lore.interfaces import web
+
+    web._filtered_sorted_session_ids.cache_clear()  # type: ignore[attr-defined]
+    yield
+    web._filtered_sorted_session_ids.cache_clear()  # type: ignore[attr-defined]
