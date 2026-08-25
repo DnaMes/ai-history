@@ -85,8 +85,12 @@ sync_wiki() {
         *) log "unrecognised remote, skipping wiki"; return 0 ;;
     esac
 
-    local wiki_dir="${repo_root}/.git/wiki-sync"
+    # Deliberately OUTSIDE the repo: a git clone under .git/ is still a git
+    # repo on disk, and repo scanners (tools/scan-repos.sh) report it as an
+    # uncatalogued project. Keep the cache in XDG state, keyed by repo name.
+    local wiki_dir="${XDG_STATE_HOME:-${HOME}/.local/state}/wiki-sync/${repo_name}"
     if [[ ! -d "${wiki_dir}/.git" ]]; then
+        mkdir -p "$(dirname "${wiki_dir}")" 2>/dev/null || return 0
         git clone --quiet --depth 1 "${wiki_url}" "${wiki_dir}" 2>/dev/null || {
             log "wiki not initialised or unreachable, skipping: ${wiki_url}"
             rm -rf "${wiki_dir}"
