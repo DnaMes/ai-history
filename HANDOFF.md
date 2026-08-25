@@ -1,3 +1,7 @@
+> **STALE** — last updated 2026-07-03, but the repo has commits up to 2026-08-25 (53 days newer).
+> Read this as history, not as the current state. Flagged 2026-08-25 by the
+> repo-compliance audit; content deliberately left untouched.
+
 # HANDOFF — Lore — 2026-07-02 (hybrid search shipped end-to-end, #56 closed)
 
 > Default branch is **main** (renamed from master 2026-07-01). Remote is `github`, not `origin`.
