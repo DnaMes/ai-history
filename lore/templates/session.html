@@ -27,10 +27,10 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
             {% if session.thread_id %}
-            <button onclick='copyCommand({{ ("ai-session switch gemini --thread-id " ~ session.thread_id)|tojson }})' class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Continue</button>
+            <button type="button" onclick='copyCommand({{ ("ai-session switch gemini --thread-id " ~ session.thread_id)|tojson }})' class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Continue</button>
             {% endif %}
-            <button onclick="copyLink(window.location.href)" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Link</button>
-            <button onclick="resumeSession({{ session.session_id|tojson }})" class="text-[11px] text-blue-600 hover:text-blue-900 border border-blue-200 px-3 py-1.5 rounded-xl transition-all bg-white">Resume</button>
+            <button type="button" onclick="copyLink(window.location.href)" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Copy Link</button>
+            <button type="button" onclick="resumeSession({{ session.session_id|tojson }})" class="text-[11px] text-blue-600 hover:text-blue-900 border border-blue-200 px-3 py-1.5 rounded-xl transition-all bg-white">Resume</button>
             <a href="/" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Dashboard</a>
             <a href="/export/{{ session.session_id|urlpath }}" class="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl transition-all bg-white">Export MD</a>
             <form action="/session/{{ session.session_id|urlpath }}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this session? This action cannot be undone.');" style="display:inline;">
