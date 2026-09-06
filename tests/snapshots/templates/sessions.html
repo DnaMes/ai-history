@@ -745,38 +745,38 @@
                         </button>
                         <div class="theme-dropdown-menu !right-0 !left-auto min-w-[180px]" role="menu" aria-label="Sync options">
                             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-700">Reload</div>
-                            <button onclick="runSync('reload', '')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('reload', '')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-blue-400"></span>All providers
                             </button>
-                            <button onclick="runSync('reload', 'claude-code')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('reload', 'claude-code')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#C084FC"></span>Claude
-                            </button><button onclick="runSync('reload', 'cursor')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'cursor')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#3B82F6"></span>Cursor
-                            </button><button onclick="runSync('reload', 'gemini-cli')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'gemini-cli')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#60A5FA"></span>Gemini
-                            </button><button onclick="runSync('reload', 'warp')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'warp')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#2DD4BF"></span>Warp
-                            </button><button onclick="runSync('reload', 'codex')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'codex')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#22C55E"></span>Codex
-                            </button><button onclick="runSync('reload', 'vscode-copilot')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'vscode-copilot')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#0ea5e9"></span>VSCode Copilot
-                            </button><button onclick="runSync('reload', 'copilot-cli')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'copilot-cli')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#0284c7"></span>Copilot CLI
-                            </button><button onclick="runSync('reload', 'opencode')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'opencode')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#F97316"></span>OpenCode
-                            </button><button onclick="runSync('reload', 'antigravity')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'antigravity')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#8B5CF6"></span>Antigravity
-                            </button><button onclick="runSync('reload', 'aider')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            </button><button type="button" onclick="runSync('reload', 'aider')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:#14B8A6"></span>Aider
                             </button>
-                            <button onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
+                            <button type="button" onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
                                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>Full rebuild (slow)
                             </button>
                             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">Audit</div>
-                            <button onclick="runSync('audit', '', 'index')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('audit', '', 'index')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-green-400"></span>Quick (index)
                             </button>
-                            <button onclick="runSync('audit', '', 'live')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('audit', '', 'live')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-yellow-400"></span>Deep (live)
                             </button>
                         </div>

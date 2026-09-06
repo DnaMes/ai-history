@@ -744,20 +744,20 @@
                         </button>
                         <div class="theme-dropdown-menu !right-0 !left-auto min-w-[180px]" role="menu" aria-label="Sync options">
                             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-700">Reload</div>
-                            <button onclick="runSync('reload', '')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('reload', '')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-blue-400"></span>All providers
                             </button>
-                            {% for provider in provider_tools %}<button onclick="runSync('reload', '{{ provider }}')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            {% for provider in provider_tools %}<button type="button" onclick="runSync('reload', '{{ provider }}')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full" style="background:{{ get_style(provider).color }}"></span>{{ get_style(provider).name }}
                             </button>{% endfor %}
-                            <button onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
+                            <button type="button" onclick="runSync('reload', '', '', true)" class="w-full text-left px-3 py-2 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-500 italic" title="Force full rebuild (slow). Use when incremental sync misses changes.">
                                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>Full rebuild (slow)
                             </button>
                             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">Audit</div>
-                            <button onclick="runSync('audit', '', 'index')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('audit', '', 'index')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-green-400"></span>Quick (index)
                             </button>
-                            <button onclick="runSync('audit', '', 'live')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <button type="button" onclick="runSync('audit', '', 'live')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-yellow-400"></span>Deep (live)
                             </button>
                         </div>
